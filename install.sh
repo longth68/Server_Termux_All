@@ -22,16 +22,16 @@ info "Cập nhật package list..."
 pkg update -y 2>/dev/null || apt update -y
 
 info "Cài đặt Java, MariaDB, PHP, git, curl..."
-pkg install -y openjdk-17 mariadb php git curl wget unzip tar coreutils \
+pkg install -y openjdk-21 mariadb php git curl wget unzip tar coreutils \
     2>/dev/null || apt install -y openjdk-21 mariadb-server php php-mysql git curl wget unzip tar coreutils \
-    2>/dev/null || error "Không thể cài gói. Hãy chạy: pkg install openjdk-17 mariadb php git curl"
+    2>/dev/null || error "Không thể cài gói. Hãy chạy: pkg install openjdk-21 mariadb php git curl"
 
 # 2. Kiểm tra Java
 if command -v java >/dev/null 2>&1; then
     _jver=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
     info "Java $_jver đã cài."
 else
-    error "Java chưa cài được. Chạy thủ công: pkg install openjdk-17"
+    error "Java chưa cài được. Chạy thủ công: pkg install openjdk-21"
 fi
 
 # 3. Khởi tạo thư mục dữ liệu MariaDB
