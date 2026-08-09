@@ -1,7 +1,12 @@
 # Server_Termux_All — 2 Game trong 1 Bộ Cài
 
+**🔥 Bản cập nhật (Patch):**
+- Đã khắc phục lỗi giải nén thư mục `/tmp` không tồn tại trên Android.
+- Sửa lỗi không tìm thấy package cài đặt PHP (`php-pdo`, `php-mbstring`) trong `install.sh`.
+- Cập nhật tương thích hoàn toàn 100% với môi trường Termux gốc.
+
 Bộ cài tích hợp **Ninja School** và **Hải Tặc Hot** (2 server game khác nhau) chạy trên Termux Android.
-Cả 2 dùng chung môi trường (Java 21 + MariaDB + PHP) và **chỉ khác cách chạy server** (jar, port, DB riêng).
+Cả 2 dùng chung môi trường (Java 17/21 + MariaDB + PHP) và **chỉ khác cách chạy server** (jar, port, DB riêng).
 
 ## Yêu cầu
 
