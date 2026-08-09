@@ -1,0 +1,5 @@
+v1.0.0 - 2026-08-05
+- Phát hành đầu tiên
+- Dựng lại cấu trúc repo giống Ninja_Server_Termux
+- Script cài đặt tự động: script_install.sh -> install.sh
+- Menu điều khiển: menu.sh

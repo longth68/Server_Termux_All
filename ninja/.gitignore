@@ -1,0 +1,45 @@
+# ============================================================
+#  NinjaServerTermux - .gitignore
+# ============================================================
+
+# Logs
+*.log
+logs/
+
+# Server runtime data
+server/logs/
+server/Data/Img/cache/
+
+# PID files
+*.pid
+.pids/
+
+# Backups
+*.bak
+*backup*.sql
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+__MACOSX/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Build artifacts (server jar đã commit dưới tên app.jar)
+server/Nso-jar-with-dependencies.jar
+server/target/
+server/src/**/target/
+server/out_classes/
+*.bak_botfix
+
+# File cài đặt PC quá lớn (>100MB, vượt giới hạn GitHub)
+server/web/files/NSO_PC218.rar
+server/web/files/chibikun_5.apk
+
+# File đóng gói / công cụ local
+*.tar.gz
+server/apache-maven-3.9.9-bin.zip

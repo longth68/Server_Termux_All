@@ -1,0 +1,16 @@
+# Logs
+*.log
+game_log.txt
+web_log.txt
+
+# Dữ liệu game nén chia nhỏ: HTTH_data.part1/2/3 (đã commit)
+# data/ được giải nén khi chạy - không commit
+data/
+data.tar.gz
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Zip trùng (bản đã giải nén)
+HTTH_Localhost.zip

@@ -1,0 +1,39 @@
+HAI TAC TI HON - SERVER LOCALHOST 127.0.0.1
+================================================
+
+Thu muc nay KHONG kem XAMPP.
+
+Thanh phan:
+- server.jar: game server da cau hinh ho tro server-host.
+- data: toan bo tai nguyen du lieu game can de server khoi dong.
+- database\htth_full.sql: database day du moi nhat tai thoi diem tao ban nay.
+- client\HaiTacHot_localhost.jar: client Java ket noi localhost.
+- client\HaiTacHot_localhost.apk: client Android da ky, ket noi localhost.
+- web: toan bo source website va Admin, khong kem Apache/PHP.
+- htth.conf: cau hinh 127.0.0.1, game port 2236, MySQL port 3306.
+
+Yeu cau:
+1. Java 17 tro len.
+2. MySQL hoac MariaDB dang chay tai 127.0.0.1:3306.
+3. Tai khoan MySQL root khong co mat khau.
+
+Lan dau su dung:
+1. Khoi dong MySQL.
+2. Chay IMPORT_DATABASE.cmd de nhap database htth day du.
+3. Chay START_SERVER.cmd.
+4. Mo client Java trong thu muc client.
+
+Su dung web:
+- Cau hinh website da dung domain 127.0.0.1 va database htth tai localhost.
+- Dat noi dung thu muc web vao DocumentRoot cua Apache/Nginx/PHP neu can chay website.
+- Hai file tai game da co trong web\Downloads.
+
+Dia chi game: 127.0.0.1:2236
+
+Dung server:
+- Dong cua so HTTH Localhost Game Server, hoac chay STOP_SERVER.cmd.
+
+Luu y:
+- Ban nay chi choi tren chinh may dang chay server.
+- Dien thoai va may khac se khong truy cap duoc 127.0.0.1 cua may chu.
+- Neu MySQL root co mat khau, sua mysql-password trong htth.conf va lenh import cho phu hop.

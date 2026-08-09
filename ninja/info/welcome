@@ -1,0 +1,9 @@
+Chào mừng bạn đến với NinjaServerTermux!
+
+Đây là server Ninja School Online chạy trên Termux (Android) không cần root.
+
+- Port server: 14444
+- Port web: 8000
+- Database: MariaDB (database: schoolzz)
+
+Chúc bạn chơi vui vẻ!

@@ -1,0 +1,29 @@
+# ============================================================
+#  NinjaServerTermux - .gitattributes
+#  Đảm bảo script có line-ending Unix khi checkout trên Windows
+# ============================================================
+
+# Shell scripts luôn dùng LF
+*.sh text eol=lf
+.bash_profile text eol=lf
+
+# Văn bản dùng LF
+*.md text eol=lf
+*.txt text eol=lf
+
+# File nhị phân không được sửa đổi
+*.jar binary
+*.apk binary
+*.sql binary
+*.png binary
+*.gif binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.7z binary
+*.zip binary
+*.so binary
+*.rar binary
+
+# Xử lý CRLF/LF tự động
+* text=auto

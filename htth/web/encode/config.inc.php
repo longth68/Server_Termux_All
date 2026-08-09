@@ -1,0 +1,1 @@
+<?php if (!defined('ACCESS')) die('Not access'); else $configs = array('username' => 'pkoolvn', 'password' => '9b993f5eff3aa24c4049b527a6083d40', 'page_list' => '5000', 'page_file_edit' => '4000', 'page_file_edit_line' => '4000', 'page_database_list_rows' => '4000'); ?>

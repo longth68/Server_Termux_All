@@ -1,0 +1,11 @@
+NinjaServerTermux
+Nguồn server: NinjaSchoolZ (Server_Play_Termux / Exe_Z)
+
+Thông tin:
+- Java 17
+- MariaDB (MySQL)
+- PHP web (port 8000)
+- Server port 14444
+- DB name: schoolzz
+- Sự kiện: SumMer (mặc định), cấu hình trong config.properties
+- Max level: 131
