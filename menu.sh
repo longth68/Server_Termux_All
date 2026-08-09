@@ -27,11 +27,7 @@ status_line() {
 show_status() {
     echo -e "${CYAN}--- Trạng thái hiện tại ---${NC}"
     # Kiểm tra MariaDB
-    if command -v mysqladmin >/dev/null 2>&1 && mysqladmin ping --socket="${PREFIX:-/data/data/com.termux/files/usr}/tmp/mysqld.sock" >/dev/null 2>&1; then
-        echo -e "  ${GREEN}●${NC} MariaDB Database: ${GREEN}ĐANG CHẠY${NC}"
-    else
-        echo -e "  ${RED}○${NC} MariaDB Database: ${RED}Đang tắt${NC}"
-    fi
+    status_line "MariaDB Database" "${PREFIX:-/data/data/com.termux/files/usr}/var/run/mysqld/mysqld.pid"
     status_line "Ninja game (14444)" "$DIR/.pids/ninja_server.pid"
     status_line "Ninja web   (8000)"  "$DIR/.pids/ninja_web.pid"
     status_line "HTTH game   (2236)"  "$DIR/.pids/htth_server.pid"
