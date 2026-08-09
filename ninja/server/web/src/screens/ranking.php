@@ -58,7 +58,7 @@ $dataExp = [];
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
 while ($row = $result->fetch_assoc()) {
-    $levelUpTimeValue = (int)$row['levelUpTime'];
+    $levelUpTimeValue = (float)$row['levelUpTime'];
     if ($levelUpTimeValue === -1 || $levelUpTimeValue < 0) {
         $timestamp = time();
     } else {

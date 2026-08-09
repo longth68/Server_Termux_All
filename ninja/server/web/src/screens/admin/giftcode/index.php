@@ -75,7 +75,7 @@ $result = $conn->query("SELECT * FROM `gift_codes`; ");
                         <tr id="code' . htmlspecialchars($code["id"]) . '">
                             <td>' . $i . '</td>
                             <td>' . htmlspecialchars($code["code"]) . '</td>
-                            <td>' . htmlspecialchars($code["expires_at"]) . '</td>
+                            <td>' . htmlspecialchars($code["expires_at"] ?? "") . '</td>
                             <td>
                                 <a class="btn btn-primary" href="/admin/edit-giftcode?id=' . htmlspecialchars($code["id"]) . '">Chi tiết</a> - 
                                 <form method="POST" action="/admin/code" style="display:inline;">

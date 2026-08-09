@@ -93,6 +93,10 @@ $conn->close();
     </div>
 <?php endif; ?>
 
+<div class="alert alert-info mt-3" style="font-size: 0.9rem;">
+    <i class="fa fa-info-circle me-1"></i> <b>Lưu ý:</b> Hệ thống <b>không lưu danh sách bot chi tiết</b> để tối ưu hóa bộ nhớ RAM cho server (do bot tự động sinh ra và biến mất liên tục khi có/không có người chơi thật). Trang Admin chỉ hiển thị tổng số lượng bot đang chạy và lịch sử các lệnh đã gọi.
+</div>
+
 <div class="mt-3">
     <div class="card">
         <div class="card-body">

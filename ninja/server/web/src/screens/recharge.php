@@ -53,7 +53,7 @@
       <div class="col">
          <a class="w-100 fw-semibold" href="/?page=recharge&tab=card">
             <div class="recharge-method-item <?php echo ($tab=="card" || $tab=="") ? "active" : "false"; ?>">
-               <div style="padding: 15px; color: #fff;">Nạp Trực Tiếp</div>
+               <div style="padding: 15px; font-weight: bold; color: <?php echo ($tab=='card' || $tab=='') ? '#333' : '#fff'; ?>;">Nạp Trực Tiếp</div>
             </div>
          </a>
       </div>
