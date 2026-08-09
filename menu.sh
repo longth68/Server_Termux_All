@@ -5,10 +5,7 @@
 #  Chỉ khác cách chạy server, dùng chung MariaDB + môi trường
 # ============================================================
 
-case $- in
-    *i*) ;;
-    *)   exit 0 ;;
-esac
+
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
