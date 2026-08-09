@@ -27,7 +27,7 @@ status_line() {
 show_status() {
     echo -e "${CYAN}--- Trạng thái hiện tại ---${NC}"
     # Kiểm tra MariaDB
-    if pgrep -x "mysqld" >/dev/null 2>&1 || pgrep -x "mariadbd" >/dev/null 2>&1; then
+    if command -v mysqladmin >/dev/null 2>&1 && mysqladmin ping --socket="${PREFIX:-/data/data/com.termux/files/usr}/tmp/mysqld.sock" >/dev/null 2>&1; then
         echo -e "  ${GREEN}●${NC} MariaDB Database: ${GREEN}ĐANG CHẠY${NC}"
     else
         echo -e "  ${RED}○${NC} MariaDB Database: ${RED}Đang tắt${NC}"
