@@ -46,12 +46,14 @@ show_menu() {
     echo -e "${GREEN} 3.${NC} Chạy ${YELLOW}Ninja School${NC} (game 14444 + web 8000)"
     echo -e "${GREEN} 4.${NC} Chạy ${YELLOW}Hải Tặc Hot${NC} (game 2236 + web 8080)"
     echo -e "${GREEN} 5.${NC} Chạy ${YELLOW}CẢ HAI${NC} game cùng lúc"
-    echo -e "${GREEN} 6.${NC} Dừng game/web (không tắt MariaDB)"
-    echo -e "${GREEN} 7.${NC} Dừng cả MariaDB"
-    echo -e "${GREEN} 8.${NC} Xem log server"
+    echo -e "${GREEN} 6.${NC} Dừng ${YELLOW}Ninja School${NC}"
+    echo -e "${GREEN} 7.${NC} Dừng ${YELLOW}Hải Tặc Hot${NC}"
+    echo -e "${GREEN} 8.${NC} Dừng ${YELLOW}CẢ HAI${NC} game (không tắt MariaDB)"
+    echo -e "${GREEN} 9.${NC} Dừng cả MariaDB"
+    echo -e "${GREEN} 10.${NC} Xem log server"
     echo -e "${GREEN} 0.${NC} Thoát"
     echo -e "${CYAN}================================================${NC}"
-    echo -n "Chọn chức năng [0-8]: "
+    echo -n "Chọn chức năng [0-10]: "
     read -r choice
     case $choice in
         1) bash "$DIR/install.sh"; read -p "Nhấn Enter để tiếp tục..."; show_menu ;;
@@ -63,9 +65,11 @@ show_menu() {
             bash "$DIR/htth_start.sh"
             read -p "Nhấn Enter để tiếp tục..."; show_menu
             ;;
-        6) bash "$DIR/stop.sh"; read -p "Nhấn Enter để tiếp tục..."; show_menu ;;
-        7) bash "$DIR/stop_db.sh"; read -p "Nhấn Enter để tiếp tục..."; show_menu ;;
-        8)
+        6) bash "$DIR/ninja_stop.sh"; read -p "Nhấn Enter để tiếp tục..."; show_menu ;;
+        7) bash "$DIR/htth_stop.sh"; read -p "Nhấn Enter để tiếp tục..."; show_menu ;;
+        8) bash "$DIR/stop.sh"; read -p "Nhấn Enter để tiếp tục..."; show_menu ;;
+        9) bash "$DIR/stop_db.sh"; read -p "Nhấn Enter để tiếp tục..."; show_menu ;;
+        10)
             echo -e "${CYAN}--- Log gần đây ---${NC}"
             ls -1 "$DIR/logs/"*.log 2>/dev/null || echo "Chưa có log."
             echo -n "Nhập tên log (vd ninja_server) hoặc Enter để thoát: "
