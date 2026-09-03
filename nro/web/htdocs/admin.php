@@ -61,11 +61,11 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == 'proxy') {
     if ($query_str != "") $url .= "?" . $query_str; else $url .= "?key=" . rawurlencode($API_KEY);
     if ($query_str != "") $url .= "&key=" . rawurlencode($API_KEY);
 
-    // Call Java API (HASHIRAMA WebAdminAPI - port 8080, auth bang api.key)
+    // Call Java API (HASHIRAMA WebAdminAPI - port 8085, auth bang api.key)
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2); // fail nhanh neu port 8080 khong mo
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2); // fail nhanh neu port 8085 khong mo
     curl_setopt($ch, CURLOPT_TIMEOUT, 8); // cho toi da 8s de response cham hoan tat (tranh abort som)
     $response = curl_exec($ch);
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -78,7 +78,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == 'proxy') {
         $detail = $curlerr !== "" ? $curlerr : ("HTTP " . $httpcode);
         echo json_encode([
             "status" => "error",
-            "msg" => "Không thể kết nối đến Máy Chủ Java (Port 8080): " . $detail
+            "msg" => "Không thể kết nối đến Máy Chủ Java (Port 8085): " . $detail
         ]);
     }
     exit;

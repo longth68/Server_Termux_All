@@ -9,7 +9,7 @@ $author = 'Ngọc Rồng Hashirama';
 
 // ====== JAVA GAME SERVER API (WebAdminAPI cua server HASHIRAMA) ======
 // Xem config/server.properties trong thu muc Server/ : api.port + api.key
-$JAVA_API = 'http://127.0.0.1:8080/api';
+$JAVA_API = 'http://127.0.0.1:8085/api';
 $API_KEY  = 'abcdefJKLMNOPQR@STUVWXYrstuv@wABCDEF@GZabxyz';
 
 // ====== THANH TOAN THE CAO (thesieure.com) - dien key cua ban ======
