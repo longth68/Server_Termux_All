@@ -53,9 +53,10 @@ show_menu() {
     echo -e "${GREEN} 10.${NC} Dừng ${YELLOW}TẤT CẢ${NC} game (không tắt MariaDB)"
     echo -e "${GREEN} 11.${NC} Dừng cả MariaDB"
     echo -e "${GREEN} 12.${NC} Xem log server"
+    echo -e "${GREEN} 13.${NC} Cập nhật thêm game ${YELLOW}Ngọc Rồng${NC} (cho máy đã cài 2 game cũ)"
     echo -e "${GREEN} 0.${NC} Thoát"
     echo -e "${CYAN}================================================${NC}"
-    echo -n "Chọn chức năng [0-12]: "
+    echo -n "Chọn chức năng [0-13]: "
     read -r choice
     case $choice in
         1) bash "$DIR/install.sh"; read -p "Nhấn Enter để tiếp tục..."; show_menu ;;
@@ -90,6 +91,7 @@ show_menu() {
             fi
             read -p "Nhấn Enter để tiếp tục..."; show_menu
             ;;
+        13) bash "$DIR/update_nro.sh"; read -p "Nhấn Enter để tiếp tục..."; show_menu ;;
         0) exit 0 ;;
         *) echo -e "${RED}Lựa chọn không hợp lệ!${NC}"; sleep 2; show_menu ;;
     esac

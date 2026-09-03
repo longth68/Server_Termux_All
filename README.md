@@ -5,6 +5,36 @@ Cả 3 dùng chung môi trường (Java 17/21 + MariaDB + PHP) và **chỉ khác
 
 ---
 
+## ⚡ HƯỚNG DẪN CẬP NHẬT THÊM NGỌC RỒNG (CHO MÁY ĐÃ CÀI 2 GAME TRƯỚC)
+
+Nếu điện thoại của bạn **đã cài đặt và đang chơi 2 game Ninja School + Hải Tặc Hot**, bạn **KHÔNG CẦN CÀI LẠI TỪ ĐẦU** và **KHÔNG BỊ MẤT DỮ LIỆU CỦA 2 GAME CŨ**!
+
+Hãy làm theo 1 trong các cách sau:
+
+### Cách 1: Cập nhật nhanh bằng Git (Khuyến nghị)
+Mở ứng dụng Termux và gõ:
+```bash
+cd ~/Server_Termux_All
+git pull origin main
+bash update_nro.sh
+```
+*Script `update_nro.sh` sẽ tự động khởi động MariaDB, nạp thêm database `hashirama` và giải nén tài nguyên game Ngọc Rồng trong vài giây mà không đụng tới dữ liệu cũ.*
+
+### Cách 2: Cập nhật qua Menu điều khiển
+1. Trong Termux, gõ: `menu` (hoặc `bash ~/Server_Termux_All/menu.sh`).
+2. Chọn phím số **`13`** (*Cập nhật thêm game Ngọc Rồng*).
+
+### Cách 3: Cập nhật thủ công (Nếu tải file nén .zip / .tar.gz trước đó)
+1. Tải bản cập nhật mới nhất từ GitHub.
+2. Sao chép thư mục `nro/` và các file `nro_start.sh`, `nro_stop.sh`, `update_nro.sh`, `menu.sh`, `start_db.sh`, `stop.sh` vào thư mục `~/Server_Termux_All`.
+3. Mở Termux và chạy lệnh:
+   ```bash
+   cd ~/Server_Termux_All
+   bash update_nro.sh
+   ```
+
+---
+
 ## Bảng thông số Port & Database (Đã tối ưu không trùng nhau)
 
 | Game | Cổng Game | Cổng Web | Cổng API Server | Database | Thư mục |
@@ -21,7 +51,7 @@ Cả 3 dùng chung môi trường (Java 17/21 + MariaDB + PHP) và **chỉ khác
 
 ---
 
-## 1. Cài đặt Termux
+## 1. Cài đặt Termux (Dành cho máy mới cài lần đầu)
 
 ```bash
 # Cập nhật package (bắt buộc lần đầu)
@@ -79,6 +109,7 @@ Menu cho phép:
 - `10` → Dừng TẤT CẢ game (giữ MariaDB)
 - `11` → Dừng cả MariaDB
 - `12` → Xem log server
+- `13` → **Cập nhật thêm game Ngọc Rồng** (cho máy đã cài 2 game cũ)
 
 ### Cách 2: Chạy nhanh qua dòng lệnh
 
