@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 include_once 'head.php';
 ?>
 <!-- Code by VMN -->

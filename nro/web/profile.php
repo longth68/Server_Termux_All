@@ -1,5 +1,5 @@
 <?php
-session_start();
+if (session_status() == PHP_SESSION_NONE) { session_start(); }
 if (!isset($_SESSION['account'])) { header("Location: /register"); exit(); }
 include_once 'head.php';
 
