@@ -5,6 +5,7 @@
 #  - Giữ nguyên 100% dữ liệu 2 game cũ
 #  - Tự động nạp DB hashirama chuẩn UTF-8
 #  - Tự động giải nén tài nguyên NRO
+#  - Tự động lắp ráp client APK & JAR để tải từ Web
 # ============================================================
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -63,6 +64,13 @@ if [ -d "$NRO" ]; then
     else
         info "Tài nguyên NRO đã được giải nén sẵn."
     fi
+
+    # Lắp ráp file client APK nếu chưa có (từ Nro_HanZi_apk.part1..2)
+    if [ ! -f "$NRO/web/Downloads/Nro HanZi.apk" ] && [ -f "$NRO/web/Downloads/Nro_HanZi_apk.part1" ]; then
+        info "Đang lắp ráp file APK Ngọc Rồng (cho phép tải từ Web)..."
+        cat "$NRO/web/Downloads/Nro_HanZi_apk.part"* > "$NRO/web/Downloads/Nro HanZi.apk"
+        info "Đã lắp ráp file cài đặt APK thành công!"
+    fi
 else
     error "Thư mục $NRO không tồn tại!"
     exit 1
@@ -74,6 +82,7 @@ echo -e "${GREEN}====================================================${NC}"
 echo -e "  - Ninja School:  game port ${YELLOW}14444${NC} | web port ${YELLOW}8000${NC} (DB: schoolzz - GIỮ NGUYÊN)"
 echo -e "  - Hải Tặc Hot:   game port ${YELLOW}2236${NC}  | web port ${YELLOW}8080${NC} (DB: htth - GIỮ NGUYÊN)"
 echo -e "  - Ngọc Rồng MỚI: game port ${YELLOW}14445${NC} | web port ${YELLOW}8888${NC} | API: ${YELLOW}8085${NC} (DB: hashirama)"
+echo -e "  - Tải Client:    Truy cập ${YELLOW}http://127.0.0.1:8888/${NC} để tải APK và Java đã chỉnh IP 127.0.0.1"
 echo -e "${CYAN}----------------------------------------------------${NC}"
 echo -e "  ▶ Chạy menu điều khiển:   ${CYAN}bash menu.sh${NC}"
 echo -e "  ▶ Chạy riêng Ngọc Rồng:    ${CYAN}bash nro_start.sh${NC}"

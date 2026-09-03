@@ -36,13 +36,19 @@ if [ ! -d "$NRO/resources" ] || [ ! -d "$NRO/data" ]; then
     fi
 fi
 
-# 3. Kiểm tra server.jar
+# 3. Lắp ráp file client APK nếu chưa có (từ Nro_HanZi_apk.part1..2)
+if [ ! -f "$NRO/web/Downloads/Nro HanZi.apk" ] && [ -f "$NRO/web/Downloads/Nro_HanZi_apk.part1" ]; then
+    info "Đang lắp ráp file APK Ngọc Rồng (cho phép tải từ Web)..."
+    cat "$NRO/web/Downloads/Nro_HanZi_apk.part"* > "$NRO/web/Downloads/Nro HanZi.apk"
+fi
+
+# 4. Kiểm tra server.jar
 if [ ! -f "$NRO/server.jar" ]; then
     error "Không tìm thấy file $NRO/server.jar!"
     exit 1
 fi
 
-# 4. Khởi động NRO Game Server
+# 5. Khởi động NRO Game Server
 if is_running "$PID_DIR/nro_server.pid"; then
     info "NRO server đã chạy (PID $(cat "$PID_DIR/nro_server.pid"))."
 else
@@ -61,7 +67,7 @@ else
         || error "NRO server lỗi. Xem: logs/nro_server.log"
 fi
 
-# 5. Khởi động Web Admin NRO
+# 6. Khởi động Web Admin NRO
 if is_running "$PID_DIR/nro_web.pid"; then
     info "NRO web đã chạy."
 else

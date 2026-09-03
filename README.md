@@ -18,7 +18,7 @@ cd ~/Server_Termux_All
 git pull origin main
 bash update_nro.sh
 ```
-*Script `update_nro.sh` sẽ tự động khởi động MariaDB, nạp thêm database `hashirama` và giải nén tài nguyên game Ngọc Rồng trong vài giây mà không đụng tới dữ liệu cũ.*
+*Script `update_nro.sh` sẽ tự động kéo bản mới, nạp database `hashirama` chuẩn UTF-8, giải nén tài nguyên NRO và lắp ráp sẵn file cài đặt APK/JAR vào Web Download chỉ trong vài giây.*
 
 ### Cách 2: Cập nhật qua Menu điều khiển
 1. Trong Termux, gõ: `menu` (hoặc `bash ~/Server_Termux_All/menu.sh`).
@@ -123,19 +123,25 @@ bash stop_db.sh        # Dừng MariaDB
 
 ---
 
-## 5. Kết nối chơi game & Quản trị Web
+## 5. Tải Client & Kết nối chơi game
+
+### Tải Client game Ngọc Rồng (Đã cấu hình sẵn IP 127.0.0.1:14445)
+Truy cập trang Web trên điện thoại: **`http://127.0.0.1:8888/`**
+- Bấm vào nút **Android** để tải file APK (`Nro HanZi.apk`).
+- Bấm vào nút **Java** để tải file JAR (`Nro HanZi.jar`).
+*(Cả 2 bản đều đã được nạp sẵn IP `127.0.0.1` cổng `14445`, tải về là đăng nhập chơi được ngay!)*
 
 ### Chơi trên cùng điện thoại chạy server
 - **Ninja School**: Client trỏ về `127.0.0.1:14444`. Web đăng ký: `http://localhost:8000`.
 - **Hải Tặc Hot**: Client trỏ về `127.0.0.1:2236`. Web đăng ký: `http://localhost:8080`.
-- **Ngọc Rồng**: Client trỏ về `127.0.0.1:14445`. Web Admin: `http://localhost:8888/admin.php` (tài khoản: `admin1` / `admin123123123`).
+- **Ngọc Rồng**: Client trỏ về `127.0.0.1:14445`. Web: `http://localhost:8888/` | Quản trị: `http://localhost:8888/admin.php` (tài khoản: `admin1` / `admin123123123`).
 
 ### Chơi từ máy khác trong cùng WiFi/LAN
 1. Gõ `ip addr show wlan0` trong Termux để xem IP điện thoại (ví dụ: `192.168.1.50`).
 2. Trỏ IP trong client của máy khác về IP đó với cổng game tương ứng:
    - Ninja: `192.168.1.50:14444` | Web: `http://192.168.1.50:8000`
    - HTTH: `192.168.1.50:2236` | Web: `http://192.168.1.50:8080`
-   - NRO: `192.168.1.50:14445` | Web Admin: `http://192.168.1.50:8888/admin.php`
+   - NRO: `192.168.1.50:14445` | Web: `http://192.168.1.50:8888/`
 
 ---
 

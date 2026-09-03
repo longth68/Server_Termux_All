@@ -11,6 +11,9 @@ resources/
 nro_data.tar.gz
 NRO_data.tar.gz
 
+# APK dung lượng lớn >100MB chia thành part1, part2 (không commit file apk gốc 134MB)
+web/Downloads/*.apk
+
 # OS
 .DS_Store
 Thumbs.db
