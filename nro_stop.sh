@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-#  nro_stop.sh - DỪNG SERVER NGỌC RỒNG HASHIRAMA
+#  nro_stop.sh - DUNG NGOC RONG HASHIRAMA (Game + Web)
 # ============================================================
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,16 +16,14 @@ stop_pid() {
         pid="$(cat "$f" 2>/dev/null)"
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
             kill "$pid" 2>/dev/null
-            info "Đã dừng $name (PID $pid)."
+            info "Da dung $name (PID $pid)."
         fi
         rm -f "$f"
     fi
 }
 
-stop_pid "$PID_DIR/nro_server.pid" "NRO game server"
-stop_pid "$PID_DIR/nro_web.pid"    "NRO web admin"
+stop_pid "$PID_DIR/nro_server.pid" "Ngoc Rong game server"
+stop_pid "$PID_DIR/nro_web.pid"    "Ngoc Rong web server"
 
-# Fallback nếu còn sót tiến trình
-pkill -f "nro.*server.jar" 2>/dev/null || true
-
-echo -e "${GREEN}✔ Đã dừng xong Ngọc Rồng Hashirama.${NC}"
+echo ""
+info "Da dung Ngoc Rong Online."

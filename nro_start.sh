@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
-#  nro_start.sh - CHáº Y SERVER NGá»ŒC Rá»’NG HASHIRAMA
-#  (dĂ¹ng chung MariaDB tá»« start_db.sh, game port 14445, web port 8888, api port 8085)
+#  nro_start.sh - CHAY SERVER NGOC RONG HASHIRAMA
+#  (dung chung MariaDB tu start_db.sh, web port 8888, game 14445)
 # ============================================================
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,7 +9,6 @@ NRO="$DIR/nro"
 PID_DIR="$DIR/.pids"
 WEB_PORT="${NRO_WEB_PORT:-8888}"
 GAME_PORT=14445
-API_PORT=8085
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
@@ -18,71 +17,52 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 is_running() { [ -f "$1" ] && kill -0 "$(cat "$1" 2>/dev/null)" 2>/dev/null; }
 
-mkdir -p "$PID_DIR" "$DIR/logs"
-
-# 1. Äáº£m báº£o MariaDB dĂ¹ng chung Ä‘ang cháº¡y
+# 1. Dam bao MariaDB dung chung dang chay
 bash "$DIR/start_db.sh"
 
-# 2. Giáº£i nĂ©n data game náº¿u chÆ°a cĂ³ (tá»« NRO_data.part1..5)
-if [ ! -d "$NRO/resources" ] || [ ! -d "$NRO/data" ]; then
-    if [ -f "$NRO/NRO_data.part1" ]; then
-        info "Giáº£i nĂ©n dá»¯ liá»‡u game NRO (NRO_data.part1..5)..."
-        (cd "$NRO" && cat NRO_data.part* > nro_data.tar.gz \
-            && tar -xzf nro_data.tar.gz && rm -f nro_data.tar.gz)
-        [ -d "$NRO/resources" ] && info "Giáº£i nĂ©n NRO xong." || { error "Giáº£i nĂ©n NRO tháº¥t báº¡i."; exit 1; }
-    else
-        error "Thiáº¿u file dá»¯ liá»‡u game NRO (NRO_data.part1..5)!"
-        exit 1
-    fi
-fi
+# 2. Xac dinh jar
+JAR=""
+for c in "$NRO/Server/server.jar" "$NRO/server.jar"; do
+    [ -f "$c" ] && { JAR="$c"; break; }
+done
+if [ -z "$JAR" ]; then error "Khong tim thay server.jar Ngoc Rong!"; exit 1; fi
 
-# 3. Láº¯p rĂ¡p file client APK náº¿u chÆ°a cĂ³ (tá»« Nro_HanZi_apk.part1..2)
-if [ ! -f "$NRO/web/Downloads/Nro HanZi.apk" ] && [ -f "$NRO/web/Downloads/Nro_HanZi_apk.part1" ]; then
-    info "Äang láº¯p rĂ¡p file APK Ngá»c Rá»“ng (cho phĂ©p táº£i tá»« Web)..."
-    cat "$NRO/web/Downloads/Nro_HanZi_apk.part"* > "$NRO/web/Downloads/Nro HanZi.apk"
-fi
-
-# 4. Kiá»ƒm tra server.jar
-if [ ! -f "$NRO/server.jar" ]; then
-    error "KhĂ´ng tĂ¬m tháº¥y file $NRO/server.jar!"
-    exit 1
-fi
-
-# 5. Khá»Ÿi Ä‘á»™ng NRO Game Server
+# 3. Chay game server
 if is_running "$PID_DIR/nro_server.pid"; then
-    info "NRO server Ä‘Ă£ cháº¡y (PID $(cat "$PID_DIR/nro_server.pid"))."
+    info "Ngoc Rong server da chay (PID $(cat "$PID_DIR/nro_server.pid"))."
 else
-    info "Khá»Ÿi Ä‘á»™ng NRO game server (port $GAME_PORT, API $API_PORT)..."
-    cd "$NRO"
+    info "Khoi dong Ngoc Rong game server (port $GAME_PORT)..."
+    mkdir -p "$DIR/logs" "$NRO/Server/log"
+    cd "$NRO/Server"
     nohup java \
-        -Xms128M -Xmx1024M \
-        
+        -Xms256M -Xmx1024M \
+        -XX:+UseG1GC \
         -Dfile.encoding=UTF-8 \
         -Djava.awt.headless=true \
-        -jar "$NRO/server.jar" >> "$DIR/logs/nro_server.log" 2>&1 &
+        -jar "$JAR" >> "$DIR/logs/nro_server.log" 2>&1 &
     echo $! > "$PID_DIR/nro_server.pid"
     sleep 4
     is_running "$PID_DIR/nro_server.pid" \
-        && info "NRO server Ä‘Ă£ cháº¡y (PID $(cat "$PID_DIR/nro_server.pid"))." \
-        || error "NRO server lá»—i. Xem: logs/nro_server.log"
+        && info "Ngoc Rong server da chay (PID $(cat "$PID_DIR/nro_server.pid"))." \
+        || error "Ngoc Rong server loi. Xem: logs/nro_server.log"
 fi
 
-# 6. Khá»Ÿi Ä‘á»™ng Web Admin NRO
+# 4. Chay web
 if is_running "$PID_DIR/nro_web.pid"; then
-    info "NRO web Ä‘Ă£ cháº¡y."
+    info "Ngoc Rong web da chay."
 else
     if command -v php >/dev/null 2>&1; then
-        info "Khá»Ÿi Ä‘á»™ng NRO web admin (port $WEB_PORT)..."
-        cd "$NRO/web"
+        info "Khoi dong Ngoc Rong web (port $WEB_PORT)..."
+        cd "$NRO/web/htdocs"
         nohup php -S 0.0.0.0:$WEB_PORT >> "$DIR/logs/nro_web.log" 2>&1 &
         echo $! > "$PID_DIR/nro_web.pid"
         sleep 2
         is_running "$PID_DIR/nro_web.pid" \
-            && info "NRO web Ä‘Ă£ cháº¡y: http://localhost:$WEB_PORT/admin.php" \
-            || warn "NRO web lá»—i. Xem: logs/nro_web.log"
+            && info "Ngoc Rong web da chay: http://localhost:$WEB_PORT" \
+            || warn "Ngoc Rong web loi. Xem: logs/nro_web.log"
     else
-        warn "PHP chÆ°a cĂ i - bá» qua web."
+        warn "PHP chua cai - bo qua web."
     fi
 fi
 
-echo -e "${GREEN}âœ” Ngá»c Rá»“ng Hashirama: game port $GAME_PORT | API port $API_PORT | web http://localhost:$WEB_PORT${NC}"
+echo -e "${GREEN}✔ Ngoc Rong Online: game port $GAME_PORT | web http://localhost:$WEB_PORT${NC}"
