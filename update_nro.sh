@@ -65,11 +65,23 @@ if [ -d "$NRO" ]; then
         info "Tài nguyên NRO đã được giải nén sẵn."
     fi
 
-    # Lắp ráp file client APK nếu chưa có (từ Nro_HanZi_apk.part1..2)
-    if [ ! -f "$NRO/web/Downloads/Nro HanZi.apk" ] && [ -f "$NRO/web/Downloads/Nro_HanZi_apk.part1" ]; then
+    # Lắp ráp file client APK vào thư mục Web đang chạy (web/htdocs/Downloads)
+    # (part có thể nằm ở web/htdocs/Downloads hoặc web/Downloads bản cũ)
+    DL_DIR="$NRO/web/htdocs/Downloads"
+    mkdir -p "$DL_DIR"
+    PART_DIR=""
+    for d in "$DL_DIR" "$NRO/web/Downloads"; do
+        if [ -f "$d/Nro_HanZi_apk.part1" ]; then PART_DIR="$d"; break; fi
+    done
+    if [ ! -f "$DL_DIR/Nro HanZi.apk" ] && [ -n "$PART_DIR" ]; then
         info "Đang lắp ráp file APK Ngọc Rồng (cho phép tải từ Web)..."
-        cat "$NRO/web/Downloads/Nro_HanZi_apk.part"* > "$NRO/web/Downloads/Nro HanZi.apk"
-        info "Đã lắp ráp file cài đặt APK thành công!"
+        cat "$PART_DIR"/Nro_HanZi_apk.part* > "$DL_DIR/Nro HanZi.apk" \
+            && info "Đã lắp ráp file cài đặt APK thành công!" \
+            || warn "Lắp ráp APK thất bại!"
+    elif [ -f "$DL_DIR/Nro HanZi.apk" ]; then
+        info "File APK Ngọc Rồng đã có sẵn trên Web."
+    else
+        warn "Không tìm thấy Nro_HanZi_apk.part1..2 trong $DL_DIR!"
     fi
 else
     error "Thư mục $NRO không tồn tại!"

@@ -1,5 +1,7 @@
 <?php
 $path = parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH);
+// Giai ma URL để phục vụ file có tên Unicode/khoảng trắng (logo Ỷ....png, "Nro HanZi.apk")
+$path = rawurldecode($path);
 $file = __DIR__ . $path;
 
 if ($path !== '/' && file_exists($file) && !is_dir($file)) {

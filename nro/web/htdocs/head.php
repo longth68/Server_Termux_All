@@ -102,6 +102,8 @@ error_reporting(0);
                                 href="../Downloads/Nro HanZi.apk">
                                 <img class="m-2" height="48" src="../assets/images/button/UfEcaeH.png" alt="APK">
                             </a>
+                            <!-- AN TAM: chua co file .ipa/.rar tren server (an nut de tranh 404) -->
+                            <!--
                             <a class="" href="../Downloads/Nro HanZi.ipa">
                                 <img class="m-2" height="48" src="../assets/images/button/ufy0Wg0.png" alt="IOS">
                             </a>
@@ -112,6 +114,7 @@ error_reporting(0);
                                 href="../Downloads/Nro HanZi.rar">
                                 <img class="m-2" height="48" src="../assets/images/button/20wNXlA.png" alt="Windows">
                             </a>
+                            -->
                         </div>
                     </div>
                 </div>
