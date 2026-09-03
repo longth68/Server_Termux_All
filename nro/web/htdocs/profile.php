@@ -14,7 +14,6 @@ function callJavaApi($endpoint) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     $data = curl_exec($ch);
-    curl_close($ch);
     return json_decode($data, true);
 }
 
@@ -27,7 +26,6 @@ function callJavaApiGet($endpoint, $params) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     $data = curl_exec($ch);
-    curl_close($ch);
     return json_decode($data, true);
 }
 

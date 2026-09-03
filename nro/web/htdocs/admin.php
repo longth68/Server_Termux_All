@@ -17,6 +17,7 @@ if ($user_arr["is_admin"] != 1) {
 
 // Java Server API Proxy for AJAX
 if (isset($_GET['ajax']) && $_GET['ajax'] == 'proxy') {
+    error_reporting(0); // JSON API: khong de warning PHP lam vo JSON (PHP 8.5+)
     header('Content-Type: application/json; charset=UTF-8');
     $api_action = isset($_GET['action']) ? preg_replace('/[^a-z0-9_]/i', '', $_GET['action']) : 'info';
     
@@ -70,7 +71,6 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == 'proxy') {
     $response = curl_exec($ch);
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlerr = curl_error($ch);
-    curl_close($ch);
 
     if ($response !== false && $response !== "" && $httpcode == 200) {
         echo $response;
