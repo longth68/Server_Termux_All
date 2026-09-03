@@ -143,6 +143,12 @@ Truy cập trang Web trên điện thoại: **`http://127.0.0.1:8888/`**
    - Ninja: `192.168.1.50:14444` | Web: `http://192.168.1.50:8000`
    - HTTH: `192.168.1.50:2236` | Web: `http://192.168.1.50:8080`
    - NRO: `192.168.1.50:14445` | Web: `http://192.168.1.50:8888/`
+3. Riêng client **JAR Ngọc Rồng** (IP cứng `127.0.0.1` trong file): muốn máy khác chơi thì patch IP WiFi vào JAR:
+   ```bash
+   cd ~/Server_Termux_All/nro
+   php patch_client_jar.php "web/htdocs/Downloads/Nro HanZi.jar" "Nro-Wifi.jar" 192.168.1.50
+   ```
+   *(Tool sửa trực tiếp constant pool, không vỡ cấu trúc JAR. Thay `192.168.1.50` bằng IP ở bước 1. Đổi cả port: thêm `14445` cuối lệnh.)*
 
 ---
 
