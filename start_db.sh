@@ -85,12 +85,13 @@ if ! "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "USE htth" 2>/de
 fi
 
 # --- Ngoc Rong: DB hashirama ---
-if ! "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "USE hashirama" 2>/dev/null; then
+NRO_TBLS=$("$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -N -e "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'hashirama';" 2>/dev/null || echo "0")
+if [ -z "$NRO_TBLS" ] || [ "$NRO_TBLS" -eq 0 ]; then
     info "Tạo database hashirama + import (Ngọc Rồng)..."
     "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "CREATE DATABASE IF NOT EXISTS hashirama CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;" 2>/dev/null
     for f in "$DIR/nro/database/hashirama.sql" "$DIR/nro/hashirama.sql"; do
         if [ -f "$f" ]; then
-            "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root hashirama < "$f" \
+            "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root --default-character-set=utf8mb4 hashirama < "$f" \
                 && info "Import DB Ngọc Rồng xong." || warn "Import DB Ngọc Rồng lỗi."
             break
         fi

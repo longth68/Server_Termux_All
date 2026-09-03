@@ -54,7 +54,7 @@ else
     if command -v php >/dev/null 2>&1; then
         info "Khoi dong Ngoc Rong web (port $WEB_PORT)..."
         cd "$NRO/web/htdocs"
-        nohup php -S 0.0.0.0:$WEB_PORT >> "$DIR/logs/nro_web.log" 2>&1 &
+        nohup php -S 0.0.0.0:$WEB_PORT router.php >> "$DIR/logs/nro_web.log" 2>&1 &
         echo $! > "$PID_DIR/nro_web.pid"
         sleep 2
         is_running "$PID_DIR/nro_web.pid" \

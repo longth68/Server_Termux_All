@@ -83,9 +83,9 @@ error_reporting(0);
                         </div>
                         <div class="mt-3">
                             <?php if ($_login == null) { ?>
-                            <span class="btn btn-success px-3 py-1" onclick="window.location.href='/login';">Đăng
+                            <span class="btn btn-success px-3 py-1" onclick="window.location.href='/login.php';">Đăng
                                 nhập</span>
-                            <span class="btn btn-success px-3 py-1" onclick="window.location.href='/register';">Đăng
+                            <span class="btn btn-success px-3 py-1" onclick="window.location.href='/register.php';">Đăng
                                 ký</span>
                             <?php } else { ?>
                             <a class="btn btn-success" href="/profile">
