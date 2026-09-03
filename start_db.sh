@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
-#  start_db.sh - KHá»I Äá»˜NG MARIADB DĂ™NG CHUNG (cho cáº£ 3 game)
-#  + Táº¡o DB schoolzz (Ninja), htth (Háº£i Táº·c Hot) vĂ  hashirama (Ngá»c Rá»“ng) náº¿u chÆ°a cĂ³
+#  start_db.sh - KHỞI ĐỘNG MARIADB DÙNG CHUNG (cho cả 3 game)
+#  + Tạo DB schoolzz (Ninja), htth (Hải Tặc Hot) và hashirama (Ngọc Rồng) nếu chưa có
 # ============================================================
 
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -20,15 +20,15 @@ for c in mariadbd-safe mysqld_safe mariadbd mysqld; do
 done
 
 if [ -z "$MYSQL_CMD" ] || [ -z "$MYSQLD_START" ]; then
-    error "MariaDB chÆ°a cĂ i. Cháº¡y: bash install.sh (hoáº·c pkg install mariadb)"
+    error "MariaDB chưa cài. Chạy: bash install.sh (hoặc pkg install mariadb)"
     exit 1
 fi
 
-# 1. Kiá»ƒm tra / khá»Ÿi Ä‘á»™ng MariaDB
+# 1. Kiểm tra / khởi động MariaDB
 if mysqladmin ping --silent --socket="$PREFIX/tmp/mysqld.sock" 2>/dev/null; then
-    info "MariaDB Ä‘Ă£ cháº¡y."
+    info "MariaDB đã chạy."
 else
-    info "Khá»Ÿi Ä‘á»™ng MariaDB..."
+    info "Khởi động MariaDB..."
     rm -f "$PREFIX/tmp/mysqld.sock" "$PREFIX/tmp/mysqld.sock.lock" \
           "$PREFIX/var/run/mysqld/mysqld.pid" 2>/dev/null || true
     mkdir -p "$PREFIX/tmp" "$PREFIX/var/lib/mysql" "$PREFIX/var/run/mysqld" "$PREFIX/var/log/mysql"
@@ -43,30 +43,28 @@ else
         sleep 1; _waited=$((_waited + 1))
     done
     mysqladmin ping --silent --socket="$PREFIX/tmp/mysqld.sock" 2>/dev/null \
-        && info "MariaDB Ä‘Ă£ cháº¡y (sau ${_waited}s)." \
-        || warn "MariaDB chÆ°a sáºµn sĂ ng. Xem: cat $PREFIX/var/log/mysql/mariadbd.err"
+        && info "MariaDB đã chạy (sau ${_waited}s)." \
+        || warn "MariaDB chưa sẵn sàng. Xem: cat $PREFIX/var/log/mysql/mariadbd.err"
 fi
 
-# 2. Táº¡o user root
+# 2. Tạo user root cho localhost và 127.0.0.1
 "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u "$(whoami)" \
     -e "CREATE USER IF NOT EXISTS 'root'@'localhost' IDENTIFIED BY '';
-        CREATE USER IF NOT EXISTS 'root'@'127.0.0.1' IDENTIFIED BY '';
-        CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '';
         GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION;
+        CREATE USER IF NOT EXISTS 'root'@'127.0.0.1' IDENTIFIED BY '';
         GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION;
-        GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
         FLUSH PRIVILEGES;" 2>/dev/null || true
 
-# 3. Táº¡o database + import cho tá»«ng game
+# 3. Tạo database + import cho từng game
 # --- Ninja School: DB schoolzz ---
 if ! "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "USE schoolzz" 2>/dev/null; then
-    info "Táº¡o database schoolzz + import (Ninja)..."
+    info "Tạo database schoolzz + import (Ninja)..."
     "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root \
         -e "CREATE DATABASE IF NOT EXISTS schoolzz CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
     for f in "$DIR/ninja/server/exe_nsoz.sql" "$DIR/ninja/exe_nsoz.sql"; do
         if [ -f "$f" ]; then
             "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root schoolzz < "$f" \
-                && info "Import DB Ninja xong." || warn "Import DB Ninja lá»—i."
+                && info "Import DB Ninja xong." || warn "Import DB Ninja lỗi."
             break
         fi
     done
@@ -78,24 +76,26 @@ fi
 
 # --- Hai Tac Hot: DB htth ---
 if ! "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "USE htth" 2>/dev/null; then
-    info "Táº¡o database htth + import (Háº£i Táº·c Hot)..."
+    info "Tạo database htth + import (Hải Tặc Hot)..."
     "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "CREATE DATABASE IF NOT EXISTS htth CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;" 2>/dev/null
     if [ -f "$DIR/htth/database/htth_full.sql" ]; then
         "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root htth < "$DIR/htth/database/htth_full.sql" \
-            && info "Import DB HTTH xong." || warn "Import DB HTTH lá»—i."
+            && info "Import DB HTTH xong." || warn "Import DB HTTH lỗi."
     fi
 fi
 
-# --- Ngoc Rong Hashirama: DB hashirama ---
-NRO_TBLS=$("$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -N -e "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'hashirama';" 2>/dev/null || echo "0")
-if [ -z "$NRO_TBLS" ] || [ "$NRO_TBLS" -eq 0 ]; then
-    info "Táº¡o database hashirama + import (Ngá»c Rá»“ng)..."
+# --- Ngoc Rong: DB hashirama ---
+if ! "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "USE hashirama" 2>/dev/null; then
+    info "Tạo database hashirama + import (Ngọc Rồng)..."
     "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "CREATE DATABASE IF NOT EXISTS hashirama CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;" 2>/dev/null
-    if [ -f "$DIR/nro/database/hashirama.sql" ]; then
-        "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root --default-character-set=utf8mb4 hashirama < "$DIR/nro/database/hashirama.sql" \
-            && info "Import DB Ngá»c Rá»“ng xong (80 báº£ng)." || warn "Import DB Ngá»c Rá»“ng lá»—i."
-    fi
+    for f in "$DIR/nro/database/hashirama.sql" "$DIR/nro/hashirama.sql"; do
+        if [ -f "$f" ]; then
+            "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root hashirama < "$f" \
+                && info "Import DB Ngọc Rồng xong." || warn "Import DB Ngọc Rồng lỗi."
+            break
+        fi
+    done
 fi
 
 echo ""
-info "MariaDB sáºµn sĂ ng: DB schoolzz (Ninja) + DB htth (Háº£i Táº·c Hot) + DB hashirama (Ngá»c Rá»“ng)."
+info "MariaDB sẵn sàng: DB schoolzz (Ninja) + DB htth (Hải Tặc Hot) + DB hashirama (Ngọc Rồng)."
