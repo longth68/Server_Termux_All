@@ -3,7 +3,7 @@
 #  update_nro.sh - CẬP NHẬT THÊM NGỌC RỒNG HASHIRAMA
 #  (Dành cho máy đã cài sẵn 2 game Ninja School + Hải Tặc Hot)
 #  - Giữ nguyên 100% dữ liệu 2 game cũ
-#  - Tự động nạp DB hashirama
+#  - Tự động nạp DB hashirama chuẩn UTF-8
 #  - Tự động giải nén tài nguyên NRO
 # ============================================================
 
@@ -28,9 +28,25 @@ fi
 # 2. Cấp quyền thực thi các script
 chmod +x "$DIR"/*.sh 2>/dev/null || true
 
-# 3. Khởi động MariaDB và tạo thêm DB hashirama (không ảnh hưởng 2 DB cũ)
+# 3. Khởi động MariaDB và nạp DB hashirama (không ảnh hưởng 2 DB cũ)
 info "Khởi động MariaDB và kiểm tra Database..."
 bash "$DIR/start_db.sh"
+
+# Kiểm tra lại DB hashirama nếu chưa có bảng
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+MYSQL_CMD=""
+for c in mariadb mysql; do command -v "$c" >/dev/null 2>&1 && { MYSQL_CMD="$c"; break; }; done
+if [ -n "$MYSQL_CMD" ]; then
+    NRO_TBLS=$("$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -N -e "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'hashirama';" 2>/dev/null || echo "0")
+    if [ -z "$NRO_TBLS" ] || [ "$NRO_TBLS" -eq 0 ]; then
+        info "Đang nạp dữ liệu database hashirama..."
+        "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "CREATE DATABASE IF NOT EXISTS hashirama CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;" 2>/dev/null
+        "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root --default-character-set=utf8mb4 hashirama < "$DIR/nro/database/hashirama.sql" 2>/dev/null
+        info "Nạp database hashirama thành công (80 bảng)!"
+    else
+        info "Database hashirama đã có sẵn $NRO_TBLS bảng."
+    fi
+fi
 
 # 4. Giải nén dữ liệu tài nguyên NRO nếu chưa có
 NRO="$DIR/nro"
