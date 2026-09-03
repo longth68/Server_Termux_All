@@ -1,8 +1,8 @@
 #!/bin/bash
 # ============================================================
-#  install.sh - CÀI MÔI TRƯỜNG DÙNG CHUNG CHO 2 SERVER
-#  Server_Termux_All = NinjaSchool + Hai Tac Hot
-#  Cài: Java 21 + MariaDB + PHP (dùng chung cho cả 2 game)
+#  install.sh - CÀI MÔI TRƯỜNG DÙNG CHUNG CHO 3 SERVER
+#  Server_Termux_All = NinjaSchool + Hai Tac Hot + Ngoc Rong Hashirama
+#  Cài: Java 21 + MariaDB + PHP (dùng chung cho cả 3 game)
 # ============================================================
 
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -53,6 +53,6 @@ echo ""
 echo -e "${GREEN}=============================================="
 echo "   CÀI ĐẶT HOÀN TẤT!"
 echo "==============================================${NC}"
-echo -e "  🎮 2 Game: NinjaSchool (ninja/) + Hai Tac Hot (htth/)"
+echo -e "  🎮 3 Game: NinjaSchool (ninja/) + Hai Tac Hot (htth/) + Ngoc Rong (nro/)"
 echo -e "  🌐 Chạy menu: bash $DIR/menu.sh"
 echo ""
