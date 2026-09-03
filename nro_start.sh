@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
 #  nro_start.sh - CHAY SERVER NGOC RONG HASHIRAMA
-#  (dung chung MariaDB tu start_db.sh, web port 8888, game 14445)
+#  (dung chung MariaDB tu start_db.sh, web 8888, game 14445, login 9888)
 # ============================================================
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,6 +9,7 @@ NRO="$DIR/nro"
 PID_DIR="$DIR/.pids"
 WEB_PORT="${NRO_WEB_PORT:-8888}"
 GAME_PORT=14445
+LOGIN_PORT=9888
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
@@ -27,7 +28,30 @@ for c in "$NRO/Server/server.jar" "$NRO/server.jar"; do
 done
 if [ -z "$JAR" ]; then error "Khong tim thay server.jar Ngoc Rong!"; exit 1; fi
 
-# 3. Chay game server
+# 3. Chay login server (xac thuc dang nhap game, port noi bo 9888)
+LOGIN_JAR="$NRO/ServerLogin/ServerLogin.jar"
+if is_running "$PID_DIR/nro_login.pid"; then
+    info "Ngoc Rong login server da chay (PID $(cat "$PID_DIR/nro_login.pid"))."
+elif [ ! -f "$LOGIN_JAR" ]; then
+    error "Khong tim thay ServerLogin.jar! Chay: bash update_nro.sh (hoac git pull)"
+else
+    info "Khoi dong Ngoc Rong login server (port $LOGIN_PORT)..."
+    mkdir -p "$DIR/logs" "$NRO/ServerLogin"
+    cd "$NRO/ServerLogin"
+    nohup java \
+        -Xms128M -Xmx512M \
+        -XX:+UseG1GC \
+        -Dfile.encoding=UTF-8 \
+        -Djava.awt.headless=true \
+        -jar "$LOGIN_JAR" >> "$DIR/logs/nro_login.log" 2>&1 &
+    echo $! > "$PID_DIR/nro_login.pid"
+    sleep 3
+    is_running "$PID_DIR/nro_login.pid" \
+        && info "Ngoc Rong login server da chay (PID $(cat "$PID_DIR/nro_login.pid"))." \
+        || error "Ngoc Rong login server loi. Xem: logs/nro_login.log"
+fi
+
+# 4. Chay game server
 if is_running "$PID_DIR/nro_server.pid"; then
     info "Ngoc Rong server da chay (PID $(cat "$PID_DIR/nro_server.pid"))."
 else
@@ -47,7 +71,7 @@ else
         || error "Ngoc Rong server loi. Xem: logs/nro_server.log"
 fi
 
-# 4. Chay web
+# 5. Chay web
 if is_running "$PID_DIR/nro_web.pid"; then
     info "Ngoc Rong web da chay."
 else

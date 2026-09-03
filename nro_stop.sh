@@ -23,6 +23,7 @@ stop_pid() {
 }
 
 stop_pid "$PID_DIR/nro_server.pid" "Ngoc Rong game server"
+stop_pid "$PID_DIR/nro_login.pid"  "Ngoc Rong login server"
 stop_pid "$PID_DIR/nro_web.pid"    "Ngoc Rong web server"
 
 echo ""

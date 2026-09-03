@@ -31,6 +31,7 @@ show_status() {
     status_line "HTTH game   (2236)"  "$DIR/.pids/htth_server.pid"
     status_line "HTTH web    (8080)"  "$DIR/.pids/htth_web.pid"
     status_line "NRO game   (14445)"  "$DIR/.pids/nro_server.pid"
+    status_line "NRO login  (9888)"  "$DIR/.pids/nro_login.pid"
     status_line "NRO web     (8888)"  "$DIR/.pids/nro_web.pid"
 }
 
@@ -45,7 +46,7 @@ show_menu() {
     echo -e "${GREEN} 2.${NC} Khởi động MariaDB dùng chung (+ tạo DB)"
     echo -e "${GREEN} 3.${NC} Chạy ${YELLOW}Ninja School${NC} (game 14444 + web 8000)"
     echo -e "${GREEN} 4.${NC} Chạy ${YELLOW}Hải Tặc Hot${NC} (game 2236 + web 8080)"
-    echo -e "${GREEN} 5.${NC} Chạy ${YELLOW}Ngọc Rồng${NC} (game 14445 + web 8888 + api 8085)"
+     echo -e "${GREEN} 5.${NC} Chạy ${YELLOW}Ngọc Rồng${NC} (game 14445 + login 9888 + web 8888 + api 8085)"
     echo -e "${GREEN} 6.${NC} Chạy ${YELLOW}TẤT CẢ 3 GAME${NC} cùng lúc"
     echo -e "${GREEN} 7.${NC} Dừng ${YELLOW}Ninja School${NC}"
     echo -e "${GREEN} 8.${NC} Dừng ${YELLOW}Hải Tặc Hot${NC}"

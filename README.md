@@ -47,6 +47,7 @@ bash update_nro.sh
 > - Cổng Game NRO đặt là `14445` (không trùng `14444` của Ninja và `2236` của HTTH).
 > - Cổng API Server NRO đổi thành `8085` (để nhường cổng `8080` cho Web HTTH).
 > - Cổng Web Admin NRO đặt là `8888` (không trùng `8000` của Ninja và `8080` của HTTH).
+> - Máy chủ Login NRO (xác thực đăng nhập game, `nro/ServerLogin/`) chạy nội bộ cổng `9888` — cố tình tránh `8888` của Web PHP, client không kết nối trực tiếp cổng này.
 > - Cả 3 game có thể chạy **đồng thời cùng một lúc** mà không hề bị chiếm cổng hay lỗi xung đột.
 
 ---
@@ -101,7 +102,7 @@ bash menu.sh
 Menu cho phép:
 - `3` → Chạy **Ninja School** (game 14444 + web 8000)
 - `4` → Chạy **Hải Tặc Hot** (game 2236 + web 8080)
-- `5` → Chạy **Ngọc Rồng Hashirama** (game 14445 + web 8888 + api 8085)
+- `5` → Chạy **Ngọc Rồng Hashirama** (game 14445 + login 9888 + web 8888 + api 8085)
 - `6` → Chạy **CẢ 3 GAME CÙNG LÚC**
 - `7` → Dừng Ninja School
 - `8` → Dừng Hải Tặc Hot
@@ -149,4 +150,4 @@ Truy cập trang Web trên điện thoại: **`http://127.0.0.1:8888/`**
 Toàn bộ log được lưu trong thư mục `logs/`:
 - `logs/ninja_server.log`, `logs/ninja_web.log`
 - `logs/htth_server.log`, `logs/htth_web.log`
-- `logs/nro_server.log`, `logs/nro_web.log`
+- `logs/nro_server.log`, `logs/nro_login.log`, `logs/nro_web.log`
