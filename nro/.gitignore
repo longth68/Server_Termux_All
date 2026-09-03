@@ -1,0 +1,16 @@
+﻿# Logs
+*.log
+log/
+
+# Dữ liệu game nén chia nhỏ: NRO_data.part1..5 (đã commit)
+# data, Eff, mob, resources được giải nén khi chạy - không commit
+data/
+Eff/
+mob/
+resources/
+nro_data.tar.gz
+NRO_data.tar.gz
+
+# OS
+.DS_Store
+Thumbs.db

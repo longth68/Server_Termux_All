@@ -1,4 +1,8 @@
-*.tar.gz
+﻿*.tar.gz
 *.zip
 logs/
 .pids/
+*.pid
+*.log
+nro/log/
+htth/client/jar_unpacked/

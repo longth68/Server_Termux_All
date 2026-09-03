@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
-#  start_db.sh - KHỞI ĐỘNG MARIADB DÙNG CHUNG (cho cả 2 game)
-#  + Tạo DB schoolzz (Ninja) và htth (Hải Tặc Hot) nếu chưa có
+#  start_db.sh - KHỞI ĐỘNG MARIADB DÙNG CHUNG (cho cả 3 game)
+#  + Tạo DB schoolzz (Ninja), htth (Hải Tặc Hot) và hashirama (Ngọc Rồng) nếu chưa có
 # ============================================================
 
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -82,5 +82,15 @@ if ! "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "USE htth" 2>/de
     fi
 fi
 
+# --- Ngoc Rong Hashirama: DB hashirama ---
+if ! "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "USE hashirama" 2>/dev/null; then
+    info "Tạo database hashirama + import (Ngọc Rồng)..."
+    "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "CREATE DATABASE IF NOT EXISTS hashirama CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;" 2>/dev/null
+    if [ -f "$DIR/nro/database/hashirama.sql" ]; then
+        "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root hashirama < "$DIR/nro/database/hashirama.sql" \
+            && info "Import DB Ngọc Rồng xong." || warn "Import DB Ngọc Rồng lỗi."
+    fi
+fi
+
 echo ""
-info "MariaDB sẵn sàng: DB schoolzz (Ninja) + DB htth (Hải Tặc Hot)."
+info "MariaDB sẵn sàng: DB schoolzz (Ninja) + DB htth (Hải Tặc Hot) + DB hashirama (Ngọc Rồng)."

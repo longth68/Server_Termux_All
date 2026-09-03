@@ -1,18 +1,23 @@
-# Server_Termux_All — 2 Game trong 1 Bộ Cài
+# Server_Termux_All — 3 Game trong 1 Bộ Cài
 
-**🔥 Bản cập nhật (Patch):**
-- Đã khắc phục lỗi giải nén thư mục `/tmp` không tồn tại trên Android.
-- Sửa lỗi không tìm thấy package cài đặt PHP (`php-pdo`, `php-mbstring`) trong `install.sh`.
-- Cập nhật tương thích hoàn toàn 100% với môi trường Termux gốc.
+Bộ cài tích hợp **Ninja School Online**, **Hải Tặc Hot** và **Ngọc Rồng Hashirama** (3 server game hoàn toàn độc lập) chạy trên Termux Android.
+Cả 3 dùng chung môi trường (Java 17/21 + MariaDB + PHP) và **chỉ khác cách chạy server** (jar, port riêng biệt không xung đột, DB riêng trên cùng MariaDB).
 
-Bộ cài tích hợp **Ninja School** và **Hải Tặc Hot** (2 server game khác nhau) chạy trên Termux Android.
-Cả 2 dùng chung môi trường (Java 17/21 + MariaDB + PHP) và **chỉ khác cách chạy server** (jar, port, DB riêng).
+---
 
-## Yêu cầu
+## Bảng thông số Port & Database (Đã tối ưu không trùng nhau)
 
-- Android (mọi phiên bản), đã cài **Termux** từ F-Droid.
-- Đủ dung lượng: bộ cài giải nén ~1.1 GB + dữ liệu MariaDB.
-- Kết nối mạng (WiFi/LAN) để máy khác vào chơi được.
+| Game | Cổng Game | Cổng Web | Cổng API Server | Database | Thư mục |
+|---|---|---|---|---|---|
+| **Ninja School** | **14444** | **8000** | — | `schoolzz` | `ninja/` |
+| **Hải Tặc Hot** | **2236** | **8080** | — | `htth` | `htth/` |
+| **Ngọc Rồng Hashirama** | **14445** | **8888** | **8085** | `hashirama` | `nro/` |
+
+> 💡 **Quy hoạch cổng tránh xung đột:**
+> - Cổng Game NRO đặt là `14445` (không trùng `14444` của Ninja và `2236` của HTTH).
+> - Cổng API Server NRO đổi thành `8085` (để nhường cổng `8080` cho Web HTTH).
+> - Cổng Web Admin NRO đặt là `8888` (không trùng `8000` của Ninja và `8080` của HTTH).
+> - Cả 3 game có thể chạy **đồng thời cùng một lúc** mà không hề bị chiếm cổng hay lỗi xung đột.
 
 ---
 
@@ -22,78 +27,42 @@ Cả 2 dùng chung môi trường (Java 17/21 + MariaDB + PHP) và **chỉ khác
 # Cập nhật package (bắt buộc lần đầu)
 pkg update -y && pkg upgrade -y
 
-# Cấp quyền lưu trữ để truy cập thư mục Downloads
+# Cấp quyền lưu trữ để truy cập bộ nhớ
 termux-setup-storage
 ```
 
 ---
 
-## 2. Tải bộ cài về
-
-Tải file `Server_Termux_All.tar.gz` (~1 GB) từ Release:
-https://github.com/longth68/Server_Termux_All/releases
-
-Cách tải nhanh bằng gh CLI trong Termux:
-
-```bash
-pkg install -y gh
-gh auth login
-gh release download v1.0 --repo longth68/Server_Termux_All
-```
-
-Hoặc tải thủ công bằng `curl` (lấy link download từ trang Release):
-```bash
-curl -L -o Server_Termux_All.tar.gz "LINK_DOWNLOAD"
-```
-
----
-
-## 3. Giải nén
-
-```bash
-# Nên để ở thư mục chính của Termux (~)
-mv Server_Termux_All.tar.gz ~/
-cd ~
-tar -xzf Server_Termux_All.tar.gz
-cd Server_Termux_All
-```
-
----
-
-## 4. Cài môi trường chung (CHỈ LÀM 1 LẦN)
+## 2. Cài môi trường chung (Chỉ làm 1 lần)
 
 ```bash
 bash install.sh
 ```
 
 Script này sẽ:
-- `pkg install openjdk-21 mariadb php php-mbstring git curl unzip tar`
-- Khởi tạo thư mục dữ liệu MariaDB
-- Tạo lệnh gõ nhanh `menu` ở mọi nơi
-
-> Nếu `pkg install` lỗi, hãy chạy lại `pkg update -y` rồi thử lại.
+- Cài đặt OpenJDK 21, MariaDB, PHP và các công cụ mạng cần thiết.
+- Khởi tạo thư mục dữ liệu MariaDB.
+- Tạo alias gõ nhanh lệnh `menu` ở mọi nơi.
 
 ---
 
-## 5. Khởi động MariaDB dùng chung
+## 3. Khởi động MariaDB dùng chung
 
 ```bash
 bash start_db.sh
 ```
 
 Script này sẽ:
-- Khởi động MariaDB (dùng chung cho cả 2 game)
-- Tạo user `root`@`localhost` (mật khẩu trống)
-- Tạo + import DB `schoolzz` (từ `ninja/server/exe_nsoz.sql`)
-- Tạo + import DB `htth` (từ `htth/database/htth_full.sql`)
-
-> Chỉ cần chạy 1 lần. Lần sau MariaDB đã chạy sẵn, script sẽ bỏ qua.
+- Khởi động MariaDB (dùng chung cho cả 3 game trên cổng `3306`).
+- Tự động tạo và nạp cơ sở dữ liệu `schoolzz` (Ninja School).
+- Tự động tạo và nạp cơ sở dữ liệu `htth` (Hải Tặc Hot).
+- Tự động tạo và nạp cơ sở dữ liệu `hashirama` (Ngọc Rồng Hashirama).
 
 ---
 
-## 6. Chạy server game
+## 4. Chạy server game
 
-### Cách 1: Dùng menu (gợi ý)
+### Cách 1: Dùng menu trực quan (Khuyến nghị)
 
 ```bash
 bash menu.sh
@@ -102,95 +71,45 @@ bash menu.sh
 Menu cho phép:
 - `3` → Chạy **Ninja School** (game 14444 + web 8000)
 - `4` → Chạy **Hải Tặc Hot** (game 2236 + web 8080)
-- `5` → Chạy **CẢ HAI** cùng lúc
-- `6` → Dừng game/web (giữ MariaDB)
-- `8` → Xem log server
+- `5` → Chạy **Ngọc Rồng Hashirama** (game 14445 + web 8888 + api 8085)
+- `6` → Chạy **CẢ 3 GAME CÙNG LÚC**
+- `7` → Dừng Ninja School
+- `8` → Dừng Hải Tặc Hot
+- `9` → Dừng Ngọc Rồng
+- `10` → Dừng TẤT CẢ game (giữ MariaDB)
+- `11` → Dừng cả MariaDB
+- `12` → Xem log server
 
-### Cách 2: Chạy nhanh không qua menu
+### Cách 2: Chạy nhanh qua dòng lệnh
 
 ```bash
-bash ninja_start.sh    # chỉ chạy Ninja School
-bash htth_start.sh     # chỉ chạy Hải Tặc Hot
-bash stop.sh           # dừng tất cả game/web
+bash ninja_start.sh    # Chạy Ninja School
+bash htth_start.sh     # Chạy Hải Tặc Hot
+bash nro_start.sh      # Chạy Ngọc Rồng Hashirama
+bash stop.sh           # Dừng tất cả game (giữ MariaDB)
+bash stop_db.sh        # Dừng MariaDB
 ```
 
 ---
 
-## 7. Chơi game
+## 5. Kết nối chơi game & Quản trị Web
 
-### Từ chính chiếc điện thoại chạy server (cùng máy)
+### Chơi trên cùng điện thoại chạy server
+- **Ninja School**: Client trỏ về `127.0.0.1:14444`. Web đăng ký: `http://localhost:8000`.
+- **Hải Tặc Hot**: Client trỏ về `127.0.0.1:2236`. Web đăng ký: `http://localhost:8080`.
+- **Ngọc Rồng**: Client trỏ về `127.0.0.1:14445`. Web Admin: `http://localhost:8888/admin.php` (tài khoản: `admin1` / `admin123123123`).
 
-Mở client và vào game với IP **127.0.0.1**.
-
-- **Ninja School**: client trong `ninja/server/web/files/` (jar/apk/zip). Web đăng ký tài khoản: `http://localhost:8000`.
-- **Hải Tặc Hot**: client trong `htth/client/` (apk/jar). Web đăng ký tài khoản: `http://localhost:8080`.
-
-### Từ máy khác trong cùng WiFi/LAN
-
-1. Tìm IP của điện thoại chạy server:
-   ```bash
-   ifconfig wlan0 | grep inet
-   # hoặc
-   ip addr show wlan0 | grep inet
-   ```
-   Ví dụ IP là `192.168.1.50`.
-
-2. Trên máy chơi game, vào **cài đặt IP server** của client và đổi sang IP đó (ví dụ `192.168.1.50`), giữ nguyên port game.
-
-3. Truy cập web đăng ký từ máy khác:
-   - Ninja: `http://192.168.1.50:8000`
-   - HTTH: `http://192.168.1.50:8080`
-
-> ⚠️ Các client kèm sẵn trong bộ cài mặc định trỏ về **127.0.0.1** (chơi cùng máy). Muốn chơi từ máy khác phải sửa IP trong client (hoặc dùng bản client đã đổi IP).
+### Chơi từ máy khác trong cùng WiFi/LAN
+1. Gõ `ip addr show wlan0` trong Termux để xem IP điện thoại (ví dụ: `192.168.1.50`).
+2. Trỏ IP trong client của máy khác về IP đó với cổng game tương ứng:
+   - Ninja: `192.168.1.50:14444` | Web: `http://192.168.1.50:8000`
+   - HTTH: `192.168.1.50:2236` | Web: `http://192.168.1.50:8080`
+   - NRO: `192.168.1.50:14445` | Web Admin: `http://192.168.1.50:8888/admin.php`
 
 ---
 
-## 8. Port / DB tóm tắt
-
-| Game | Game port | Web port | Database | Thư mục | Client |
-|------|-----------|----------|----------|---------|--------|
-| Ninja School | 14444 | 8000 | `schoolzz` | `ninja/server/` | `ninja/server/web/files/` |
-| Hai Tac Hot | 2236 | 8080 | `htth` | `htth/` | `htth/client/` |
-
-Cả 2 có thể chạy **cùng lúc** (port khác nhau, DB khác nhau, chung 1 MariaDB).
-
----
-
-## 9. Dừng server
-
-```bash
-bash stop.sh       # dừng mọi game/web, giữ MariaDB
-bash stop_db.sh    # dừng cả MariaDB (khi không dùng nữa)
-```
-
----
-
-## 10. Xem log & lỗi thường gặp
-
-Log server nằm trong thư mục `logs/`:
-- `logs/ninja_server.log`
-- `logs/ninja_web.log`
-- `logs/htth_server.log`
-- `logs/htth_web.log`
-
-```bash
-tail -f logs/ninja_server.log   # xem log trực tiếp
-```
-
-| Lỗi | Cách xử lý |
-|-----|-----------|
-| `pkg: command not found` | Chạy `termux-change-repo` rồi `pkg update -y` |
-| `Access denied for user root` | Chạy lại `bash start_db.sh` (tự tạo user root) |
-| Web vào báo "Connection failed" | MariaDB chưa chạy → `bash start_db.sh` |
-| Game không vào được, port trùng | Đổi `WEB_PORT`/port trong script start |
-| Hết dung lượng | Xóa `logs/*.log`, hoặc bỏ bớt client không dùng trong `web/files` |
-| Chơi từ máy khác không vào | Đổi IP client từ 127.0.0.1 sang IP điện thoại (xem mục 7) |
-
----
-
-## Ghi chú
-
-- `start_db.sh` tự tạo DB `schoolzz` (import `ninja/server/exe_nsoz.sql`) và DB `htth` (import `htth/database/htth_full.sql`).
-- Ninja client: `ninja/server/web/files/` (jar/apk/zip).
-- HTTH client: `htth/client/` (apk/jar).
-- Log server: `logs/ninja_server.log`, `logs/htth_server.log`, `logs/*_web.log`.
+## 6. Nhật ký Log Server
+Toàn bộ log được lưu trong thư mục `logs/`:
+- `logs/ninja_server.log`, `logs/ninja_web.log`
+- `logs/htth_server.log`, `logs/htth_web.log`
+- `logs/nro_server.log`, `logs/nro_web.log`
