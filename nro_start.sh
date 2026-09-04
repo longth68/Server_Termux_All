@@ -23,13 +23,38 @@ is_running() { [ -f "$1" ] && kill -0 "$(cat "$1" 2>/dev/null)" 2>/dev/null; }
 bash "$DIR/start_db.sh"
 
 # 2. Giai nen data game neu chua co
+# (tar chua NOI DUNG cua data/ -> phai bung vao data/, dong thoi don rac lan bung sai cho truoc)
+extract_anwin_data() {
+    mkdir -p "$NRO/Server"
+    cd "$NRO/Server"
+    cat "$NRO"/ANWIN_data.tar.* > anwin_data.tar
+    TOPS=$(tar -tf anwin_data.tar 2>/dev/null | cut -d/ -f1 | sort -u)
+    if [ "$(echo "$TOPS" | wc -l)" -eq 1 ] && [ "$TOPS" = "data" ]; then
+        tar -xf anwin_data.tar > extract.log 2>&1
+    else
+        for t in $TOPS; do
+            case "$t" in ""|.|..|data|classes|lib|src|log|anwin_data.tar|extract.log) continue ;; esac
+            t_clean=$(basename "$t")
+            [ -n "$t_clean" ] && [ -e "$t_clean" ] && rm -rf -- "$t_clean"
+        done
+        mkdir -p data
+        tar -xf anwin_data.tar -C data > extract.log 2>&1
+    fi
+    RC=$?
+    cd "$DIR"
+    return $RC
+}
 if [ ! -d "$NRO/Server/data/map" ]; then
     if ls "$NRO"/ANWIN_data.tar.* >/dev/null 2>&1; then
         info "Giai nen du lieu game Anwin (ANWIN_data.tar.*)..."
-        mkdir -p "$NRO/Server"
-        (cd "$NRO/Server" && cat "$NRO"/ANWIN_data.tar.* > anwin_data.tar \
-            && tar -xf anwin_data.tar && rm -f anwin_data.tar)
-        [ -d "$NRO/Server/data/map" ] && info "Giai nen xong." || { error "Giai nen that bai."; exit 1; }
+        if extract_anwin_data && [ -d "$NRO/Server/data/map" ]; then
+            rm -f "$NRO/Server/anwin_data.tar" "$NRO/Server/extract.log"
+            info "Giai nen xong."
+        else
+            error "Giai nen that bai! Loi tar:"
+            tail -n 10 "$NRO/Server/extract.log" 2>/dev/null
+            exit 1
+        fi
     else
         error "Thieu file du lieu game (ANWIN_data.tar.*)! Chay: bash update_nro.sh (tu tai bu part thieu)"
         exit 1

@@ -112,12 +112,28 @@ if [ ! -d "$NRO/Server/data/map" ]; then
             ls -l "$NRO"/ANWIN_data.tar.*
             exit 1
         fi
-        # 5c. Giai nen (giu log loi de chan doan)
+        # 5c. Giai nen (tar chua NOI DUNG cua data/ -> bung vao data/, don rac lan sai truoc)
         info "Dang giai nen tai nguyen Ngoc Rong Anwin..."
         mkdir -p "$NRO/Server"
-        if (cd "$NRO/Server" && cat "$NRO"/ANWIN_data.tar.* > anwin_data.tar \
-            && tar -xf anwin_data.tar > extract.log 2>&1 && rm -f anwin_data.tar extract.log); then
-            [ -d "$NRO/Server/data/map" ] && info "Giai nen tai nguyen NRO thanh cong!" || { error "Giai nen xong nhung thieu data/map!"; exit 1; }
+        cd "$NRO/Server"
+        cat "$NRO"/ANWIN_data.tar.* > anwin_data.tar
+        TOPS=$(tar -tf anwin_data.tar 2>/dev/null | cut -d/ -f1 | sort -u)
+        if [ "$(echo "$TOPS" | wc -l)" -eq 1 ] && [ "$TOPS" = "data" ]; then
+            tar -xf anwin_data.tar > extract.log 2>&1
+        else
+            for t in $TOPS; do
+                case "$t" in ""|.|..|data|classes|lib|src|log|anwin_data.tar|extract.log) continue ;; esac
+                t_clean=$(basename "$t")
+                [ -n "$t_clean" ] && [ -e "$t_clean" ] && rm -rf -- "$t_clean"
+            done
+            mkdir -p data
+            tar -xf anwin_data.tar -C data > extract.log 2>&1
+        fi
+        RC=$?
+        cd "$DIR"
+        if [ $RC -eq 0 ] && [ -d "$NRO/Server/data/map" ]; then
+            rm -f "$NRO/Server/anwin_data.tar" "$NRO/Server/extract.log"
+            info "Giai nen tai nguyen NRO thanh cong!"
         else
             error "Giai nen NRO that bai! Loi tar:"
             tail -n 10 "$NRO/Server/extract.log" 2>/dev/null
