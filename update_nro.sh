@@ -25,6 +25,13 @@ elif [ ! -d "$DIR/.git" ]; then
     warn "Thu muc nay KHONG phai git clone (co the ban tai file .zip)."
     warn "Muon cap nhat bang git, hay clone moi: git clone https://github.com/longth68/Server_Termux_All.git"
 else
+    # File runtime (server tu ghi khi chay) lam pull that bai -> stash truoc, pop sau
+    RUNTIME_FILES="nro/Server/data/virtualplayer_save.json nro/Server/virtualplayer_config.txt nro/Server/data/virtualplayer_chat.txt nro/Server/active_event.txt nro/Server/maintenanceConfig.txt nro/Server/data/config/data_base.properties"
+    STASHED=0
+    if [ -n "$(git -C "$DIR" status --short $RUNTIME_FILES 2>/dev/null)" ]; then
+        info "Cat tam file runtime bi server sua doi de git pull..."
+        git -C "$DIR" stash push -q -m "update-backup-runtime" -- $RUNTIME_FILES 2>/dev/null && STASHED=1
+    fi
     info "Dong bo code moi nhat tu GitHub..."
     GIT_MSG=$(git -C "$DIR" pull --ff-only origin main 2>&1)
     if [ $? -ne 0 ]; then
@@ -36,6 +43,9 @@ else
         echo "Tiep tuc voi file hien co..."
     else
         echo "$GIT_MSG" | tail -n 3
+    fi
+    if [ "$STASHED" -eq 1 ]; then
+        git -C "$DIR" stash pop -q 2>/dev/null && info "Da khoi phuc file runtime." || warn "Khong pop duoc stash (xem: git stash list)"
     fi
 fi
 
