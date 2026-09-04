@@ -18,10 +18,25 @@ echo -e "${CYAN}====================================================${NC}"
 echo -e "${YELLOW}   CAP NHAT GAME NGOC RONG ANWIN V3 (TERMUX)      ${NC}"
 echo -e "${CYAN}====================================================${NC}"
 
-# 1. Git pull
-if [ -d "$DIR/.git" ]; then
+# 1. Git pull (HIEN LOI THAT de de chan doan)
+if ! command -v git >/dev/null 2>&1; then
+    warn "Chua cai git. Chay: pkg install git"
+elif [ ! -d "$DIR/.git" ]; then
+    warn "Thu muc nay KHONG phai git clone (co the ban tai file .zip)."
+    warn "Muon cap nhat bang git, hay clone moi: git clone https://github.com/longth68/Server_Termux_All.git"
+else
     info "Dong bo code moi nhat tu GitHub..."
-    git pull origin main 2>/dev/null || warn "Khong the git pull, tiep tuc voi file hien co."
+    GIT_MSG=$(git -C "$DIR" pull --ff-only origin main 2>&1)
+    if [ $? -ne 0 ]; then
+        warn "Khong the git pull. Loi tu git:"
+        echo "$GIT_MSG" | tail -n 8
+        echo "--- File bi sua/lech (neu co) ---"
+        git -C "$DIR" status --short | head -n 10
+        echo "Goi y: co mang khong? file nao bi sua thi backup roi chay: git checkout -- <file>"
+        echo "Tiep tuc voi file hien co..."
+    else
+        echo "$GIT_MSG" | tail -n 3
+    fi
 fi
 
 # 2. Quyen thuc thi
