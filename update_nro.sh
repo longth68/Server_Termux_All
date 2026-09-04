@@ -94,11 +94,36 @@ fi
 # 5. Giai nen tai nguyen NRO neu chua co
 if [ ! -d "$NRO/Server/data/map" ]; then
     if [ "$HAVE" -ge "$EXPECT" ] && [ "$EXPECT" -gt 0 ]; then
+        # 5a. Kiem tra dung luong trong (can ~2.7GB: tar 1.3GB + giai nen 1.2GB)
+        FREE_KB=$(df -k "$NRO" 2>/dev/null | awk 'NR==2{print $4}')
+        if [ -n "$FREE_KB" ] && [ "$FREE_KB" -lt 2800000 ]; then
+            error "Bo nho trong con $((FREE_KB/1024))MB < 2700MB. Giai phong bo nho roi chay lai!"
+            exit 1
+        fi
+        # 5b. Kiem tra tong size 18 part (thieu/hong part nao se lech)
+        TOTAL=0
+        for p in "$NRO"/ANWIN_data.tar.*; do
+            sz=$(stat -c%s "$p" 2>/dev/null || stat -f%z "$p" 2>/dev/null || echo 0)
+            TOTAL=$((TOTAL + sz))
+        done
+        info "Tong size 18 part: $TOTAL byte (chuan: 1292327936)"
+        if [ "$TOTAL" -ne 1292327936 ]; then
+            error "Part data thieu/hong (size lech)! Xoa part loi va chay lai de tai bu:"
+            ls -l "$NRO"/ANWIN_data.tar.*
+            exit 1
+        fi
+        # 5c. Giai nen (giu log loi de chan doan)
         info "Dang giai nen tai nguyen Ngoc Rong Anwin..."
         mkdir -p "$NRO/Server"
-        (cd "$NRO/Server" && cat "$NRO"/ANWIN_data.tar.* > anwin_data.tar \
-            && tar -xf anwin_data.tar && rm -f anwin_data.tar)
-        [ -d "$NRO/Server/data/map" ] && info "Giai nen tai nguyen NRO thanh cong!" || { error "Giai nen NRO that bai!"; exit 1; }
+        if (cd "$NRO/Server" && cat "$NRO"/ANWIN_data.tar.* > anwin_data.tar \
+            && tar -xf anwin_data.tar > extract.log 2>&1 && rm -f anwin_data.tar extract.log); then
+            [ -d "$NRO/Server/data/map" ] && info "Giai nen tai nguyen NRO thanh cong!" || { error "Giai nen xong nhung thieu data/map!"; exit 1; }
+        else
+            error "Giai nen NRO that bai! Loi tar:"
+            tail -n 10 "$NRO/Server/extract.log" 2>/dev/null
+            df -h "$NRO" 2>/dev/null | tail -n 2
+            exit 1
+        fi
     else
         error "Chua du $EXPECT part data (moi co $HAVE). Khong giai nen."
         exit 1
