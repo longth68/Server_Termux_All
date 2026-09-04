@@ -1,15 +1,13 @@
 # Server_Termux_All — 3 Game trong 1 Bộ Cài
 
 Bộ cài tích hợp **Ninja School Online**, **Hải Tặc Hot** và **Ngọc Rồng Anwin V3** (3 server game hoàn toàn độc lập) chạy trên Termux Android.
-Cả 3 dùng chung môi trường (Java 17/21 + MariaDB + PHP) và **chỉ khác cách chạy server** (jar, port riêng biệt không xung đột, DB riêng trên cùng MariaDB).
+Cả 3 dùng chung môi trường (Java 17/21 + MariaDB + PHP) và **chỉ khác cách chạy server** (port riêng biệt không xung đột, DB riêng trên cùng MariaDB).
 
 ---
 
-## ⚡ HƯỚNG DẪN CẬP NHẬT THÊM NGỌC RỒNG (CHO MÁY ĐÃ CÀI 2 GAME TRƯỚC)
+## ⚡ CẬP NHẬT BỘ CÀI (KHÔNG MẤT DỮ LIỆU)
 
-Nếu điện thoại của bạn **đã cài đặt và đang chơi 2 game Ninja School + Hải Tặc Hot**, bạn **KHÔNG CẦN CÀI LẠI TỪ ĐẦU** và **KHÔNG BỊ MẤT DỮ LIỆU CỦA 2 GAME CŨ**!
-
-Hãy làm theo 1 trong các cách sau:
+Khi có bản mới trên GitHub, bạn **KHÔNG CẦN CÀI LẠI TỪ ĐẦU** — dữ liệu cả 3 game (DB + tài nguyên đã giải nén) được giữ nguyên!
 
 ### Cách 1: Cập nhật nhanh bằng Git (Khuyến nghị)
 Mở ứng dụng Termux và gõ:
@@ -18,15 +16,15 @@ cd ~/Server_Termux_All
 git pull origin main
 bash update_nro.sh
 ```
-*Script `update_nro.sh` sẽ tự động kéo bản mới, nạp database `awnv3` chuẩn UTF-8 và giải nén tài nguyên NRO (client APK/JAR có sẵn trên Web Download).*
+*Script `update_nro.sh` sẽ nạp database `awnv3` nếu chưa có và giải nén tài nguyên NRO nếu chưa có (client APK/JAR có sẵn trên Web Download).*
 
 ### Cách 2: Cập nhật qua Menu điều khiển
 1. Trong Termux, gõ: `menu` (hoặc `bash ~/Server_Termux_All/menu.sh`).
-2. Chọn phím số **`13`** (*Cập nhật thêm game Ngọc Rồng*).
+2. Chọn phím số **`13`** (*Cập nhật Ngọc Rồng Anwin V3*).
 
 ### Cách 3: Cập nhật thủ công (Nếu tải file nén .zip / .tar.gz trước đó)
 1. Tải bản cập nhật mới nhất từ GitHub.
-2. Sao chép thư mục `nro/` và các file `nro_start.sh`, `nro_stop.sh`, `update_nro.sh`, `menu.sh`, `start_db.sh`, `stop.sh` vào thư mục `~/Server_Termux_All`.
+2. Sao chép thư mục `nro/` và các file `nro_start.sh`, `nro_stop.sh`, `update_nro.sh`, `menu.sh`, `start_db.sh`, `stop.sh` vào thư mục `~/Server_Termux_All` (ghi đè).
 3. Mở Termux và chạy lệnh:
    ```bash
    cd ~/Server_Termux_All
@@ -110,7 +108,7 @@ Menu cho phép:
 - `10` → Dừng TẤT CẢ game (giữ MariaDB)
 - `11` → Dừng cả MariaDB
 - `12` → Xem log server
-- `13` → **Cập nhật thêm game Ngọc Rồng** (cho máy đã cài 2 game cũ)
+- `13` → **Cập nhật Ngọc Rồng Anwin V3** (kéo bản mới + nạp DB + giải nén tài nguyên)
 
 ### Cách 2: Chạy nhanh qua dòng lệnh
 
