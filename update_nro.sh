@@ -1,11 +1,9 @@
 #!/bin/bash
 # ============================================================
-#  update_nro.sh - CẬP NHẬT THÊM NGỌC RỒNG HASHIRAMA
-#  (Dành cho máy đã cài sẵn 2 game Ninja School + Hải Tặc Hot)
-#  - Giữ nguyên 100% dữ liệu 2 game cũ
-#  - Tự động nạp DB hashirama chuẩn UTF-8
-#  - Tự động giải nén tài nguyên NRO
-#  - Tự động lắp ráp client APK & JAR để tải từ Web
+#  update_nro.sh - CAP NHAT NGOC RONG ANWIN V3
+#  - Keo code moi nhat (git pull)
+#  - Nap DB awnv3 neu chua co (khong dung den DB cu)
+#  - Giai nen tai nguyen game neu chua co
 # ============================================================
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,85 +15,51 @@ warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 echo -e "${CYAN}====================================================${NC}"
-echo -e "${YELLOW}   CẬP NHẬT THÊM GAME NGỌC RỒNG VÀO BỘ CÀI TERMUX   ${NC}"
+echo -e "${YELLOW}   CAP NHAT GAME NGOC RONG ANWIN V3 (TERMUX)      ${NC}"
 echo -e "${CYAN}====================================================${NC}"
 
-# 1. Nếu có Git, kéo code mới nhất
+# 1. Git pull
 if [ -d "$DIR/.git" ]; then
-    info "Đang đồng bộ code mới nhất từ GitHub..."
-    git pull origin main 2>/dev/null || warn "Không thể git pull, tiếp tục với file hiện có."
+    info "Dong bo code moi nhat tu GitHub..."
+    git pull origin main 2>/dev/null || warn "Khong the git pull, tiep tuc voi file hien co."
 fi
 
-# 2. Cấp quyền thực thi các script
+# 2. Quyen thuc thi
 chmod +x "$DIR"/*.sh 2>/dev/null || true
 
-# 3. Khởi động MariaDB và nạp DB hashirama (không ảnh hưởng 2 DB cũ)
-info "Khởi động MariaDB và kiểm tra Database..."
+# 3. MariaDB + DB awnv3
+info "Khoi dong MariaDB va kiem tra Database..."
 bash "$DIR/start_db.sh"
 
-# Kiểm tra lại DB hashirama nếu chưa có bảng
-PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
-MYSQL_CMD=""
-for c in mariadb mysql; do command -v "$c" >/dev/null 2>&1 && { MYSQL_CMD="$c"; break; }; done
-if [ -n "$MYSQL_CMD" ]; then
-    NRO_TBLS=$("$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -N -e "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'hashirama';" 2>/dev/null || echo "0")
-    if [ -z "$NRO_TBLS" ] || [ "$NRO_TBLS" -eq 0 ]; then
-        info "Đang nạp dữ liệu database hashirama..."
-        "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "CREATE DATABASE IF NOT EXISTS hashirama CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;" 2>/dev/null
-        "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root --default-character-set=utf8mb4 hashirama < "$DIR/nro/database/hashirama.sql" 2>/dev/null
-        info "Nạp database hashirama thành công (80 bảng)!"
-    else
-        info "Database hashirama đã có sẵn $NRO_TBLS bảng."
-    fi
-fi
-
-# 4. Giải nén dữ liệu tài nguyên NRO nếu chưa có
+# 4. Giai nen tai nguyen NRO neu chua co
 NRO="$DIR/nro"
 if [ -d "$NRO" ]; then
-    if [ ! -d "$NRO/resources" ] || [ ! -d "$NRO/data" ]; then
-        if [ -f "$NRO/NRO_data.part1" ]; then
-            info "Đang giải nén tài nguyên Ngọc Rồng (NRO_data.part1..5)..."
-            (cd "$NRO" && cat NRO_data.part* > nro_data.tar.gz \
-                && tar -xzf nro_data.tar.gz && rm -f nro_data.tar.gz)
-            [ -d "$NRO/resources" ] && info "Giải nén tài nguyên NRO thành công!" || { error "Giải nén NRO thất bại!"; exit 1; }
+    if [ ! -d "$NRO/Server/data/map" ]; then
+        if ls "$NRO"/ANWIN_data.tar.* >/dev/null 2>&1; then
+            info "Dang giai nen tai nguyen Ngoc Rong Anwin..."
+            mkdir -p "$NRO/Server"
+            (cd "$NRO/Server" && cat "$NRO"/ANWIN_data.tar.* > anwin_data.tar \
+                && tar -xf anwin_data.tar && rm -f anwin_data.tar)
+            [ -d "$NRO/Server/data/map" ] && info "Giai nen tai nguyen NRO thanh cong!" || { error "Giai nen NRO that bai!"; exit 1; }
         else
-            warn "Không tìm thấy NRO_data.part1..5 trong thư mục nro/!"
+            warn "Khong tim thay ANWIN_data.tar.* trong thu muc nro/!"
         fi
     else
-        info "Tài nguyên NRO đã được giải nén sẵn."
-    fi
-
-    # Lắp ráp file client APK vào thư mục Web đang chạy (web/htdocs/Downloads)
-    # (part có thể nằm ở web/htdocs/Downloads hoặc web/Downloads bản cũ)
-    DL_DIR="$NRO/web/htdocs/Downloads"
-    mkdir -p "$DL_DIR"
-    PART_DIR=""
-    for d in "$DL_DIR" "$NRO/web/Downloads"; do
-        if [ -f "$d/Nro_HanZi_apk.part1" ]; then PART_DIR="$d"; break; fi
-    done
-    if [ ! -f "$DL_DIR/Nro HanZi.apk" ] && [ -n "$PART_DIR" ]; then
-        info "Đang lắp ráp file APK Ngọc Rồng (cho phép tải từ Web)..."
-        cat "$PART_DIR"/Nro_HanZi_apk.part* > "$DL_DIR/Nro HanZi.apk" \
-            && info "Đã lắp ráp file cài đặt APK thành công!" \
-            || warn "Lắp ráp APK thất bại!"
-    elif [ -f "$DL_DIR/Nro HanZi.apk" ]; then
-        info "File APK Ngọc Rồng đã có sẵn trên Web."
-    else
-        warn "Không tìm thấy Nro_HanZi_apk.part1..2 trong $DL_DIR!"
+        info "Tai nguyen NRO da duoc giai nen san."
     fi
 else
-    error "Thư mục $NRO không tồn tại!"
+    error "Thu muc $NRO khong ton tai!"
     exit 1
 fi
 
 echo -e "\n${GREEN}====================================================${NC}"
-echo -e "${GREEN}   CẬP NHẬT THÀNH CÔNG 100%! BỘ CÀI ĐÃ CÓ 3 GAME    ${NC}"
+echo -e "${GREEN}   CAP NHAT THANH CONG!                              ${NC}"
 echo -e "${GREEN}====================================================${NC}"
-echo -e "  - Ninja School:  game port ${YELLOW}14444${NC} | web port ${YELLOW}8000${NC} (DB: schoolzz - GIỮ NGUYÊN)"
-echo -e "  - Hải Tặc Hot:   game port ${YELLOW}2236${NC}  | web port ${YELLOW}8080${NC} (DB: htth - GIỮ NGUYÊN)"
-echo -e "  - Ngọc Rồng MỚI: game port ${YELLOW}14445${NC} | web port ${YELLOW}8888${NC} | API: ${YELLOW}8085${NC} (DB: hashirama)"
-echo -e "  - Tải Client:    Truy cập ${YELLOW}http://127.0.0.1:8888/${NC} để tải APK và Java đã chỉnh IP 127.0.0.1"
+echo -e "  - Ninja School:  game port ${YELLOW}14444${NC} | web port ${YELLOW}8000${NC} (DB: schoolzz)"
+echo -e "  - Hai Tac Hot:   game port ${YELLOW}2236${NC}  | web port ${YELLOW}8080${NC} (DB: htth)"
+echo -e "  - Ngoc Rong Anwin V3: game port ${YELLOW}14445${NC} | web port ${YELLOW}8888${NC} | API: ${YELLOW}8085${NC} (DB: awnv3)"
+echo -e "  - Tai Client:    Truy cap ${YELLOW}http://127.0.0.1:8888/${NC} (APK + JAR nap san IP 127.0.0.1)"
 echo -e "${CYAN}----------------------------------------------------${NC}"
-echo -e "  ▶ Chạy menu điều khiển:   ${CYAN}bash menu.sh${NC}"
-echo -e "  ▶ Chạy riêng Ngọc Rồng:    ${CYAN}bash nro_start.sh${NC}"
+echo -e "  Chay menu dieu khien:   ${CYAN}bash menu.sh${NC}"
+echo -e "  Chay rieng Ngoc Rong:    ${CYAN}bash nro_start.sh${NC}"
 echo -e "${GREEN}====================================================${NC}"

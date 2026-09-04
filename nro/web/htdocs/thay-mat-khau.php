@@ -1,5 +1,5 @@
 <?php
-if (session_status() == PHP_SESSION_NONE) { session_start(); } // Khởi tạo session
+session_start(); // Khởi tạo session
 if (!isset($_SESSION['account'])) { // Kiểm tra nếu người dùng chưa đăng nhập
     header("Location: /register"); // Chuyển hướng đến trang đăng ký
     exit(); // Dừng thực thi mã tiếp theo
@@ -39,13 +39,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_password'])) {
     $stmt->fetch();
     $stmt->close();
 
-    // Kiem tra mat khau hien tai
+    // Kiểm tra mật khẩu hiện tại
     if ($current_password !== $stored_password) {
         $error_message = "Mật khẩu hiện tại không đúng.";
     } elseif ($new_password !== $confirm_password) {
         $error_message = "Mật khẩu mới và xác nhận mật khẩu không khớp.";
     } else {
-        // Cap nhat mat khau moi vao co so du lieu
+        // Cập nhật mật khẩu mới vào cơ sở dữ liệu
         $stmt = $conn->prepare("UPDATE account SET password = ? WHERE username = ?");
         $stmt->bind_param('ss', $new_password, $username);
         $stmt->execute();

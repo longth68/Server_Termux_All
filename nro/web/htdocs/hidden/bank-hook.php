@@ -40,17 +40,16 @@ function reCheck($description, $vnd, $handle)
     $pattern = '/base\s([A-Za-z0-9]+)\s([A-Za-z0-9]{6})/i';
     $match = array();
     if (preg_match($pattern, $description, $match)) {
-    $username = isset_sql($match[1]);
-    $tranid = isset_sql($match[2]);
+        $username = $match[1];
+        $tranid = $match[2];
 
-    fwrite($handle, $username . "\n\n");
-    fwrite($handle, $tranid . "\n\n");
-} else {
-    return;
-}
+        fwrite($handle, $username . "\n\n");
+        fwrite($handle, $tranid . "\n\n");
+    } else {
+        return;
+    }
 
-// HASHIRAMA: bang mb_bank
-$query = "SELECT * FROM `mb_bank` WHERE username='$username' AND amount='$vnd' AND tid='$tranid' AND status='0'";
+    $query = "SELECT * FROM `naptien` WHERE type='BANK' AND uid='$username' AND vnd='$vnd' AND noidung='$tranid' AND tinhtrang='0'";
     fwrite($handle, $query . "\n\n");
     $result = _query($query);
     if ($result->num_rows == 0) {
@@ -65,7 +64,7 @@ $query = "SELECT * FROM `mb_bank` WHERE username='$username' AND amount='$vnd' A
     $query = "UPDATE `account` SET vnd = vnd + {$vndX2}, tongnap = tongnap + {$vndX2} WHERE username = '{$username}'";
     _query($query);
 
-    $query = "UPDATE `mb_bank` SET `status`='1' WHERE username='$username' AND amount='$vnd' AND tid='$tranid' AND status='0'";
+    $query = "UPDATE `naptien` SET `tinhtrang`='1' WHERE type='BANK' AND uid='$username' AND vnd='$vnd' AND noidung='$tranid' AND tinhtrang='0'";
     fwrite($handle, $query . "\n\n");
     _query($query);
 }

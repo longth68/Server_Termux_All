@@ -1,18 +1,7 @@
 <?php
 require_once "hidden/set.php";
-// Chua dang nhap -> dua ve trang dang nhap
-if (empty($_user)) {
-    header("location:/login");
-    exit;
-}
-// Dang nhap nhung khong phai admin
-if ($user_arr["is_admin"] != 1) {
-    echo '<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><title>Truy cập bị từ chối</title>';
-    echo '<link rel="stylesheet" href="/assets/css/bootstrap.min.css"></head><body class="bg-light">';
-    echo '<div class="container mt-5"><div class="alert alert-danger text-center"><h4>Bạn không có quyền truy cập trang này!</h4>';
-    echo '<p>Tài khoản <b>' . $_username . '</b> không phải quản trị viên (is_admin = 0).</p>';
-    echo '<a href="/" class="btn btn-primary">Về trang chủ</a></div></div></body></html>';
-    exit;
+if (empty($_user) || $user_arr["is_admin"] != 1) {
+    die("Bạn không có quyền truy cập trang này!");
 }
 
 // Java Server API Proxy for AJAX
@@ -20,37 +9,15 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == 'proxy') {
     error_reporting(0); // JSON API: khong de warning PHP lam vo JSON (PHP 8.5+)
     header('Content-Type: application/json; charset=UTF-8');
     $api_action = isset($_GET['action']) ? preg_replace('/[^a-z0-9_]/i', '', $_GET['action']) : 'info';
-    
-    if ($api_action === 'wipe_accounts') {
-        $keep_user = isset_sql(trim($_GET['keep'] ?? $_username));
-        _query("DELETE FROM player WHERE account_id IN (SELECT id FROM account WHERE is_admin != 1 AND username != '$keep_user')");
-        _query("DELETE FROM account WHERE is_admin != 1 AND username != '$keep_user'");
-        $count = mysqli_affected_rows($conn);
-        echo json_encode([
-            "status" => "success",
-            "msg" => "Đã xóa $count tài khoản người chơi (đã giữ lại tài khoản Admin '$keep_user')!"
-        ]);
-        exit;
-    }
-
     // Forward all query params except 'ajax' and 'action'
     $query_str = "";
-    $allowed = array('key','val','name','name2','vnd','item','qty','opt_id','opt_param','task','subtask','msg','type','amount','val2','boss','id','keep','idx','slot','bag_index','tempid','power','gold','map','x','y',
-        'head','level','tiemnang','hpg','mpg','dameg','defg','critg','gem','ruby',
+    $allowed = array('key','val','name','vnd','item','qty','opt_id','opt_param','task','subtask','msg','type','amount','val2','boss','id','keep','idx','slot','bag_index','tempid','power','gold','map','x','y',
+        'head','tiemnang','hpg','mpg','dameg','defg','critg','gem','ruby',
         'pet_type','pet_gender','pet_name','pet_status','pet_power','pet_tiemnang','pet_hpg','pet_mpg','pet_dameg','pet_defg','pet_critg',
-        'status','damg','gender',
         'main_id','main_index','main_count','side_id','side_count','side_max','side_left','side_level',
         'clan_id','clan_count','clan_max','clan_left','clan_level','kol_id','kol_count',
-        'badge_id','days','use','hour','minute','auto_restart','h','m','on',
-        'cfg','fk','table','sv',
-        // cot du lieu cho tab Tinh nang (feat_save / phucloi_save)
-        'options','items','name_tab','name_binh','thoi_gian','item_nhan','info','color',
-        'id_item','option_id','param','key_item_id','item_options','tile_trung_thuong','des','enabled','start_at','end_at',
-        'max_value','count','rank','max_amount','mob_id','leg','aura','icon','detail',
-        'max_tab','id_tab','info_phucloi','feat_action','tich_luy','tab_id','max_count','active','list_item',
-        // Lucky Wheel / New Player Gift / Online Gift params
-        'player_id','prize_id','gem_cost','probability','minutes_required','max_day','gift_id',
-        'account_id','milestone_id','vnd_amount','item_id','quantity');
+        'badge_id','days','use','hour','minute','auto_restart',
+        'q','username','password','status');
     foreach ($_GET as $k => $v) {
         if ($k == 'ajax' || $k == 'action') continue;
         if (!in_array($k, $allowed)) continue;
@@ -58,11 +25,11 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == 'proxy') {
         $query_str .= rawurlencode($k) . "=" . rawurlencode($v);
     }
 
-    $url = $JAVA_API . "/" . $api_action;
-    if ($query_str != "") $url .= "?" . $query_str; else $url .= "?key=" . rawurlencode($API_KEY);
-    if ($query_str != "") $url .= "&key=" . rawurlencode($API_KEY);
+    // Termux: Java API chay port 8085 (tranh 8888 cua Web PHP). Xem start.sh
+    $url = "http://127.0.0.1:8085/api/" . $api_action;
+    if ($query_str != "") $url .= "?" . $query_str;
 
-    // Call Java API (HASHIRAMA WebAdminAPI - port 8085, auth bang api.key)
+    // Call Java API
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -138,63 +105,62 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action_acc'])) {
     }
 }
 
-// Xử lý POST (Giftcode) - HASHIRAMA: bang gift_codes
+// Xử lý POST (Giftcode)
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action_gc'])) {
     $action = $_POST['action_gc'];
-    // chuan hoa items: dam bao moi phan tu co "options" (GiftService bat buoc)
-    $normalize_items = function ($json_str) {
-        $arr = json_decode($json_str, true);
-        if (!is_array($arr)) return null;
-        $out = [];
-        foreach ($arr as $e) {
-            if (!isset($e['id'], $e['quantity'])) continue;
-            $opts = isset($e['options']) && is_array($e['options']) ? array_values($e['options']) : [];
-            $out[] = ["id" => (int)$e['id'], "quantity" => (int)$e['quantity'], "options" => $opts];
-        }
-        return json_encode($out);
-    };
     if ($action === 'add') {
-        $code = strtolower(isset_sql(trim($_POST['code'])));
-        $item_json = $normalize_items(trim($_POST['item']));
-        if ($item_json === null) {
-            $msg = "JSON vật phẩm không hợp lệ!";
+        $code = isset_sql(trim($_POST['code']));
+        $item_str = trim($_POST['item']);
+        $item_arr = [];
+        if(!empty($item_str)) {
+            $items = explode(',', $item_str);
+            foreach($items as $it) {
+                $parts = explode(':', trim($it));
+                if(count($parts) == 2) {
+                    $item_arr[] = ["id" => (int)$parts[0], "quantity" => (int)$parts[1]];
+                }
+            }
+        }
+        $item_json = json_encode($item_arr);
+
+        $opt_str = trim($_POST['option']);
+        $opt_arr = [];
+        if(!empty($opt_str)) {
+            $opts = explode(',', $opt_str);
+            foreach($opts as $op) {
+                $parts = explode(':', trim($op));
+                if(count($parts) == 2) {
+                    $opt_arr[] = ["id" => (int)$parts[0], "param" => (int)$parts[1]];
+                }
+            }
+        }
+        $opt_json = json_encode($opt_arr);
+
+        $count = (int)$_POST['count'];
+        $expire = isset_sql(trim($_POST['expire']));
+        
+        $sql = "INSERT INTO giftcode (`code`, `item`, `option`, `listIdPlayers`, `datecreate`, `expired`, `count_left`) 
+                VALUES ('$code', '$item_json', '$opt_json', '[]', NOW(), '$expire', $count)";
+        if (_query($sql)) {
+            $msg = "Thêm mã Giftcode '$code' thành công!";
         } else {
-            $gold = (int)($_POST['gold'] ?? 0);
-            $gem = (int)($_POST['gem'] ?? 0);
-            $ruby = (int)($_POST['ruby'] ?? 0);
-            $type = (int)($_POST['gctype'] ?? 1);       // 0 = ca nhan (1 lan), 1 = tat ca moi nguoi
-            $active = (int)!empty($_POST['gcactive']);  // 1 = can kich hoat tai khoan
-            $expire = trim($_POST['expire']);
-            $expire_sql = ($expire !== "") ? "'" . isset_sql($expire) . "'" : "NULL";
-            $sql = "INSERT INTO gift_codes (`type`,`code`,`gold`,`gem`,`ruby`,`items`,`status`,`active`,`expires_at`,`created_at`,`updated_at`)
-                    VALUES ($type,'$code',$gold,$gem,$ruby,'" . isset_sql($item_json) . "',0,$active,$expire_sql,NOW(),NOW())";
-            $msg = _query($sql) ? "Thêm mã Giftcode '$code' thành công!" : "Lỗi khi thêm Giftcode (có thể trùng mã)!";
+            $msg = "Lỗi khi thêm Giftcode!";
         }
     } elseif ($action === 'edit') {
         $id = (int)$_POST['id'];
-        $code = strtolower(isset_sql(trim($_POST['code'])));
-        $item_json = $normalize_items(trim($_POST['item']));
-        if ($item_json === null) {
-            $msg = "JSON vật phẩm không hợp lệ!";
-        } else {
-            $gold = (int)($_POST['gold'] ?? 0);
-            $gem = (int)($_POST['gem'] ?? 0);
-            $ruby = (int)($_POST['ruby'] ?? 0);
-            $active = (int)!empty($_POST['gcactive']);
-            $expire = trim($_POST['expire']);
-            $expire_sql = ($expire !== "") ? "'" . isset_sql($expire) . "'" : "NULL";
-            $sql = "UPDATE gift_codes SET `code`='$code',`gold`=$gold,`gem`=$gem,`ruby`=$ruby,`items`='" . isset_sql($item_json) . "',`active`=$active,`expires_at`=$expire_sql,`updated_at`=NOW() WHERE id=$id";
-            $msg = _query($sql) ? "Đã cập nhật mã '$code'!" : "Lỗi cập nhật!";
+        $code = isset_sql(trim($_POST['code']));
+        $item = isset_sql(trim($_POST['item']));
+        $option = isset_sql(trim($_POST['option']));
+        $count = (int)$_POST['count'];
+        $expire = isset_sql(trim($_POST['expire']));
+        
+        $sql = "UPDATE giftcode SET `code`='$code', `item`='$item', `option`='$option', `count_left`=$count, `expired`='$expire' WHERE id=$id";
+        if (_query($sql)) {
+            $msg = "Đã cập nhật mã '$code'!";
         }
-    } elseif ($action === 'reset') {
-        $id = (int)$_POST['id'];
-        _query("DELETE FROM gift_code_histories WHERE gift_code_id = $id");
-        _query("UPDATE gift_codes SET status = 0 WHERE id = $id");
-        $msg = "Đã reset trạng thái + lịch sử sử dụng mã #$id!";
     } elseif ($action === 'delete') {
         $id = (int)$_POST['id'];
-        _query("DELETE FROM gift_code_histories WHERE gift_code_id = $id");
-        if (_query("DELETE FROM gift_codes WHERE id = $id")) {
+        if (_query("DELETE FROM giftcode WHERE id = $id")) {
             $msg = "Xóa Giftcode thành công!";
         }
     }
@@ -204,14 +170,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action_gc'])) {
 $total_acc = _fetch("SELECT COUNT(*) as c FROM account")["c"];
 $active_acc = _fetch("SELECT COUNT(*) as c FROM account WHERE active=1")["c"];
 $total_vnd = _fetch("SELECT SUM(tongnap) as c FROM account")["c"] ?? 0;
-$total_gc = _fetch("SELECT COUNT(*) as c FROM gift_codes")["c"];
+$total_gc = _fetch("SELECT COUNT(*) as c FROM giftcode")["c"];
 
 $list_acc = [];
 $q = mysqli_query($conn, "SELECT username, vnd, tongnap, active, ban FROM account ORDER BY tongnap DESC LIMIT 20");
 while($row = mysqli_fetch_assoc($q)) $list_acc[] = $row;
 
 $list_gc = [];
-$q_gc = mysqli_query($conn, "SELECT * FROM gift_codes ORDER BY id DESC LIMIT 50");
+$q_gc = mysqli_query($conn, "SELECT * FROM giftcode ORDER BY id DESC LIMIT 50");
 while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
 
 ?>
@@ -269,17 +235,15 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
         <a href="?tab=event" class="<?= $tab=='event'?'active':'' ?>"><i class="fa-solid fa-calendar-days text-warning"></i> Quản Lý Sự Kiện</a>
         <a href="?tab=shop" class="<?= $tab=='shop'?'active':'' ?>"><i class="fa-solid fa-shop text-info"></i> Shop Manager</a>
 <a href="?tab=consign" class="<?= $tab=='consign'?'active':'' ?>"><i class="fa-solid fa-basket-shopping text-danger"></i> Chợ Ký Gửi</a>
-        <a href="?tab=features" class="<?= $tab=='features'?'active':'' ?>"><i class="fa-solid fa-wand-magic-sparkles text-primary"></i> Tính Năng Mới</a>
-        <a href="?tab=luckywheel" class="<?= $tab=='luckywheel'?'active':'' ?>"><i class="fa-solid fa-dharmachakra text-warning"></i> Vòng Quay May Mắn</a>
-        <a href="?tab=newplayer" class="<?= $tab=='newplayer'?'active':'' ?>"><i class="fa-solid fa-gift text-success"></i> Quà Tân Thủ</a>
-        <a href="?tab=onlinegift" class="<?= $tab=='onlinegift'?'active':'' ?>"><i class="fa-solid fa-clock text-info"></i> Quà Online</a>
+<a href="?tab=features" class="<?= $tab=='features'?'active':'' ?>"><i class="fa-solid fa-wand-magic-sparkles text-primary"></i> Tính Năng Mới</a>
         <a href="?tab=giftcode" class="<?= $tab=='giftcode'?'active':'' ?>"><i class="fa-solid fa-gift text-danger"></i> Quản Lý Giftcode</a>
-        <a href="?tab=naprequest" class="<?= $tab=='naprequest'?'active':'' ?>"><i class="fa-solid fa-money-bill-wave text-success"></i> Yêu Cầu Nạp Tiền</a>
+        <a href="?tab=naprequest" class="<?= $tab=='naprequest'?'active':'' ?>"><i class="fa-solid fa-credit-card text-success"></i> Duyệt Nạp Thẻ</a>
+        <a href="?tab=top" class="<?= $tab=='top'?'active':'' ?>"><i class="fa-solid fa-ranking-star text-warning"></i> Bảng Xếp Hạng</a>
         <div class="sidebar-group">DỮ LIỆU GAME</div>
         <a href="?tab=itemdata" class="<?= $tab=='itemdata'?'active':'' ?>"><i class="fa-solid fa-box text-primary"></i> Dữ Liệu Vật Phẩm</a>
         <a href="?tab=mapdata" class="<?= $tab=='mapdata'?'active':'' ?>"><i class="fa-solid fa-map text-success"></i> Dữ Liệu Bản Đồ</a>
         <a href="?tab=part" class="<?= $tab=='part'?'active':'' ?>"><i class="fa-solid fa-shirt text-info"></i> Quản Lý Part</a>
-        <a href="?tab=assets" class="<?= $tab=='assets'?'active':'' ?>"><i class="fa-solid fa-images text-success"></i> Xem Asset (NPC/Quái)</a>
+        <a href="?tab=drop" class="<?= $tab=='drop'?'active':'' ?>"><i class="fa-solid fa-bug text-warning"></i> Quản Lý Drop Item</a>
         <a href="?tab=badges" class="<?= $tab=='badges'?'active':'' ?>"><i class="fa-solid fa-medal text-danger"></i> Danh Hiệu</a>
         <a href="?tab=radar" class="<?= $tab=='radar'?'active':'' ?>"><i class="fa-solid fa-satellite-dish text-primary"></i> Quản Lý Radar</a>
         <div class="sidebar-group">LỊCH SỬ</div>
@@ -398,7 +362,7 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                     let h = document.getElementById('schedHour').value;
                     let m = document.getElementById('schedMinute').value;
                     let ar = document.getElementById('schedAutoRestart').value;
-                    callApi('maintenance_set_time&h=' + h + '&m=' + m + '&on=' + ar);
+                    callApi('maintenance_set_time&hour=' + h + '&minute=' + m + '&auto_restart=' + ar);
                 }
                 </script>
             </div>
@@ -408,9 +372,8 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                 <h6 class="text-muted fw-bold border-bottom pb-2 mb-3">Boss Manager (Triệu Hồi & Cài Đặt)</h6>
                 <a href="?tab=boss" class="btn btn-primary w-100 mb-2 fw-bold" style="padding: 10px;">Mở Menu Triệu Hồi (Search & Call Boss)</a>
                 <div class="d-flex gap-2">
-                    <button class="btn btn-danger w-33 fw-bold" style="padding: 10px;" onclick="if(confirm('Reset toàn bộ Boss?')) callApi('boss_reset')">Reset All Boss</button>
-                    <button class="btn btn-success w-33 fw-bold" style="padding: 10px;" onclick="callApi('boss_respawn_resting')">Hồi Sinh Boss Nghỉ</button>
-                    <button class="btn btn-warning w-33 fw-bold" style="padding: 10px;" onclick="killSelectedBoss()"><i class="fa-solid fa-skull"></i> Tắt Boss</button>
+                    <button class="btn btn-danger w-50 fw-bold" style="padding: 10px;" onclick="if(confirm('Reset toàn bộ Boss?')) callApi('boss_reset')">Reset All Boss</button>
+                    <button class="btn btn-success w-50 fw-bold" style="padding: 10px;" onclick="callApi('boss_respawn_resting')">Hồi Sinh Boss Đang Nghỉ</button>
                 </div>
             </div>
             <!-- Optimization -->
@@ -425,8 +388,12 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
 
             <!-- Data switch int/long -->
             <div class="card p-3 mb-3">
-                <h6 class="text-muted fw-bold border-bottom pb-2 mb-3">Dữ Liệu</h6>
-                <p class="text-muted m-0">Chức năng chuyển đổi kiểu dữ liệu chưa được kích hoạt.</p>
+                <h6 class="text-muted fw-bold border-bottom pb-2 mb-3">Dữ Liệu (int / long)</h6>
+                <p class="text-muted m-0">Chuyển đổi kiểu đọc dữ liệu trong game. Trạng thái hiện tại: <span id="lblDataMode" class="fw-bold">...</span></p>
+                <div class="d-flex gap-2 mt-2">
+                    <button class="btn btn-sm btn-info fw-bold" onclick="callApi('data_switch&val=0')">Chuyển sang INT</button>
+                    <button class="btn btn-sm btn-warning fw-bold" onclick="callApi('data_switch&val=1')">Chuyển sang LONG</button>
+                </div>
             </div>
 
             <script>
@@ -436,40 +403,36 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                 }, 1000);
 
                 // Fetch server stats every 2 seconds
-                function fmtUptime(s){
-                    s = parseInt(s)||0;
-                    let h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
-                    return (h>0? h+'h ' : '') + m + 'm ' + sec + 's';
-                }
                 function fetchStats() {
                     fetch('?ajax=proxy&action=info')
                     .then(res => res.json())
                     .then(data => {
                         if(data.status && data.status == 'error') return; // Server off
-
-                        // HASHIRAMA: players_online / ram_used_mb / ram_max_mb / uptime_s
-                        document.getElementById('lbOnline').innerText = data.players_online ?? 0;
-                        document.getElementById('lbSessions').innerText = data.players_online ?? 0;
-                        document.getElementById('lbThreads').innerText = data.threads ?? 0;
-
-                        document.getElementById('lbCpu').innerText = data.cpu ?? 0;
-                        document.getElementById('barCpu').style.width = (data.cpu ?? 0) + '%';
-
-                        document.getElementById('lbRamUsed').innerText = data.ram_used_mb ?? 0;
-                        document.getElementById('lbRamMax').innerText = data.ram_max_mb ?? 0;
-                        let ramPerc = ((data.ram_used_mb||0) / (data.ram_max_mb||1)) * 100;
-                        document.getElementById('barRam').style.width = ramPerc.toFixed(1) + '%';
-
-                        document.getElementById('lbUptime').innerText = fmtUptime(data.uptime_s);
+                        
+                        document.getElementById('lbOnline').innerText = data.sessions;
+                        document.getElementById('lbSessions').innerText = data.sessions;
+                        document.getElementById('lbThreads').innerText = data.threads;
+                        
+                        document.getElementById('lbCpu').innerText = data.cpu;
+                        document.getElementById('barCpu').style.width = data.cpu + '%';
+                        
+                        document.getElementById('lbRamUsed').innerText = data.ram_used;
+                        document.getElementById('lbRamMax').innerText = data.ram_max;
+                        let ramPerc = (data.ram_used / data.ram_max) * 100;
+                        document.getElementById('barRam').style.width = ramPerc + '%';
+                        
+                        document.getElementById('lbUptime').innerText = data.uptime;
 
                         let dm = document.getElementById('lblDataMode');
-                        if(dm) dm.innerText = 'x' + (data.exp_rate||'?') + ' EXP' + (data.event ? (' · Event #' + data.event) : '');
-
+                        if(dm) dm.innerText = (data.data_mode == 1 ? 'INT' : 'LONG') + ' (x' + (data.rate_exp||'?') + ' EXP)';
+                        
                         let botBtn = document.getElementById('btnBot');
-                        if(botBtn) {
-                            botBtn.innerText = 'BOT AI: ' + (data.bots_online !== undefined ? data.bots_online : '—');
-                            botBtn.classList.remove('btn-secondary','btn-success');
-                            botBtn.classList.add((data.bots_online||0) > 0 ? 'btn-success' : 'btn-secondary');
+                        if(data.bot_enabled) {
+                            botBtn.innerText = 'BOT: ON';
+                            botBtn.classList.replace('btn-secondary', 'btn-success');
+                        } else {
+                            botBtn.innerText = 'BOT: OFF';
+                            botBtn.classList.replace('btn-success', 'btn-secondary');
                         }
                     })
                     .catch(e => console.log('Java Server is probably offline'));
@@ -495,27 +458,26 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                     .then(data => {
                         let alert = document.getElementById('ajaxAlert');
                         alert.classList.remove('d-none', 'alert-danger');
-                        alert.classList.add((data.status == 'error' || data.success === false) ? 'alert-danger' : 'alert-success');
-                        alert.innerText = data.message || data.msg || data.status || 'Xong';
+                        alert.classList.add(data.status == 'error' ? 'alert-danger' : 'alert-success');
+                        alert.innerText = data.msg || data.status;
                         setTimeout(() => alert.classList.add('d-none'), 3000);
                     });
                 }
 
                 function spawnBot(type, name) {
-                    let amount = prompt("Nhập số lượng Bot " + name + " muốn tạo:", "5");
+                    let amount = prompt("Nhập số lượng Bot " + name + " muốn tạo (hoặc nhập 0 để xóa):", "5");
                     if (amount != null && amount !== "") {
                         if (isNaN(amount)) {
                             alert("Vui lòng nhập số!");
                             return;
                         }
-                        // HASHIRAMA: bot_spawn chi nhan tham so val (so luong 1-50, bot he thong cu)
-                        fetch('?ajax=proxy&action=' + (amount > 0 ? 'bot_spawn&val=' + amount : 'bot_remove_all'))
+                        fetch('?ajax=proxy&action=bot_spawn&type=' + type + '&amount=' + amount)
                         .then(res => res.json())
                         .then(data => {
                             let alert = document.getElementById('ajaxAlert');
                             alert.classList.remove('d-none', 'alert-danger', 'alert-success');
-                            alert.classList.add((data.status == 'error' || data.success === false) ? 'alert-danger' : 'alert-success');
-                            alert.innerText = data.message || data.msg || data.status || 'Xong';
+                            alert.classList.add(data.status == 'error' ? 'alert-danger' : 'alert-success');
+                            alert.innerText = data.msg || data.status;
                             setTimeout(() => alert.classList.add('d-none'), 3000);
                         });
                     }
@@ -535,8 +497,8 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                     .then(data => {
                         let alert = document.getElementById('ajaxAlert');
                         alert.classList.remove('d-none', 'alert-danger', 'alert-success');
-                        alert.classList.add((data.status == 'error' || data.success === false) ? 'alert-danger' : 'alert-success');
-                        alert.innerText = data.message || data.msg || data.status || 'Xong';
+                        alert.classList.add(data.status == 'error' ? 'alert-danger' : 'alert-success');
+                        alert.innerText = data.msg || data.status;
                         document.getElementById('noticeMsg').value = '';
                         setTimeout(() => alert.classList.add('d-none'), 3000);
                     });
@@ -608,9 +570,9 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                     <input type="text" id="pvSearch" class="form-control" placeholder="Lọc theo tên...">
                 </div>
                 <div style="max-height: 500px; overflow-y: auto;">
-                    <table class="table table-bordered table-striped table-hover small">
+                    <table class="table table-bordered table-striped table-hover">
                         <thead class="table-dark">
-                            <tr><th>ID</th><th>Tên Nhân Vật</th><th>Sức Mạnh</th><th>Map</th><th>Loại</th><th>Hành Động</th></tr>
+                            <tr><th>ID</th><th>Tên Nhân Vật</th><th>Sức Mạnh</th><th>Loại</th><th>Hành Động</th></tr>
                         </thead>
                         <tbody id="pvTableBody"></tbody>
                     </table>
@@ -622,28 +584,24 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                 function showAlert(data){
                     let a = document.getElementById('ajaxAlert');
                     a.classList.remove('d-none','alert-danger','alert-success');
-                    a.classList.add((data.status == 'error' || data.success === false) ? 'alert-danger' : 'alert-success');
-                    a.innerText = data.message || data.msg || data.status || 'Xong';
+                    a.classList.add(data.status == 'error' ? 'alert-danger' : 'alert-success');
+                    a.innerText = data.msg || data.status;
                     setTimeout(() => a.classList.add('d-none'), 3000);
                 }
                 function playerGiveItem(){
                     let name = pvName(); if(!name){alert('Nhập tên nhân vật!');return;}
                     let item = document.getElementById('pv_item').value;
                     let qty = document.getElementById('pv_qty').value;
-                    // HASHIRAMA: tham so la tempid (id item template)
-                    fetch('?ajax=proxy&action=player_give_item&name='+encodeURIComponent(name)+'&tempid='+item+'&qty='+qty).then(r=>r.json()).then(showAlert);
+                    fetch('?ajax=proxy&action=player_give_item&name='+encodeURIComponent(name)+'&item='+item+'&qty='+qty).then(r=>r.json()).then(showAlert);
                 }
                 function playerBuffVnd(){
                     let name = pvName(); let vnd = document.getElementById('pv_vnd').value;
                     if(!name){alert('Nhập tên nhân vật!');return;}
-                    // HASHIRAMA: tham so la val
-                    fetch('?ajax=proxy&action=player_buff_vnd&name='+encodeURIComponent(name)+'&val='+vnd).then(r=>r.json()).then(showAlert);
+                    fetch('?ajax=proxy&action=player_buff_vnd&name='+encodeURIComponent(name)+'&vnd='+vnd).then(r=>r.json()).then(showAlert);
                 }
                 function playerMtv(){
                     let name = pvName(); if(!name){alert('Nhập tên nhân vật!');return;}
-                    let lv = prompt('Cấp hội viên VIP (0-10):', '1');
-                    if (lv === null) return;
-                    fetch('?ajax=proxy&action=player_mtv&name='+encodeURIComponent(name)+'&level='+lv).then(r=>r.json()).then(showAlert);
+                    fetch('?ajax=proxy&action=player_mtv&name='+encodeURIComponent(name)).then(r=>r.json()).then(showAlert);
                 }
                 function playerKick(){
                     let name = pvName(); if(!name){alert('Nhập tên nhân vật!');return;}
@@ -660,34 +618,21 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                     fetch('?ajax=proxy&action=player_set_task&name='+encodeURIComponent(name)+'&task='+task+'&subtask='+sub).then(r=>r.json()).then(showAlert);
                 }
                 function loadPlayers(){
-                    // HASHIRAMA tra ve {players:[...]}
-                    fetch('?ajax=proxy&action=player_list').then(r=>r.json()).then(data=>{
+                    fetch('?ajax=proxy&action=player_list').then(r=>r.json()).then(list=>{
                         let tb = document.getElementById('pvTableBody'); tb.innerHTML='';
                         let term = document.getElementById('pvSearch').value.toLowerCase();
                         let shown = 0;
-                        (Array.isArray(data)?data:(data.players||[])).forEach(p=>{
+                        (Array.isArray(list)?list:[]).forEach(p=>{
                             if(term && (p.name||'').toLowerCase().indexOf(term) < 0) return;
                             shown++;
                             let tr = document.createElement('tr');
-                            let isBot = p.is_bot || p.isBot;
-                            if(isBot) tr.className = 'table-light';
-                            let mapStr = p.map || '?';
-                            if(p.zone_id !== undefined && p.zone_id >= 0) mapStr += ' (#'+p.zone_id+')';
-                            tr.innerHTML = '<td>'+p.id+'</td>'
-                                +'<td><strong>'+esc(p.name)+'</strong></td>'
-                                +'<td>'+numberFmt(p.power)+'</td>'
-                                +'<td><small>'+esc(mapStr)+'</small></td>'
-                                +'<td>'+(isBot?'<span class="badge bg-warning text-dark">BOT</span>':'<span class="badge bg-success">Player</span>')+'</td>'
-                                +'<td>'
-                                +'<button class="btn btn-xs btn-outline-primary me-1" onclick="plOpen('+p.id+')"><i class="fa-solid fa-user-pen"></i></button> '
-                                +'<button class="btn btn-xs btn-outline-danger" onclick="kickName(\''+esc(p.name)+'\')">Kick</button>'
-                                +'</td>';
+                            tr.innerHTML = '<td>'+p.id+'</td><td><strong>'+p.name+'</strong></td><td>'+numberFmt(p.power)+'</td><td>'+(p.isBot?'<span class="badge bg-secondary">Bot</span>':'<span class="badge bg-success">Player</span>')+'</td>'+
+                                '<td><button class="btn btn-xs btn-outline-danger" onclick="kickName(\''+p.name+'\')">Kick</button></td>';
                             tb.appendChild(tr);
                         });
                         document.getElementById('pvCount').innerText = shown;
                     }).catch(()=>{});
                 }
-                function esc(s){ if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
                 function kickName(n){
                     if(!confirm('Kick '+n+'?')) return;
                     fetch('?ajax=proxy&action=player_kick&name='+encodeURIComponent(n)).then(r=>r.json()).then(showAlert);
@@ -724,7 +669,7 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                 </div>
                 <div class="mt-2" style="max-height: 400px; overflow-y: auto;">
                     <table class="table table-sm table-bordered table-striped">
-                        <thead class="table-dark"><tr><th>ID</th><th>Tên Boss</th><th>Map</th><th>Trạng Thái</th><th>Hành Động</th></tr></thead>
+                        <thead class="table-dark"><tr><th>ID</th><th>Tên Boss</th><th>Hành Động</th></tr></thead>
                         <tbody id="bossTableBody"></tbody>
                     </table>
                 </div>
@@ -733,9 +678,8 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
             <script>
                 let bossList = [];
                 function loadBosses(){
-                    // HASHIRAMA tra ve {alive:[...]}
-                    fetch('?ajax=proxy&action=boss_list').then(r=>r.json()).then(data=>{
-                        bossList = Array.isArray(data)?data:(data.alive||data.bosses||[]);
+                    fetch('?ajax=proxy&action=boss_list').then(r=>r.json()).then(list=>{
+                        bossList = Array.isArray(list)?list:[];
                         renderBosses();
                     }).catch(()=>{});
                 }
@@ -746,14 +690,8 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                     bossList.forEach(b=>{
                         if(term && (b.name||'').toLowerCase().indexOf(term) < 0) return;
                         let opt = document.createElement('option'); opt.value=b.id; opt.textContent=b.name+' ('+b.id+')'; sel.appendChild(opt);
-                        let stBadge = b.die
-                            ? '<span class="badge bg-secondary">Chết</span>'
-                            : '<span class="badge bg-success">Sống</span>';
                         let tr = document.createElement('tr');
-                        tr.innerHTML = '<td>'+b.id+'</td><td>'+b.name+'</td>'
-                            + '<td>'+(b.map||'?')+'</td>'
-                            + '<td>'+stBadge+(b.state!==undefined?' <small class="text-muted">#'+b.state+'</small>':'')+'</td>'
-                            + '<td><button class="btn btn-xs btn-outline-primary" onclick="summonOne('+b.id+')">Triệu Hồi</button> '
+                        tr.innerHTML = '<td>'+b.id+'</td><td>'+b.name+'</td><td><button class="btn btn-xs btn-outline-danger" onclick="summonOne('+b.id+')">Triệu Hồi</button> '
                             + '<button class="btn btn-xs btn-outline-warning" onclick="killBoss('+b.id+')">Tắt</button></td>';
                         tb.appendChild(tr);
                     });
@@ -767,34 +705,17 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                     fetch('?ajax=proxy&action=boss_summon&val='+id).then(r=>r.json()).then(data=>{
                         let a = document.getElementById('ajaxAlert');
                         a.classList.remove('d-none','alert-danger','alert-success');
-                        a.classList.add((data.status=='error'||data.success===false)?'alert-danger':'alert-success');
-                        a.innerText = data.message||data.msg||data.status||'Xong';
+                        a.classList.add(data.status=='error'?'alert-danger':'alert-success');
+                        a.innerText = data.msg||data.status;
                         setTimeout(()=>a.classList.add('d-none'),3000);
-                    });
-                }
-                function killSelectedBoss(){
-                    let id = document.getElementById('bossSelect').value;
-                    if(!id){alert('Chon boss can tat!');return;}
-                    if(!confirm('Tat boss id '+id+'?'))return;
-                    fetch('?ajax=proxy&action=boss_kill&id='+id).then(r=>r.json()).then(data=>{
-                        let a = document.getElementById('ajaxAlert');
-                        a.classList.remove('d-none','alert-danger','alert-success');
-                        a.classList.add((data.status=='error'||data.success===false)?'alert-danger':'alert-success');
-                        a.innerText = data.message||data.msg||data.status||'Xong';
-                        setTimeout(()=>a.classList.add('d-none'),3000);
-                        loadBosses();
                     });
                 }
                 function killBoss(id){
-                    if(!confirm('Tat boss id '+id+'?'))return;
+                    if(!confirm('Tắt boss id '+id+'?'))return;
                     fetch('?ajax=proxy&action=boss_kill&id='+id).then(r=>r.json()).then(data=>{
-                        let a = document.getElementById('ajaxAlert');
-                        a.classList.remove('d-none','alert-danger','alert-success');
-                        a.classList.add((data.status=='error'||data.success===false)?'alert-danger':'alert-success');
-                        a.innerText = data.message||data.msg||data.status||'Xong';
-                        setTimeout(()=>a.classList.add('d-none'),3000);
+                        showAlert(data);
                         loadBosses();
-                    });
+                    }).catch(()=>{});
                 }
                 document.getElementById('bossSearch').addEventListener('input', renderBosses);
                 loadBosses();
@@ -807,7 +728,7 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
 
             <div class="card p-3 mb-3">
                 <h6 class="text-muted fw-bold border-bottom pb-2 mb-3"><i class="fa-solid fa-calendar-days text-primary"></i> Bật / Tắt Sự Kiện</h6>
-                <p class="small text-muted mb-2">Server HASHIRAMA chạy <b>1 sự kiện duy nhất</b> tại một thời điểm — bấm BẬT để chuyển sang sự kiện đó (server tự lưu vào <code>server.event</code>, không cần Lưu).</p>
+                <p class="small text-muted mb-2">Bật/tắt từng sự kiện độc lập. Có thể bật nhiều sự kiện cùng lúc. Nhấn <b>Lưu</b> để giữ trạng thái khi khởi động lại server.</p>
                 <div id="eventToggles" class="row g-2 mb-3"></div>
                 <div class="d-flex gap-2">
                     <button class="btn btn-sm btn-success" onclick="eventSave()"><i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình</button>
@@ -834,15 +755,11 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                     'fa-solid fa-tag','fa-solid fa-heart-crack','fa-solid fa-cake-candles','fa-solid fa-coins'];
 
                 function loadEvents(){
-                    // HASHIRAMA tra ve {current, success, events:[...]} - model 1 su kien active duy nhat
-                    fetch('?ajax=proxy&action=event_list').then(r=>r.json()).then(data=>{
-                        let list = data.events||[];
-                        let cur = data.current;
+                    fetch('?ajax=proxy&action=event_list').then(r=>r.json()).then(list=>{
                         let tb = document.getElementById('eventTableBody'); tb.innerHTML='';
                         let tg = document.getElementById('eventToggles'); tg.innerHTML='';
-                        list.forEach(e=>{
-                            if(e.id === 0 && !e.active) return;
-                            e.active = e.active || (cur !== undefined && e.id === cur);
+                        (Array.isArray(list)?list:[]).forEach(e=>{
+                            if(e.id === 0) return;
                             // Table row
                             let tr = document.createElement('tr');
                             let badge = e.active
@@ -855,20 +772,19 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                             col.className = 'col-md-3 col-sm-6';
                             let icon = eventIcons[e.id] || 'fa-solid fa-calendar';
                             let btnClass = e.active ? 'btn-success' : 'btn-outline-secondary';
-                            let btnText = e.active ? 'ĐANG BẬT' : 'BẬT';
+                            let btnText = e.active ? 'ĐANG BẬT' : 'TẮT';
                             col.innerHTML = '<div class="border rounded p-2 text-center'+(e.active?' border-success bg-light':'')+'">'
                                 + '<i class="'+icon+' '+(e.active?'text-success':'text-muted')+' mb-1" style="font-size:20px"></i>'
                                 + '<div class="small fw-bold mb-1">'+e.name+'</div>'
-                                + '<button class="btn btn-sm '+btnClass+' w-100" onclick="toggleEvent('+e.id+')"'+(e.active?' disabled':'')+'>'+btnText+'</button>'
+                                + '<button class="btn btn-sm '+btnClass+' w-100" onclick="toggleEvent('+e.id+','+(!e.active)+')">'+btnText+'</button>'
                                 + '</div>';
                             tg.appendChild(col);
                         });
                     }).catch(()=>{});
                 }
 
-                function toggleEvent(id){
-                    // HASHIRAMA: event_toggle&id=X -> dat event hien tai (server tu luu vao server.event)
-                    fetch('?ajax=proxy&action=event_toggle&id='+id+'&val=1').then(r=>r.json()).then(data=>{
+                function toggleEvent(id, on){
+                    fetch('?ajax=proxy&action=event_toggle&id='+id+'&val='+(on?1:0)).then(r=>r.json()).then(data=>{
                         showAlert(data);
                         loadEvents();
                     }).catch(()=>{});
@@ -883,8 +799,8 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                 function showAlert(data){
                     let a = document.getElementById('ajaxAlert');
                     a.classList.remove('d-none','alert-danger','alert-success');
-                    a.classList.add((data.status=='error'||data.success===false)?'alert-danger':'alert-success');
-                    a.innerText = data.message||data.msg||data.status||'Xong';
+                    a.classList.add(data.status=='error'?'alert-danger':'alert-success');
+                    a.innerText = data.msg||data.status;
                     setTimeout(()=>a.classList.add('d-none'),3000);
                 }
 
@@ -940,12 +856,10 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                 }
 
                 function loadConsign(){
-                    // HASHIRAMA tra ve {success, consignments:[], message}
-                    fetch('?ajax=proxy&action=consign_list').then(r=>r.json()).then(data=>{
+                    fetch('?ajax=proxy&action=consign_list').then(r=>r.json()).then(list=>{
                         let tb = document.getElementById('consignTableBody'); tb.innerHTML='';
                         let total=0, bot=0, sold=0;
-                        let list = Array.isArray(data)?data:(data.consignments||[]);
-                        list.forEach(it=>{
+                        (Array.isArray(list)?list:[]).forEach(it=>{
                             if(it.sold) sold++; else total++;
                             if(it.is_bot && !it.sold) bot++;
                             let tr = document.createElement('tr');
@@ -966,7 +880,7 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                             tb.appendChild(tr);
                         });
                         if(total===0 && sold===0){
-                            tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fa-solid fa-basket-shopping opacity-50"></i> Chưa có tin đăng ký gửi nào</td></tr>';
+                            tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fa-solid fa-basket-shopping opacity-50"></i> Chưa có tin đăng nào — Bot sẽ tự đăng sau khi farm đủ đồ hiếm</td></tr>';
                         }
                         document.getElementById('csTotal').innerText = total;
                         document.getElementById('csBot').innerText = bot;
@@ -984,198 +898,104 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
             </script>
         <?php endif; ?>
 
-        <?php if($tab == 'features'):
-            // ban do icon: item_template.id -> icon_id (de hien anh trong cac bang)
-            $FEAT_ICONS = [];
-            $q = _query("SELECT id, icon_id FROM item_template");
-            while($r = mysqli_fetch_assoc($q)) $FEAT_ICONS[(int)$r['id']] = (int)$r['icon_id'];
-        ?>
-            <h3 class="mb-4">Tính Năng Server (HASHIRAMA) <small class="text-muted fs-6">— sửa xong tự reload vào game ngay</small></h3>
+        <?php if($tab == 'features'): ?>
+            <h3 class="mb-4">Tính Năng Port Từ Hashirama</h3>
             <div id="featAlert" class="alert alert-danger d-none" role="alert"></div>
+            <div class="mb-3">
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadFeat()"><i class="fa-solid fa-rotate"></i> Làm Mới / Thử Lại</button>
+            </div>
 
-            <ul class="nav nav-tabs mb-3" id="featTabs">
-                <li class="nav-item"><a class="nav-link active" href="#" data-t="kng">Khảm Ngọc</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" data-t="ptn">Phòng Thí Nghiệm</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" data-t="rst">Rương Sưu Tầm</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" data-t="tb">Quà Tầm Bảo</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" data-t="vq">Mốc Vòng Quay</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" data-t="clt">Nhiệm Vụ Bang</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" data-t="cards">Thẻ Sưu Tầm</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" data-t="pl">Phúc Lợi</a></li>
-            </ul>
-
-            <div class="card p-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="m-0 text-muted fw-bold" id="featTitle"></h6>
-                    <div>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="loadFeat()"><i class="fa-solid fa-rotate"></i> Làm Mới</button>
-                        <button class="btn btn-sm btn-primary" onclick="featAdd()">+ Thêm dòng</button>
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <div class="card p-3 text-center border-success">
+                        <div class="fs-4 fw-bold text-success" id="ftKnActive">0</div>
+                        <div class="text-muted small fw-bold"><i class="fa-solid fa-gem"></i> Đang khảm ngọc</div>
                     </div>
                 </div>
-                <div style="max-height:600px;overflow-y:auto;">
-                    <table class="table table-bordered table-striped table-hover table-sm">
-                        <thead class="table-dark"><tr id="featHead"></tr></thead>
-                        <tbody id="featBody"></tbody>
-                    </table>
+                <div class="col-md-4">
+                    <div class="card p-3 text-center border-warning">
+                        <div class="fs-4 fw-bold text-warning" id="ftRstActive">0</div>
+                        <div class="text-muted small fw-bold"><i class="fa-solid fa-box-open"></i> Bật rương sưu tầm</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-3 text-center border-info">
+                        <div class="fs-4 fw-bold text-info" id="ftDanduoc">0</div>
+                        <div class="text-muted small fw-bold"><i class="fa-solid fa-flask"></i> Đã ăn đan dược</div>
+                    </div>
                 </div>
             </div>
 
+            <ul class="nav nav-tabs mb-3" id="featTabs">
+                <li class="nav-item"><a class="nav-link active" href="#" data-t="kham_ngoc">Khảm Ngọc</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-t="phong_thi_nghiem">Phòng Thí Nghiệm</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-t="ruong_suu_tam">Rương Sưu Tầm</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-t="moc_vong_quay">Mốc Tầm Bảo</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-t="tambao_items">Quà Tầm Bảo</a></li>
+            </ul>
+
+            <div class="card p-3">
+                <table class="table table-bordered table-striped table-hover table-sm">
+                    <thead class="table-dark"><tr id="featHead"></tr></thead>
+                    <tbody id="featBody"></tbody>
+                </table>
+            </div>
+
             <script>
-                const FEAT_ICONS = <?= json_encode($FEAT_ICONS) ?>;
-                // cau hinh tung muc: fk cua API feat_*, cot duoc phep sua, cot chua item template id
-                const FEAT_CFG = {
-                    kng:  {name:'Khảm Ngọc',        fk:'kng',  cols:['options'],                                              itemCols:[]},
-                    ptn:  {name:'Phòng Thí Nghiệm', fk:'ptn',  cols:['name_tab','name_binh','items','thoi_gian','item_nhan','info','color'], itemCols:['item_nhan']},
-                    rst:  {name:'Rương Sưu Tầm',    fk:'rst',  cols:['id_item','option_id','param'],                          itemCols:['id_item']},
-                    tb:   {name:'Quà Tầm Bảo',      fk:'tb',   cols:['key_item_id','item_id','quantity','item_options','tile_trung_thuong','des','enabled','start_at','end_at'], itemCols:['key_item_id','item_id']},
-                    vq:   {name:'Mốc Vòng Quay',    fk:'vq',   cols:['max_value','item_id','quantity','item_options'],        itemCols:['item_id']},
-                    clt:  {name:'Nhiệm Vụ Bang',    fk:'clt',  cols:['name','count'],                                         itemCols:[]},
-                    cards:{name:'Thẻ Sưu Tầm',      fk:'cards',cols:['item_id','name','info','icon','rank','max_amount','type','mob_id','head','body','leg','bag','options','aura'], itemCols:['item_id'], directIcon:'icon'},
-                    pl:   {name:'Phúc Lợi',         fk:null}
-                };
                 let featData = {};
-                let curTab = 'kng';
-                // feature_data tra ve theo ten bang -> map tu fk sang key json
-                const FEAT_DATA_KEY = {kng:'kham_ngoc', ptn:'phong_thi_nghiem', rst:'ruong_suu_tam', tb:'tambao_items'};
-
-                function featIconImg(tempId){
-                    let ic = FEAT_ICONS[parseInt(tempId)];
-                    if (ic === undefined || tempId === null || parseInt(tempId) <= 0) return '';
-                    return '<img src="item_icon.php?id='+ic+'&size=3" width="36" height="36" class="border rounded me-1 align-middle" style="image-rendering:pixelated;" loading="lazy">';
-                }
-
-                function featAlert(msg, ok){
-                    let a = document.getElementById('featAlert');
-                    a.classList.remove('d-none','alert-danger','alert-success','alert-warning');
-                    a.classList.add(ok ? 'alert-success' : 'alert-warning');
-                    a.innerText = msg;
-                    setTimeout(()=>a.classList.add('d-none'), 6000);
-                }
+                let curTab = 'kham_ngoc';
 
                 function loadFeat(){
-                    let cfg = FEAT_CFG[curTab];
-                    document.getElementById('featTitle').innerText = cfg.name;
-                    if (curTab === 'pl') {
-                        fetch('?ajax=proxy&action=phucloi_list').then(r=>r.json()).then(d=>{
-                            featData.pl = d.phucloi || d['phuc_loi'] || [];
-                            featData.pl_tabs = d.tabs || d.phuc_loi_tab || [];
+                    fetch('?ajax=proxy&action=feature_data', {cache:'no-store'})
+                        .then(r=>r.text().then(t=>({status:r.status, t:t})))
+                        .then(res=>{
+                            let d;
+                            try {
+                                d = JSON.parse(res.t.trim());
+                            } catch(e) {
+                                throw new Error('HTTP ' + res.status + ' | Phản hồi: ' + res.t.trim().substring(0,150));
+                            }
+                            featData = d;
+                            document.getElementById('featAlert').classList.add('d-none');
+                            if(d.stats){
+                                document.getElementById('ftKnActive').innerText = d.stats.kham_ngoc_active||0;
+                                document.getElementById('ftRstActive').innerText = d.stats.ruong_suu_tam_active||0;
+                                document.getElementById('ftDanduoc').innerText = d.stats.dan_duoc_users||0;
+                            }
                             renderTab();
-                        }).catch(e=>featAlert('Lỗi tải phúc lợi: '+(e.message||e)));
-                        return;
-                    }
-                    let ep = (curTab === 'kng' || curTab === 'ptn' || curTab === 'rst' || curTab === 'tb')
-                        ? 'feature_data'
-                        : 'feat_list&fk=' + cfg.fk;
-                    fetch('?ajax=proxy&action='+ep, {cache:'no-store'}).then(r=>r.json()).then(d=>{
-                        let key = FEAT_DATA_KEY[curTab];
-                        let rows = Array.isArray(d) ? d : ((key && d[key]) || d.rows || d.list || []);
-                        featData.rows = rows;
-                        renderTab();
-                    }).catch(e=>featAlert('Lỗi tải dữ liệu: '+(e.message||e)));
+                        })
+                        .catch(e=>{
+                            let a=document.getElementById('featAlert');
+                            a.classList.remove('d-none');
+                            a.className='alert alert-warning';
+                            a.innerText='Lỗi tải dữ liệu: '+(e.message||e);
+                            setTimeout(()=>a.classList.add('d-none'),8000);
+                        });
                 }
 
                 function renderTab(){
+                    let rows = featData[curTab] || [];
                     let head = document.getElementById('featHead');
                     let body = document.getElementById('featBody');
                     head.innerHTML=''; body.innerHTML='';
-                    let rows = (curTab === 'pl') ? featData.pl || [] : (featData.rows || []);
-                    let cfg = FEAT_CFG[curTab];
-                    if(!rows || rows.length===0){
+                    if(rows.length===0){
                         body.innerHTML='<tr><td colspan="6" class="text-center text-muted py-4">Không có dữ liệu</td></tr>';
                         return;
                     }
-                    let keys = Object.keys(rows[0]);
-                    let th = '<th>#</th>';
-                    keys.forEach(k=>{ th += '<th>'+k+'</th>'; });
-                    th += '<th>Hành Động</th>';
-                    head.innerHTML = th;
-                    rows.forEach((r,i)=>{
-                        let tr = document.createElement('tr');
-                        let html = '<td>'+(i+1)+'</td>';
-                        keys.forEach(k=>{
+                    Object.keys(rows[0]).forEach(k=>{
+                        let th=document.createElement('th'); th.innerText=k; head.appendChild(th);
+                    });
+                    rows.slice(0,50).forEach(r=>{
+                        let tr=document.createElement('tr');
+                        Object.keys(rows[0]).forEach(k=>{
+                            let td=document.createElement('td');
                             let v = r[k]==null?'':String(r[k]);
-                            if (v.length > 50) { html += '<td title="'+v.replace(/"/g,'&quot;')+'" class="small">'+v.substring(0,50)+'…</td>'; }
-                            else {
-                                let cell = v;
-                                if (cfg.itemCols && cfg.itemCols.indexOf(k) >= 0) cell = featIconImg(v) + v;
-                                if (cfg.directIcon === k) cell = '<img src="item_icon.php?id='+v+'&size=3" width="36" height="36" class="border rounded align-middle" style="image-rendering:pixelated;" loading="lazy"> ' + v;
-                                html += '<td>'+cell+'</td>';
-                            }
+                            td.innerText = v.length>60 ? v.substring(0,60)+'…' : v;
+                            if(v.length>60) td.title=v;
+                            tr.appendChild(td);
                         });
-                        html += '<td><button class="btn btn-sm btn-outline-primary" onclick=\'featEdit('+JSON.stringify(r).replace(/'/g,"&#39;")+')\'>Sửa</button> '
-                              + '<button class="btn btn-sm btn-outline-danger" onclick="featDel('+(r.id!==undefined?r.id:i)+')">Xóa</button></td>';
-                        tr.innerHTML = html;
                         body.appendChild(tr);
                     });
-                }
-
-                function featEdit(row){
-                    let cfg = FEAT_CFG[curTab];
-                    if (curTab === 'pl') {
-                        let f = prompt("Sửa phúc lợi #"+row.id+"\nNhập: Tên|MaxTab|IdTab|Info|Action|TichLuy",
-                            [row.name,row.max_tab,row.id_tab,(row.info_phucloi||''),row.action,(row.tich_luy||'')].join('|'));
-                        if(!f) return;
-                        let p = f.split('|');
-                        let fd = new URLSearchParams();
-                        fd.append('action','phucloi_save'); fd.append('table','phuc_loi'); fd.append('id',row.id);
-                        fd.append('name',p[0]); fd.append('max_tab',p[1]); fd.append('id_tab',p[2]);
-                        fd.append('info_phucloi',p[3]); fd.append('feat_action',p[4]); fd.append('tich_luy',p[5]);
-                        proxyPost(fd); return;
-                    }
-                    let pairs = cfg.cols.map(c=>c+'='+((row[c]!==undefined&&row[c]!==null)?row[c]:'')).join('|');
-                    let f = prompt("Sửa "+cfg.name+" #"+(row.id!==undefined?row.id:'')+"\nĐịnh dạng: cot1=giatri|cot2=giatri\nCột được phép: "+cfg.cols.join(', '), pairs);
-                    if(!f) return;
-                    let fd = new URLSearchParams();
-                    fd.append('action','feat_save'); fd.append('fk',cfg.fk);
-                    if (row.id !== undefined) fd.append('id',row.id);
-                    f.split('|').forEach(pr=>{
-                        let eq = pr.indexOf('=');
-                        if (eq > 0) {
-                            let k = pr.substring(0,eq).trim(), v = pr.substring(eq+1);
-                            if (cfg.cols.indexOf(k) >= 0) fd.append(k, v);
-                        }
-                    });
-                    proxyPost(fd);
-                }
-
-                function featAdd(){
-                    let cfg = FEAT_CFG[curTab];
-                    if (!cfg.fk) { featAlert('Phúc lợi: hãy sửa các dòng có sẵn (thêm dòng mới cần thêm trong DB)', false); return; }
-                    let f = prompt("Thêm dòng "+cfg.name+"\nĐịnh dạng: cot1=giatri|cot2=giatri\nCột được phép: "+cfg.cols.join(', '));
-                    if(!f) return;
-                    let fd = new URLSearchParams();
-                    fd.append('action','feat_add'); fd.append('fk',cfg.fk);
-                    f.split('|').forEach(pr=>{
-                        let eq = pr.indexOf('=');
-                        if (eq > 0) {
-                            let k = pr.substring(0,eq).trim(), v = pr.substring(eq+1);
-                            if (cfg.cols.indexOf(k) >= 0) fd.append(k, v);
-                        }
-                    });
-                    proxyPost(fd);
-                }
-
-                function featDel(id){
-                    let cfg = FEAT_CFG[curTab];
-                    if (!cfg.fk || !confirm('Xóa dòng id '+id+' của '+cfg.name+'?')) return;
-                    let fd = new URLSearchParams();
-                    fd.append('action','feat_del'); fd.append('fk',cfg.fk); fd.append('id',id);
-                    proxyPost(fd);
-                }
-
-                function proxyPost(fd){
-                    // proxy chi nhan GET -> chuyen form thanh query string
-                    let qs = new URLSearchParams();
-                    for (const [k,v] of fd) qs.append(k,v);
-                    fetch('?ajax=proxy&' + qs.toString())
-                    .then(r=>r.text().then(t=>{
-                        let a = document.getElementById('featAlert');
-                        try {
-                            let d = JSON.parse(t.trim());
-                            featAlert(d.msg || d.message || d.status || 'Xong', !(d.status === 'error'));
-                        } catch(e2){ featAlert(t.trim().substring(0,150), false); }
-                        loadFeat();
-                    })).catch(e=>featAlert('Lỗi kết nối: '+(e.message||e), false));
                 }
 
                 document.querySelectorAll('#featTabs a').forEach(a=>{
@@ -1183,9 +1003,7 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                         e.preventDefault();
                         document.querySelectorAll('#featTabs a').forEach(x=>x.classList.remove('active'));
                         a.classList.add('active');
-                        curTab=a.dataset.t;
-                        featData.rows = null; featData.pl = null;
-                        renderTab(); loadFeat();
+                        curTab=a.dataset.t; renderTab();
                     });
                 });
 
@@ -1209,8 +1027,8 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
             <?php include __DIR__ . '/admin_tabs/part.php'; ?>
         <?php endif; ?>
 
-        <?php if($tab == 'assets'): ?>
-            <?php include __DIR__ . '/admin_tabs/assets.php'; ?>
+        <?php if($tab == 'drop'): ?>
+            <?php include __DIR__ . '/admin_tabs/drop.php'; ?>
         <?php endif; ?>
 
         <?php if($tab == 'badges'): ?>
@@ -1275,22 +1093,11 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                         btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xóa...';
                         fetch('?ajax=proxy&action=wipe_accounts&keep=<?= urlencode($_username) ?>')
                             .then(r=>r.json()).then(d=>{
-                                alert(d.msg || d.message || d.status || 'Hoàn tất!');
+                                alert(d.msg || d.status);
                                 btn.disabled = false;
                                 btn.innerHTML = '<i class="fa-solid fa-radiation"></i> XÓA TOÀN BỘ TÀI KHOẢN NGƯỜI CHƠI';
                                 window.location.reload();
-                            }).catch(e=>{ alert('Lỗi kết nối: '+e); btn.disabled=false; btn.innerHTML = '<i class="fa-solid fa-radiation"></i> XÓA TOÀN BỘ TÀI KHOẢN NGƯỜI CHƠI'; });
-                    }
-                    function editAcc(data) {
-                        document.getElementById('ea_id').value = data.id;
-                        document.getElementById('ea_username').innerText = data.username;
-                        document.getElementById('ea_vnd').value = data.vnd || 0;
-                        document.getElementById('ea_tongnap').value = data.tongnap || 0;
-                        document.getElementById('ea_active').value = data.active || 0;
-                        document.getElementById('ea_ban').value = data.ban || 0;
-                        document.getElementById('ea_isadmin').value = data.is_admin || 0;
-                        let m = new bootstrap.Modal(document.getElementById('modalEditAcc'));
-                        m.show();
+                            }).catch(e=>{ alert('Lỗi kết nối: '+e); btn.disabled=false; });
                     }
                     </script>
                 </div>
@@ -1331,7 +1138,7 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                                         <?= $row['is_admin'] ? '<span class="badge bg-info">Admin</span>' : '' ?>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary" onclick='editAcc(<?= json_encode(array("id"=>$row["id"],"username"=>$row["username"],"password"=>$row["password"],"active"=>$row["active"],"ban"=>$row["ban"],"is_admin"=>$row["is_admin"]??0,"vnd"=>$row["vnd"]??0,"tongnap"=>$row["tongnap"]??0,"server_login"=>$row["server_login"]??-1), JSON_HEX_APOS|JSON_HEX_QUOT) ?>)'><i class="fa-solid fa-pen"></i> Sửa</button>
+                                        <button class="btn btn-sm btn-outline-primary" onclick='editAcc(<?= json_encode(array('id'=>$row['id'],'username'=>$row['username'],'password'=>$row['password'],'active'=>$row['active'],'ban'=>$row['ban'],'is_admin'=>$row['is_admin']??0,'vnd'=>$row['vnd']??0,'tongnap'=>$row['tongnap']??0,'server_login'=>$row['server_login']??-1), JSON_HEX_APOS|JSON_HEX_QUOT) ?>)'><i class="fa-solid fa-pen"></i> Sửa</button>
                                     </td>
                                 </tr>
                                 <?php endwhile; ?>
@@ -1340,351 +1147,23 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                     </div>
                 </div>
             </div>
-
-            <!-- Modal Sửa Tài Khoản -->
-            <div class="modal fade" id="modalEditAcc" tabindex="-1">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <form method="POST">
-                            <input type="hidden" name="action_acc" value="editfull">
-                            <input type="hidden" name="accid" id="ea_id">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Sửa Tài Khoản: <span id="ea_username" class="text-primary fw-bold"></span></h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="mb-2">
-                                    <label class="form-label mb-1">Mật Khẩu Mới (để trống nếu không đổi)</label>
-                                    <input type="text" class="form-control" name="npass" placeholder="Nhập mật khẩu mới...">
-                                </div>
-                                <div class="row g-2 mb-2">
-                                    <div class="col-md-6">
-                                        <label class="form-label mb-1">Số VNĐ</label>
-                                        <input type="number" class="form-control" name="nvnd" id="ea_vnd">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label mb-1">Tổng Nạp</label>
-                                        <input type="number" class="form-control" name="ntongnap" id="ea_tongnap">
-                                    </div>
-                                </div>
-                                <div class="row g-2 mb-2">
-                                    <div class="col-md-4">
-                                        <label class="form-label mb-1">Thành Viên</label>
-                                        <select class="form-select" name="nactive" id="ea_active">
-                                            <option value="0">Chưa mở</option>
-                                            <option value="1">Đã mở</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label mb-1">Khóa TK</label>
-                                        <select class="form-select" name="nban" id="ea_ban">
-                                            <option value="0">Không khóa</option>
-                                            <option value="1">Khóa</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label mb-1">Quyền Admin</label>
-                                        <select class="form-select" name="nis_admin" id="ea_isadmin">
-                                            <option value="0">Người chơi</option>
-                                            <option value="1">Admin</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                                <button type="submit" class="btn btn-primary">Lưu Cập Nhật</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
         <?php endif; ?>
 
-        <?php if($tab == 'luckywheel'): ?>
-            <h3 class="mb-4"><i class="fa-solid fa-dharmachakra text-warning"></i> Vòng Quay May Mắn</h3>
-            <div id="lwAlert" class="alert alert-success d-none" role="alert"></div>
-
-            <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                    <div class="card p-3 text-center border-warning">
-                        <div class="fs-3 fw-bold text-warning" id="lwTotal">0</div>
-                        <div class="text-muted small fw-bold"><i class="fa-solid fa-gift"></i> Tổng giải thưởng</div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card p-3 text-center border-info">
-                        <div class="fs-3 fw-bold text-info" id="lwSpins">0</div>
-                        <div class="text-muted small fw-bold"><i class="fa-solid fa-rotate"></i> Lượt quay hôm nay</div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card p-3 text-center border-primary">
-                        <div class="fs-3 fw-bold text-primary" id="lwCost">100</div>
-                        <div class="text-muted small fw-bold"><i class="fa-solid fa-gem"></i> Ngọc/lượt quay</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card p-3 mb-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="m-0 text-muted fw-bold">Danh Sách Giải Thưởng</h6>
-                    <div>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="loadLW()"><i class="fa-solid fa-rotate"></i> Làm Mới</button>
-                        <button class="btn btn-sm btn-primary" onclick="lwAdd()">+ Thêm Giải</button>
-                    </div>
-                </div>
-                <div style="max-height:400px;overflow-y:auto;">
-                    <table class="table table-bordered table-striped table-hover table-sm">
-                        <thead class="table-dark"><tr><th>ID</th><th>Item ID</th><th>Số Lượng</th><th>Tỷ Lệ</th><th>Ngọc</th><th>Bật/Tắt</th><th>Hành Động</th></tr></thead>
-                        <tbody id="lwBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="card p-3">
-                <h6 class="m-0 text-muted fw-bold border-bottom pb-2 mb-2">Lịch Sử Quay (50 gần nhất)</h6>
-                <div style="max-height:300px;overflow-y:auto;">
-                    <table class="table table-bordered table-striped table-sm">
-                        <thead class="table-dark"><tr><th>Thời Gian</th><th>Nickname</th><th>Item</th><th>Số Lượng</th></tr></thead>
-                        <tbody id="lwHistory"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <script>
-                function lwShow(a){let e=document.getElementById('lwAlert');e.classList.remove('d-none','alert-danger','alert-success');e.classList.add(a.success?'alert-success':'alert-danger');e.innerText=a.message||a.msg||'Xong';setTimeout(()=>e.classList.add('d-none'),3000);}
-                function loadLW(){
-                    fetch('?ajax=proxy&action=lucky_wheel_list').then(r=>r.json()).then(d=>{
-                        let list=d.list||[];document.getElementById('lwTotal').innerText=list.length;
-                        let tb=document.getElementById('lwBody');tb.innerHTML='';
-                        list.forEach(r=>{
-                            let bg=r.item_id==-1?'text-warning':r.item_id==-2?'text-info':'';
-                            let nm=r.item_id==-1?'Vàng':r.item_id==-2?'Ngọc':'Item #'+r.item_id;
-                            tb.innerHTML+='<tr><td>'+r.id+'</td><td class="'+bg+'">'+nm+'</td><td>'+r.quantity+'</td><td>'+r.probability+'</td><td>'+r.gem_cost+'</td>'
-                                +'<td>'+(r.enabled?'<span class="badge bg-success">Bật</span>':'<span class="badge bg-secondary">Tắt</span>')+'</td>'
-                                +'<td><button class="btn btn-xs btn-outline-primary" onclick="lwEdit('+r.id+','+r.item_id+','+r.quantity+','+r.probability+','+r.gem_cost+','+r.enabled+')">Sửa</button> '
-                                +'<button class="btn btn-xs btn-outline-danger" onclick="lwDel('+r.id+')">Xóa</button></td></tr>';
-                        });
-                    });
-                    fetch('?ajax=proxy&action=lucky_wheel_history').then(r=>r.json()).then(d=>{
-                        let list=d.list||[];document.getElementById('lwSpins').innerText=list.length;
-                        let tb=document.getElementById('lwHistory');tb.innerHTML='';
-                        list.forEach(r=>{
-                            let nm=r.item_id==-1?'Vàng':r.item_id==-2?'Ngọc':'Item #'+r.item_id;
-                            tb.innerHTML+='<tr><td>'+r.spun_at+'</td><td>'+r.player_name+'</td><td>'+nm+'</td><td>'+r.quantity+'</td></tr>';
-                        });
-                    });
-                }
-                function lwAdd(){
-                    let f=prompt("Thêm giải thưởng mới\nĐịnh dạng: item_id|quantity|probability|gem_cost|enabled\n(-1=Vàng, -2=Ngọc)","-1|100000|1000|100|1");
-                    if(!f)return;let p=f.split('|');
-                    fetch('?ajax=proxy&action=lucky_wheel_save&item_id='+p[0]+'&quantity='+p[1]+'&probability='+p[2]+'&gem_cost='+p[3]+'&enabled='+(p[4]||1)).then(r=>r.json()).then(d=>{lwShow(d);loadLW();});
-                }
-                function lwEdit(id,iid,qty,prob,cost,en){
-                    let f=prompt("Sửa giải #"+id+"\nitem_id|quantity|probability|gem_cost|enabled",iid+'|'+qty+'|'+prob+'|'+cost+'|'+en);
-                    if(!f)return;let p=f.split('|');
-                    fetch('?ajax=proxy&action=lucky_wheel_save&id='+id+'&item_id='+p[0]+'&quantity='+p[1]+'&probability='+p[2]+'&gem_cost='+p[3]+'&enabled='+(p[4]||1)).then(r=>r.json()).then(d=>{lwShow(d);loadLW();});
-                }
-                function lwDel(id){if(!confirm('Xóa giải #'+id+'?'))return;fetch('?ajax=proxy&action=lucky_wheel_delete&id='+id).then(r=>r.json()).then(d=>{lwShow(d);loadLW();});}
-                loadLW();
-            </script>
-        <?php endif; ?>
-
-        <?php if($tab == 'newplayer'): ?>
-            <h3 class="mb-4"><i class="fa-solid fa-gift text-success"></i> Quản Lý Quà Tân Thủ</h3>
-            <div id="npAlert" class="alert alert-success d-none" role="alert"></div>
-
-            <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                    <div class="card p-3 text-center border-success">
-                        <div class="fs-3 fw-bold text-success" id="npTotal">0</div>
-                        <div class="text-muted small fw-bold"><i class="fa-solid fa-gift"></i> Tổng phần quà</div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card p-3 text-center border-info">
-                        <div class="fs-3 fw-bold text-info" id="npClaims">0</div>
-                        <div class="text-muted small fw-bold"><i class="fa-solid fa-check"></i> Đã nhận hôm nay</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card p-3 mb-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="m-0 text-muted fw-bold">Danh Sách Quà</h6>
-                    <div>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="loadNP()"><i class="fa-solid fa-rotate"></i> Làm Mới</button>
-                        <button class="btn btn-sm btn-primary" onclick="npAdd()">+ Thêm Quà</button>
-                    </div>
-                </div>
-                <div style="max-height:400px;overflow-y:auto;">
-                    <table class="table table-bordered table-striped table-hover table-sm">
-                        <thead class="table-dark"><tr><th>ID</th><th>Item ID</th><th>Số Lượng</th><th>Ngày Tối Đa</th><th>Bật/Tắt</th><th>Hành Động</th></tr></thead>
-                        <tbody id="npBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="card p-3">
-                <h6 class="m-0 text-muted fw-bold border-bottom pb-2 mb-2">Lịch Sử Nhận (50 gần nhất)</h6>
-                <div style="max-height:300px;overflow-y:auto;">
-                    <table class="table table-bordered table-striped table-sm">
-                        <thead class="table-dark"><tr><th>Thời Gian</th><th>Nickname</th><th>Player ID</th></tr></thead>
-                        <tbody id="npHistory"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <script>
-                function npShow(a){let e=document.getElementById('npAlert');e.classList.remove('d-none','alert-danger','alert-success');e.classList.add(a.success?'alert-success':'alert-danger');e.innerText=a.message||a.msg||'Xong';setTimeout(()=>e.classList.add('d-none'),3000);}
-                function loadNP(){
-                    fetch('?ajax=proxy&action=new_player_gift_list').then(r=>r.json()).then(d=>{
-                        let list=d.list||[];document.getElementById('npTotal').innerText=list.length;
-                        let tb=document.getElementById('npBody');tb.innerHTML='';
-                        list.forEach(r=>{
-                            let bg=r.item_id==-1?'text-warning':r.item_id==-2?'text-info':'';
-                            let nm=r.item_id==-1?'Vàng':r.item_id==-2?'Ngọc':'Item #'+r.item_id;
-                            tb.innerHTML+='<tr><td>'+r.id+'</td><td class="'+bg+'">'+nm+'</td><td>'+r.quantity+'</td><td>'+r.max_day+' ngày</td>'
-                                +'<td>'+(r.enabled?'<span class="badge bg-success">Bật</span>':'<span class="badge bg-secondary">Tắt</span>')+'</td>'
-                                +'<td><button class="btn btn-xs btn-outline-primary" onclick="npEdit('+r.id+','+r.item_id+','+r.quantity+','+r.max_day+','+r.enabled+')">Sửa</button> '
-                                +'<button class="btn btn-xs btn-outline-danger" onclick="npDel('+r.id+')">Xóa</button></td></tr>';
-                        });
-                    });
-                    fetch('?ajax=proxy&action=new_player_gift_history').then(r=>r.json()).then(d=>{
-                        let list=d.list||[];document.getElementById('npClaims').innerText=list.length;
-                        let tb=document.getElementById('npHistory');tb.innerHTML='';
-                        list.forEach(r=>{tb.innerHTML+='<tr><td>'+r.claimed_at+'</td><td>'+r.player_name+'</td><td>'+r.player_id+'</td></tr>';});
-                    });
-                }
-                function npAdd(){
-                    let f=prompt("Thêm quà tân thủ\nĐịnh dạng: item_id|quantity|max_day|enabled\n(-1=Vàng, -2=Ngọc)","-1|10000000|7|1");
-                    if(!f)return;let p=f.split('|');
-                    fetch('?ajax=proxy&action=new_player_gift_save&item_id='+p[0]+'&quantity='+p[1]+'&max_day='+p[2]+'&enabled='+(p[3]||1)).then(r=>r.json()).then(d=>{npShow(d);loadNP();});
-                }
-                function npEdit(id,iid,qty,md,en){
-                    let f=prompt("Sửa quà #"+id+"\nitem_id|quantity|max_day|enabled",iid+'|'+qty+'|'+md+'|'+en);
-                    if(!f)return;let p=f.split('|');
-                    fetch('?ajax=proxy&action=new_player_gift_save&id='+id+'&item_id='+p[0]+'&quantity='+p[1]+'&max_day='+p[2]+'&enabled='+(p[3]||1)).then(r=>r.json()).then(d=>{npShow(d);loadNP();});
-                }
-                function npDel(id){if(!confirm('Xóa quà #'+id+'?'))return;fetch('?ajax=proxy&action=new_player_gift_delete&id='+id).then(r=>r.json()).then(d=>{npShow(d);loadNP();});}
-                loadNP();
-            </script>
-        <?php endif; ?>
-
-        <?php if($tab == 'onlinegift'): ?>
-            <h3 class="mb-4"><i class="fa-solid fa-clock text-info"></i> Quản Lý Quà Online</h3>
-            <div id="ogAlert" class="alert alert-success d-none" role="alert"></div>
-
-            <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                    <div class="card p-3 text-center border-info">
-                        <div class="fs-3 fw-bold text-info" id="ogTotal">0</div>
-                        <div class="text-muted small fw-bold"><i class="fa-solid fa-clock"></i> Tổng mốc quà</div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card p-3 text-center border-success">
-                        <div class="fs-3 fw-bold text-success" id="ogClaims">0</div>
-                        <div class="text-muted small fw-bold"><i class="fa-solid fa-check"></i> Đã nhận hôm nay</div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card p-3 text-center border-warning">
-                        <div class="fs-3 fw-bold text-warning" id="ogPlayers">0</div>
-                        <div class="text-muted small fw-bold"><i class="fa-solid fa-users"></i> Player online</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card p-3 mb-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="m-0 text-muted fw-bold">Danh Sách Mốc Quà</h6>
-                    <div>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="loadOG()"><i class="fa-solid fa-rotate"></i> Làm Mới</button>
-                        <button class="btn btn-sm btn-primary" onclick="ogAdd()">+ Thêm Mốc</button>
-                    </div>
-                </div>
-                <div style="max-height:400px;overflow-y:auto;">
-                    <table class="table table-bordered table-striped table-hover table-sm">
-                        <thead class="table-dark"><tr><th>ID</th><th>Item ID</th><th>Số Lượng</th><th>Phút Online</th><th>Bật/Tắt</th><th>Hành Động</th></tr></thead>
-                        <tbody id="ogBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="card p-3">
-                <h6 class="m-0 text-muted fw-bold border-bottom pb-2 mb-2">Lịch Sử Nhận (50 gần nhất)</h6>
-                <div style="max-height:300px;overflow-y:auto;">
-                    <table class="table table-bordered table-striped table-sm">
-                        <thead class="table-dark"><tr><th>Thời Gian</th><th>Nickname</th><th>Mốc</th><th>Player ID</th></tr></thead>
-                        <tbody id="ogHistory"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <script>
-                function ogShow(a){let e=document.getElementById('ogAlert');e.classList.remove('d-none','alert-danger','alert-success');e.classList.add(a.success?'alert-success':'alert-danger');e.innerText=a.message||a.msg||'Xong';setTimeout(()=>e.classList.add('d-none'),3000);}
-                function loadOG(){
-                    fetch('?ajax=proxy&action=online_gift_list').then(r=>r.json()).then(d=>{
-                        let list=d.list||[];document.getElementById('ogTotal').innerText=list.length;
-                        let tb=document.getElementById('ogBody');tb.innerHTML='';
-                        list.forEach(r=>{
-                            let bg=r.item_id==-1?'text-warning':r.item_id==-2?'text-info':'';
-                            let nm=r.item_id==-1?'Vàng':r.item_id==-2?'Ngọc':'Item #'+r.item_id;
-                            tb.innerHTML+='<tr><td>'+r.id+'</td><td class="'+bg+'">'+nm+'</td><td>'+r.quantity+'</td><td>'+r.minutes_required+' phút</td>'
-                                +'<td>'+(r.enabled?'<span class="badge bg-success">Bật</span>':'<span class="badge bg-secondary">Tắt</span>')+'</td>'
-                                +'<td><button class="btn btn-xs btn-outline-primary" onclick="ogEdit('+r.id+','+r.item_id+','+r.quantity+','+r.minutes_required+','+r.enabled+')">Sửa</button> '
-                                +'<button class="btn btn-xs btn-outline-danger" onclick="ogDel('+r.id+')">Xóa</button></td></tr>';
-                        });
-                    });
-                    fetch('?ajax=proxy&action=online_gift_history').then(r=>r.json()).then(d=>{
-                        let list=d.list||[];document.getElementById('ogClaims').innerText=list.length;
-                        let tb=document.getElementById('ogHistory');tb.innerHTML='';
-                        list.forEach(r=>{tb.innerHTML+='<tr><td>'+r.claimed_at+'</td><td>'+r.player_name+'</td><td>#'+r.gift_id+'</td><td>'+r.player_id+'</td></tr>';});
-                    });
-                    fetch('?ajax=proxy&action=info').then(r=>r.json()).then(d=>{document.getElementById('ogPlayers').innerText=d.players_online||0;});
-                }
-                function ogAdd(){
-                    let f=prompt("Thêm mốc quà online\nĐịnh dạng: item_id|quantity|minutes_required|enabled\n(-1=Vàng, -2=Ngọc)","-1|500000|30|1");
-                    if(!f)return;let p=f.split('|');
-                    fetch('?ajax=proxy&action=online_gift_save&item_id='+p[0]+'&quantity='+p[1]+'&minutes_required='+p[2]+'&enabled='+(p[3]||1)).then(r=>r.json()).then(d=>{ogShow(d);loadOG();});
-                }
-                function ogEdit(id,iid,qty,min,en){
-                    let f=prompt("Sửa mốc #"+id+"\nitem_id|quantity|minutes_required|enabled",iid+'|'+qty+'|'+min+'|'+en);
-                    if(!f)return;let p=f.split('|');
-                    fetch('?ajax=proxy&action=online_gift_save&id='+id+'&item_id='+p[0]+'&quantity='+p[1]+'&minutes_required='+p[2]+'&enabled='+(p[3]||1)).then(r=>r.json()).then(d=>{ogShow(d);loadOG();});
-                }
-                function ogDel(id){if(!confirm('Xóa mốc #'+id+'?'))return;fetch('?ajax=proxy&action=online_gift_delete&id='+id).then(r=>r.json()).then(d=>{ogShow(d);loadOG();});}
-                loadOG();
-            </script>
-        <?php endif; ?>
 
         <?php if($tab == 'giftcode'): ?>
-            <h3 class="mb-4">Quản Lý Giftcode <small class="text-muted fs-6">(bảng gift_codes - server đọc trực tiếp, không cần reload)</small></h3>
+            <h3 class="mb-4">Quản Lý Giftcode</h3>
             <?php if($msg): ?><div class="alert alert-success"><?= $msg ?></div><?php endif; ?>
             <div class="row">
                 <div class="col-md-4">
                     <div class="card p-3">
                         <h5>Thêm Mã Mới</h5>
                         <form method="POST">
-                            <input type="text" class="form-control mb-2" name="code" placeholder="Mã Giftcode (chữ+số)" required>
-                            <textarea class="form-control mb-2" name="item" id="gcItemInput" placeholder='Vật phẩm JSON: [{"id":457,"quantity":10,"options":[{"id":73,"param":10}]}]' oninput="gcPreview()"></textarea>
+                            <input type="text" class="form-control mb-2" name="code" placeholder="Mã Giftcode (VD: TANTHU)" required>
+                            <textarea class="form-control mb-2" name="item" id="gcItemInput" placeholder="ID Vật phẩm (Cấu trúc mảng JSON) ví dụ: [{"id":457,"quantity":10}]" oninput="gcPreview()"></textarea>
                             <div id="gcPreview" class="d-flex flex-wrap gap-1 mb-2"></div>
-                            <div class="row mb-2">
-                                <div class="col"><input type="number" class="form-control" name="gold" placeholder="Vàng" value="0"></div>
-                                <div class="col"><input type="number" class="form-control" name="gem" placeholder="Ngọc xanh" value="0"></div>
-                                <div class="col"><input type="number" class="form-control" name="ruby" placeholder="Hồng ngọc" value="0"></div>
-                            </div>
-                            <select class="form-control mb-2" name="gctype">
-                                <option value="1">Mọi người dùng được (mỗi người 1 lần)</option>
-                                <option value="0">Cá nhân - dùng 1 lần rồi hết</option>
-                            </select>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" name="gcactive" id="gcactive">
-                                <label class="form-check-label" for="gcactive">Yêu cầu tài khoản đã kích hoạt</label>
-                            </div>
-                            <input type="datetime-local" class="form-control mb-3" name="expire">
+                            <textarea class="form-control mb-2" name="option" placeholder="Option Vật phẩm (JSON)"></textarea>
+                            <input type="number" class="form-control mb-2" name="count" placeholder="Số lượng nhập tối đa" value="100" required>
+                            <input type="datetime-local" class="form-control mb-3" name="expire" required>
                             <button class="btn btn-primary w-100" name="action_gc" value="add"> Thêm Giftcode</button>
                         </form>
                     </div>
@@ -1696,8 +1175,7 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                                 <tr>
                                     <th>ID</th>
                                     <th>Mã Code</th>
-                                    <th>Quà</th>
-                                    <th>Loại</th>
+                                    <th>Lượt Nhập</th>
                                     <th>Hạn Sử Dụng</th>
                                     <th>Hành Động</th>
                                 </tr>
@@ -1723,30 +1201,20 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
                                     if(count($arr) > 8) $out .= '<span class="small text-muted">+'.(count($arr)-8).'</span>';
                                     return $out ?: '<span class="text-muted small">—</span>';
                                 }
-                                $res = _query("SELECT * FROM gift_codes ORDER BY id DESC LIMIT 50");
+                                $res = _query("SELECT * FROM giftcode ORDER BY id DESC LIMIT 50");
                                 while($row = mysqli_fetch_assoc($res)):
-                                    $used = $row['status'] == 1;
                                 ?>
-                                <tr class="<?= $used ? 'table-secondary' : '' ?>">
+                                <tr>
                                     <td><?= $row['id'] ?></td>
-                                    <td><strong class="text-danger"><?= htmlspecialchars($row['code']) ?></strong><?= $used ? '<br><span class="badge bg-secondary">Đã dùng</span>' : '' ?></td>
-                                    <td class="align-middle">
-                                        <?= gcItemImgs($row['items'], $imap) ?>
-                                        <?php if(($row['gold']??0)>0): ?><span class="badge bg-warning text-dark">+<?= number_format($row['gold']) ?> vàng</span><?php endif; ?>
-                                        <?php if(($row['gem']??0)>0): ?><span class="badge bg-info">+<?= number_format($row['gem']) ?> ngọc</span><?php endif; ?>
-                                        <?php if(($row['ruby']??0)>0): ?><span class="badge bg-danger">+<?= number_format($row['ruby']) ?> hồng</span><?php endif; ?>
-                                    </td>
-                                    <td><?= $row['type']==0 ? '<span class="badge bg-dark">Cá nhân</span>' : '<span class="badge bg-primary">Mọi người</span>' ?><?= $row['active'] ? '<br><span class="badge bg-warning text-dark">Cần KT</span>' : '' ?></td>
-                                    <td><?= $row['expires_at'] ?? 'Không hạn' ?></td>
+                                    <td><strong class="text-danger"><?= htmlspecialchars($row['code']) ?></strong></td>
+                                    <td class="align-middle"><?= gcItemImgs($row['item'], $imap) ?></td>
+                                    <td><?= $row['count_left'] ?></td>
+                                    <td><?= $row['expired'] ?></td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary" onclick='editGc(<?= json_encode(array('id'=>$row['id'],'code'=>$row['code'],'expired'=>$row['expires_at'],'items'=>$row['items'],'gold'=>(int)$row['gold'],'gem'=>(int)$row['gem'],'ruby'=>(int)$row['ruby'],'active'=>(int)$row['active']), JSON_HEX_APOS|JSON_HEX_QUOT) ?>)'><i class="fa-solid fa-pen"></i></button>
+                                        <button class="btn btn-sm btn-outline-primary" onclick='editGc(<?= json_encode(array('id'=>$row['id'],'code'=>$row['code'],'count_left'=>$row['count_left'],'expired'=>$row['expired'],'item'=>$row['item'],'option'=>$row['option']), JSON_HEX_APOS|JSON_HEX_QUOT) ?>)'><i class="fa-solid fa-pen"></i> Sửa</button>
                                         <form method="POST" style="display:inline-block;">
                                             <input type="hidden" name="id" value="<?= $row['id'] ?>">
-                                            <button class="btn btn-sm btn-outline-warning" name="action_gc" value="reset" title="Reset lượt dùng + lịch sử" onclick="return confirm('Reset mã này?')"><i class="fa-solid fa-arrow-rotate-left"></i></button>
-                                        </form>
-                                        <form method="POST" style="display:inline-block;">
-                                            <input type="hidden" name="id" value="<?= $row['id'] ?>">
-                                            <button class="btn btn-sm btn-danger" name="action_gc" value="delete" onclick="return confirm('Xóa mã này?')"><i class="fa-solid fa-trash"></i></button>
+                                            <button class="btn btn-sm btn-danger" name="action_gc" value="delete" onclick="return confirm('Xóa mã này?')"><i class="fa-solid fa-trash"></i> Xóa</button>
                                         </form>
                                     </td>
                                 </tr>
@@ -1758,87 +1226,107 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
             </div>
         <?php endif; ?>
 
-        <?php if($tab == 'naprequest'): ?>
-            <h3 class="mb-4"><i class="fa-solid fa-money-bill-wave text-success"></i> Yêu Cầu Nạp Tiền</h3>
-            <div id="nrAlert" class="alert alert-success d-none" role="alert"></div>
-
-            <div class="row g-3 mb-3">
-                <div class="col-md-3">
-                    <div class="card p-3 text-center border-warning">
-                        <div class="fs-3 fw-bold text-warning" id="nrPending">0</div>
-                        <div class="text-muted small fw-bold">Chờ duyệt</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card p-3 text-center border-success">
-                        <div class="fs-3 fw-bold text-success" id="nrApproved">0</div>
-                        <div class="text-muted small fw-bold">Đã duyệt</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card p-3 text-center border-danger">
-                        <div class="fs-3 fw-bold text-danger" id="nrRejected">0</div>
-                        <div class="text-muted small fw-bold">Từ chối</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card p-3 text-center border-primary">
-                        <div class="fs-3 fw-bold text-primary" id="nrTotal">0</div>
-                        <div class="text-muted small fw-bold">Tổng yêu cầu</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card p-3 mb-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="m-0 text-muted fw-bold">Danh Sách Yêu Cầu</h6>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="loadNR()"><i class="fa-solid fa-rotate"></i> Làm Mới</button>
-                </div>
-                <div style="max-height:600px;overflow-y:auto;">
-                    <table class="table table-bordered table-striped table-hover table-sm">
-                        <thead class="table-dark"><tr><th>ID</th><th>Tài Khoản</th><th>Số Tiền</th><th>Trạng Thái</th><th>Ngày Gửi</th><th>Hành Động</th></tr></thead>
-                        <tbody id="nrBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <script>
-                function nrShow(a){let e=document.getElementById('nrAlert');e.classList.remove('d-none','alert-danger','alert-success');e.classList.add(a.success?'alert-success':'alert-danger');e.innerText=a.message||a.msg||'Xong';setTimeout(()=>e.classList.add('d-none'),3000);}
-                function loadNR(){
-                    fetch('?ajax=proxy&action=nap_request_list').then(r=>r.json()).then(d=>{
-                        let list=d.list||[];
-                        let pending=list.filter(r=>r.status==='pending').length;
-                        let approved=list.filter(r=>r.status==='approved').length;
-                        let rejected=list.filter(r=>r.status==='rejected').length;
-                        document.getElementById('nrPending').innerText=pending;
-                        document.getElementById('nrApproved').innerText=approved;
-                        document.getElementById('nrRejected').innerText=rejected;
-                        document.getElementById('nrTotal').innerText=list.length;
-                        let tb=document.getElementById('nrBody');tb.innerHTML='';
-                        list.forEach(r=>{
-                            let statusBadge=r.status==='pending'?'<span class="badge bg-warning text-dark">Chờ duyệt</span>'
-                                :r.status==='approved'?'<span class="badge bg-success">Đã duyệt</span>'
-                                :'<span class="badge bg-danger">Từ chối</span>';
-                            let action='';
-                            if(r.status==='pending'){
-                                action='<button class="btn btn-xs btn-success" onclick="nrApprove('+r.id+')">✅ Duyệt</button> '
-                                    +'<button class="btn btn-xs btn-danger" onclick="nrReject('+r.id+')">❌ Từ chối</button>';
-                            }
-                            tb.innerHTML+='<tr><td>'+r.id+'</td><td>'+r.username+' (#'+r.account_id+')</td>'
-                                +'<td class="fw-bold text-danger">'+Number(r.amount).toLocaleString()+' VNĐ</td>'
-                                +'<td>'+statusBadge+'</td><td>'+r.created_at+'</td><td>'+action+'</td></tr>';
-                        });
-                    });
-                }
-                function nrApprove(id){if(!confirm('Duyệt yêu cầu #'+id+'?\nTiền sẽ được cộng vào tài khoản.'))return;fetch('?ajax=proxy&action=nap_request_approve&val='+id).then(r=>r.json()).then(d=>{nrShow(d);loadNR();});}
-                function nrReject(id){if(!confirm('Từ chối yêu cầu #'+id+'?'))return;fetch('?ajax=proxy&action=nap_request_reject&val='+id).then(r=>r.json()).then(d=>{nrShow(d);loadNR();});}
-                loadNR();
-            </script>
-        <?php endif; ?>
-
 
     </div>
 </div>
+
+        <?php if($tab == 'naprequest'): ?>
+            <h3 class="mb-4"><i class="fa-solid fa-credit-card text-success"></i> Duyệt Nạp Thẻ (bảng napthe)</h3>
+            <div class="card p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="m-0 text-muted fw-bold">Yêu cầu nạp (mới nhất trước)</h6>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadNap()"><i class="fa-solid fa-rotate"></i> Làm Mới</button>
+                </div>
+                <table class="table table-bordered table-striped table-sm">
+                    <thead class="table-dark"><tr><th>ID</th><th>Username</th><th>Nhà mạng</th><th>Serial</th><th>Mã thẻ</th><th>Mệnh giá</th><th>Trạng thái</th><th>Ngày tạo</th><th>Duyệt</th></tr></thead>
+                    <tbody id="napTableBody"><tr><td colspan="9" class="text-center text-muted">Đang tải...</td></tr></tbody>
+                </table>
+            </div>
+            <script>
+                function napStatus(s){
+                    s = parseInt(s);
+                    if(s === 1) return '<span class="badge bg-success">Đã duyệt</span>';
+                    if(s === 0 || s === 99) return '<span class="badge bg-warning">Chờ duyệt</span>';
+                    return '<span class="badge bg-danger">Từ chối</span>';
+                }
+                function loadNap(){
+                    fetch('?ajax=proxy&action=nap_card_list').then(r=>r.json()).then(d=>{
+                        let list = d.list || [];
+                        let tb = document.getElementById('napTableBody'); tb.innerHTML='';
+                        if(!list.length){ tb.innerHTML='<tr><td colspan="9" class="text-center text-muted">Trống</td></tr>'; return; }
+                        list.forEach(n=>{
+                            let st = parseInt(n.status);
+                            let btn = (st === 0 || st === 99)
+                                ? '<button class="btn btn-xs btn-success" onclick="napApprove('+n.id+')">Duyệt</button> '
+                                + '<button class="btn btn-xs btn-danger" onclick="napReject('+n.id+')">Từ chối</button>'
+                                : '<span class="text-muted">—</span>';
+                            let tr = document.createElement('tr');
+                            tr.innerHTML = '<td>'+n.id+'</td><td><strong>'+n.username+'</strong></td><td>'+n.card_type+'</td>'
+                                + '<td><small>'+n.card_seri+'</small></td><td><small>'+n.card_code+'</small></td>'
+                                + '<td class="text-success fw-bold">'+Number(n.amount).toLocaleString()+'</td>'
+                                + '<td>'+napStatus(st)+'</td><td><small>'+(n.created_at||'')+'</small></td><td>'+btn+'</td>';
+                            tb.appendChild(tr);
+                        });
+                    }).catch(()=>{});
+                }
+                function napApprove(id){
+                    if(!confirm('Duyệt nạp thẻ #'+id+'? (cộng VNĐ + tổng nạp cho tài khoản)'))return;
+                    fetch('?ajax=proxy&action=nap_card_approve&val='+id).then(r=>r.json()).then(d=>{ showAlert(d); loadNap(); }).catch(()=>{});
+                }
+                function napReject(id){
+                    if(!confirm('Từ chối yêu cầu nạp #'+id+'?'))return;
+                    fetch('?ajax=proxy&action=nap_card_reject&val='+id).then(r=>r.json()).then(d=>{ showAlert(d); loadNap(); }).catch(()=>{});
+                }
+                loadNap();
+            </script>
+        <?php endif; ?>
+
+        <?php if($tab == 'top'): ?>
+            <h3 class="mb-4"><i class="fa-solid fa-ranking-star text-warning"></i> Bảng Xếp Hạng</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h6 class="text-muted fw-bold border-bottom pb-2 mb-3">Top Nạp Tiền</h6>
+                        <table class="table table-bordered table-striped table-sm">
+                            <thead class="table-dark"><tr><th>#</th><th>Username</th><th>Nhân vật</th><th>Tổng nạp</th></tr></thead>
+                            <tbody id="topNapBody"><tr><td colspan="4" class="text-center text-muted">Đang tải...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h6 class="text-muted fw-bold border-bottom pb-2 mb-3">Top Sức Mạnh</h6>
+                        <table class="table table-bordered table-striped table-sm">
+                            <thead class="table-dark"><tr><th>#</th><th>Nhân vật</th><th>Sức mạnh</th></tr></thead>
+                            <tbody id="topPowerBody"><tr><td colspan="3" class="text-center text-muted">Đang tải...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <script>
+                function loadTops(){
+                    fetch('?ajax=proxy&action=top_nap').then(r=>r.json()).then(d=>{
+                        let tb = document.getElementById('topNapBody'); tb.innerHTML='';
+                        (d.list||[]).forEach(t=>{
+                            let tr = document.createElement('tr');
+                            tr.innerHTML = '<td>'+t.rank+'</td><td><strong>'+t.username+'</strong></td><td>'+(t.char_name||'—')+'</td><td class="text-success fw-bold">'+Number(t.tongnap).toLocaleString()+'</td>';
+                            tb.appendChild(tr);
+                        });
+                        if(!(d.list||[]).length) tb.innerHTML='<tr><td colspan="4" class="text-center text-muted">Trống</td></tr>';
+                    }).catch(()=>{});
+                    fetch('?ajax=proxy&action=top_power').then(r=>r.json()).then(d=>{
+                        let tb = document.getElementById('topPowerBody'); tb.innerHTML='';
+                        (d.list||[]).forEach(t=>{
+                            let tr = document.createElement('tr');
+                            tr.innerHTML = '<td>'+t.rank+'</td><td><strong>'+t.name+'</strong></td><td class="text-primary fw-bold">'+Number(t.power).toLocaleString()+'</td>';
+                            tb.appendChild(tr);
+                        });
+                        if(!(d.list||[]).length) tb.innerHTML='<tr><td colspan="3" class="text-center text-muted">Trống</td></tr>';
+                    }).catch(()=>{});
+                }
+                loadTops();
+            </script>
+        <?php endif; ?>
 
 <script>
     // Global helpers usable on every tab
@@ -1858,8 +1346,8 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
         .then(data => {
             let alert = getAlert();
             alert.classList.remove('d-none', 'alert-danger', 'alert-success');
-            alert.classList.add((data.status == 'error' || data.success === false) ? 'alert-danger' : 'alert-success');
-            alert.innerText = data.message || data.msg || data.status || 'Xong';
+            alert.classList.add(data.status == 'error' ? 'alert-danger' : 'alert-success');
+            alert.innerText = data.msg || data.status;
             setTimeout(() => alert.classList.add('d-none'), 3000);
         })
         .catch(() => {});
@@ -1867,8 +1355,8 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
     function showAlert(data){
         let alert = getAlert();
         alert.classList.remove('d-none', 'alert-danger', 'alert-success');
-        alert.classList.add((data.status == 'error' || data.success === false) ? 'alert-danger' : 'alert-success');
-        alert.innerText = data.message || data.msg || data.status || 'Xong';
+        alert.classList.add(data.status == 'error' ? 'alert-danger' : 'alert-success');
+        alert.innerText = data.msg || data.status;
         setTimeout(() => alert.classList.add('d-none'), 3000);
     }
     function gcPreview(){
@@ -1887,15 +1375,15 @@ while($row = mysqli_fetch_assoc($q_gc)) $list_gc[] = $row;
         }).join('') + (arr.length>12 ? '<span class="small text-muted">+'+(arr.length-12)+'</span>' : '');
     }
     function editGc(g){
-        let f = prompt("Sửa giftcode #"+g.id+"\nNhập: Code|Gold|Gem|Ruby|Active(0/1)|Hạn(YYYY-MM-DD HH:MM:SS hoặc rỗng)|ItemsJSON",
-            g.code+"|"+g.gold+"|"+g.gem+"|"+g.ruby+"|"+g.active+"|"+(g.expired||'')+"|"+(g.items||'[]'));
+        let f = prompt("Sửa giftcode #"+g.id+"\nNhập: Code|Số lượt|Hạn(YYYY-MM-DD HH:MM:SS)|ItemJSON|OptionJSON",
+            g.code+"|"+g.count_left+"|"+g.expired+"|"+(g.item||'[]')+"|"+(g.option||'[]'));
         if(!f) return;
         let p = f.split('|');
-        if(p.length < 7){ alert("Thiếu dữ liệu, cần 7 trường!"); return; }
+        if(p.length < 5){ alert("Thiếu dữ liệu, cần 5 trường!"); return; }
         let fd = new URLSearchParams();
         fd.append('action_gc','edit'); fd.append('id', g.id);
-        fd.append('code', p[0]); fd.append('gold', p[1]); fd.append('gem', p[2]); fd.append('ruby', p[3]);
-        fd.append('gcactive', p[4]); fd.append('expire', p[5]); fd.append('item', p[6]);
+        fd.append('code', p[0]); fd.append('count', p[1]); fd.append('expire', p[2]);
+        fd.append('item', p[3]); fd.append('option', p[4]);
         fetch(window.location.href.split('?')[0]+'?tab=giftcode', {method:'POST', body: fd})
         .then(()=>location.reload());
     }

@@ -27,14 +27,12 @@ stop_pid "$PID_DIR/ninja_web.pid"    "Ninja web server"
 stop_pid "$PID_DIR/htth_server.pid"  "HTTH game server"
 stop_pid "$PID_DIR/htth_web.pid"     "HTTH web server"
 stop_pid "$PID_DIR/nro_server.pid"   "NRO game server"
-stop_pid "$PID_DIR/nro_login.pid"    "NRO login server"
 stop_pid "$PID_DIR/nro_web.pid"      "NRO web admin"
 
 # Fallback: dừng mọi java/php do bộ cài này khởi động nếu vẫn còn
 pkill -f "server/app.jar" 2>/dev/null || true
 pkill -f "htth.*server.jar" 2>/dev/null || true
-pkill -f "nro.*server.jar" 2>/dev/null || true
-pkill -f "ServerLogin.jar" 2>/dev/null || true
+pkill -f "nro.server.ServerManager" 2>/dev/null || true
 
 echo ""
 info "Đã dừng toàn bộ server game. MariaDB vẫn chạy (dùng chung, không tắt)."

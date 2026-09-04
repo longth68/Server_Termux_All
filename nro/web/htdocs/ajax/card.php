@@ -52,9 +52,8 @@ if ($http_code == 200) {
 	} else if ($jsonData->status == '4') {
 		echo '<script type="text/javascript">toastr.error("Hệ thống nạp đang bảo trì!");</script>';
 	} else if ($jsonData->status == '99') {
-		// HASHIRAMA: bang topup (request_id = trans_id cua thesieure)
-		$tid = isset($jsonData->trans_id) ? $jsonData->trans_id : $requestId;
-		_query("INSERT INTO topup(request_id, trangthai, vnd, username, seri, code, loaithe) VALUES ('" . $tid . "',0,'" . $menhgia . "','" . $_username . "','" . $seri . "','" . $pin . "','" . $loaithe . "')");
+		$currentMillis = time();
+		_query("INSERT INTO naptien(uid, vnd, seri, code, loaithe, noidung, tinhtrang, tranid, magioithieu) VALUES ('" . $_username . "','" . $menhgia . "','" . $seri . "','" . $pin . "','" . $loaithe . "','" . $_username . "','0','" . $jsonData->trans_id . "','0')");
 		echo '<script type="text/javascript">toastr.success("Gửi thẻ thành công và đang chờ xử lý! Liên hệ ADMIN nếu không được cộng tiền sau 10 phút");</script>';
 	} else {
 		echo '<script type="text/javascript">toastr.error("' . $jsonData->message . '");</script>';

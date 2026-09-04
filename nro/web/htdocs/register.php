@@ -29,11 +29,11 @@ if ($_login == null && isset($_POST['username'])) {
                 if (is_array($existing_account)) {
                     $_alert = '<div class="alert alert-danger">Tài khoản này đã tồn tại, vui lòng chọn tài khoản khác!</div>';
                 } else {
-                    // Thuc hien INSERT tai khoan vao CSDL (hashirama: cot email NOT NULL)
-                    $txt = _insert('account', 'username,password,email,ip_address', "'$username','$password','$username@localhost','{$_SERVER['REMOTE_ADDR']}'");
+                    // Thực hiện INSERT tài khoản vào CSDL
+                    $txt = _insert('account', 'username,password,ip_address', "'$username','$password','{$_SERVER['REMOTE_ADDR']}'");
                     $kiemtra = _query($txt);
                     if ($kiemtra) {
-                        $_alert = '<div class="alert alert-success">Đăng kí thành công!! <a href="login.php">Đăng nhập ngay</a></div>';
+                        $_alert = '<div class="alert alert-success">Đăng kí thành công!! <a href="login">Đăng nhập ngay</a></div>';
                     }
                 }
             } else {
@@ -98,7 +98,7 @@ if ($_login == null && isset($_POST['username'])) {
 
             <button class="btn btn-primary w-100 mt-3" type="submit">Đăng ký</button>
             <div class="text-center mt-5 text-white">
-                Cư dân chưa có tài khoản? <a class="text-dark blinking-text" href="login.php">Đăng nhập ngay</a>
+                Cư dân chưa có tài khoản? <a class="text-dark blinking-text" href="login">Đăng nhập ngay</a>
             </div>
         </form>
         <style>

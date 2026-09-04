@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-#  nro_stop.sh - DUNG NGOC RONG HASHIRAMA (Game + Web)
+#  nro_stop.sh - DUNG NGOC RONG ANWIN V3 (Game + Web)
 # ============================================================
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,8 +23,7 @@ stop_pid() {
 }
 
 stop_pid "$PID_DIR/nro_server.pid" "Ngoc Rong game server"
-stop_pid "$PID_DIR/nro_login.pid"  "Ngoc Rong login server"
 stop_pid "$PID_DIR/nro_web.pid"    "Ngoc Rong web server"
 
 echo ""
-info "Da dung Ngoc Rong Online."
+info "Da dung Ngoc Rong Anwin V3."

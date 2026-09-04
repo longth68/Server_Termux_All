@@ -84,14 +84,14 @@ if ! "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "USE htth" 2>/de
     fi
 fi
 
-# --- Ngoc Rong: DB hashirama ---
-NRO_TBLS=$("$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -N -e "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'hashirama';" 2>/dev/null || echo "0")
+# --- Ngoc Rong Anwin V3: DB awnv3 (ban Hashirama cu DB hashirama duoc giu nguyen) ---
+NRO_TBLS=$("$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -N -e "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'awnv3';" 2>/dev/null || echo "0")
 if [ -z "$NRO_TBLS" ] || [ "$NRO_TBLS" -eq 0 ]; then
-    info "Tạo database hashirama + import (Ngọc Rồng)..."
-    "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "CREATE DATABASE IF NOT EXISTS hashirama CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;" 2>/dev/null
-    for f in "$DIR/nro/database/hashirama.sql" "$DIR/nro/hashirama.sql"; do
+    info "Tạo database awnv3 + import (Ngọc Rồng Anwin V3)..."
+    "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root -e "CREATE DATABASE IF NOT EXISTS awnv3 CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;" 2>/dev/null
+    for f in "$DIR/nro/database/awnv3.sql"; do
         if [ -f "$f" ]; then
-            "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root --default-character-set=utf8mb4 hashirama < "$f" \
+            "$MYSQL_CMD" --socket="$PREFIX/tmp/mysqld.sock" -u root --default-character-set=utf8mb4 --binary-mode=1 awnv3 < "$f" \
                 && info "Import DB Ngọc Rồng xong." || warn "Import DB Ngọc Rồng lỗi."
             break
         fi
@@ -99,4 +99,4 @@ if [ -z "$NRO_TBLS" ] || [ "$NRO_TBLS" -eq 0 ]; then
 fi
 
 echo ""
-info "MariaDB sẵn sàng: DB schoolzz (Ninja) + DB htth (Hải Tặc Hot) + DB hashirama (Ngọc Rồng)."
+info "MariaDB sẵn sàng: DB schoolzz (Ninja) + DB htth (Hải Tặc Hot) + DB awnv3 (Ngọc Rồng Anwin V3)."

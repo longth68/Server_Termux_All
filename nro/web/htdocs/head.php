@@ -39,6 +39,8 @@ error_reporting(0);
     <script src="/assets/js/sweetalert2.js"></script>
     <!-- <script src="https://kit.fontawesome.com/c79383dd6c.js" crossorigin="anonymous"></script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js" defer></script>
     <script src="bktne/static/js/bootstrap.min.js" defer></script>
     <script src="bktne/static/js/notiflix-aio.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/typed.js@2.0.12" defer></script>
@@ -83,9 +85,9 @@ error_reporting(0);
                         </div>
                         <div class="mt-3">
                             <?php if ($_login == null) { ?>
-                            <span class="btn btn-success px-3 py-1" onclick="window.location.href='/login.php';">Đăng
+                            <span class="btn btn-success px-3 py-1" onclick="window.location.href='/login';">Đăng
                                 nhập</span>
-                            <span class="btn btn-success px-3 py-1" onclick="window.location.href='/register.php';">Đăng
+                            <span class="btn btn-success px-3 py-1" onclick="window.location.href='/register';">Đăng
                                 ký</span>
                             <?php } else { ?>
                             <a class="btn btn-success" href="/profile">
@@ -99,7 +101,7 @@ error_reporting(0);
                                 <img class="m-2" height="48" src="../assets/images/button/java.png" alt="APK">
                             </a>
                             <a class=""
-                                href="../Downloads/Nro HanZi.apk">
+                                href="../Downloads/NRO-LOCAL.apk">
                                 <img class="m-2" height="48" src="../assets/images/button/UfEcaeH.png" alt="APK">
                             </a>
                             <!-- AN TAM: chua co file .ipa/.rar tren server (an nut de tranh 404) -->

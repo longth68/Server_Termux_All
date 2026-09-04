@@ -1,2 +1,0 @@
-is_maintenance=false
-time_maintenance=0

@@ -1,9 +1,15 @@
+# Virtual Player Configuration
 enabled=true
-population=20
-gold_rate=1.0
-chat_rate=1.0
-map_change_rate=1.0
-gift_rate=1.0
-afk_rate=1.0
-player_protection=80
-bots_per_map=3
+population=30
+exp_rate=0.8
+gold_rate=0.7
+chat_rate=0.4
+map_change_rate=0.3
+player_protection=true
+gift_rate=0.5
+afk_rate=0.3
+
+# So bot AI luon giu hoat dong gan MOI nguoi choi that (0 = tat, bot song hoan toan doc lap)
+presence_per_player=5
+# Thoi gian (giay) moi bot ghe tham khu nguoi choi truoc khi nhuong luot cho bot khac
+presence_visit_seconds=300

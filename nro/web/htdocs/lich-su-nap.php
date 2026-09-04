@@ -1,5 +1,5 @@
 <?php
-if (session_status() == PHP_SESSION_NONE) { session_start(); } // Khởi tạo session
+session_start(); // Khởi tạo session
 if (!isset($_SESSION['account'])) { // Kiểm tra nếu người dùng chưa đăng nhập
     header("Location: /register"); // Chuyển hướng đến trang đăng ký
     exit(); // Dừng thực thi mã tiếp theo
@@ -58,26 +58,24 @@ include_once 'menu.php';
                             </thead>
                             <tbody>
                                 <?php
-                                // HASHIRAMA: the cao -> topup, chuyen khoan -> mb_bank
-                                $u = mysqli_real_escape_string($conn, $_username);
-                                $data = _query("(SELECT loaithe AS ptype, trangthai AS pstt, vnd AS pvnd, seri, code, `time` FROM topup WHERE username='$u')
-                                                UNION ALL
-                                                (SELECT 'BANK' AS ptype, status AS pstt, amount AS pvnd, tid AS seri, description AS code, `time` FROM mb_bank WHERE username='$u')
-                                                ORDER BY `time` DESC LIMIT 15");
-                                if (!$data || mysqli_num_rows($data) == 0) { ?>
+                                $data = _query(_select("*", "naptien", "uid='" . mysqli_real_escape_string($conn, $_username) . "' ORDER BY id DESC LIMIT 10"));
+                                if (mysqli_num_rows($data) == 0) { ?>
                                 <tr>
                                     <td colspan="6" class="text-center">Lịch sử nạp trống</td>
                                 </tr>
                                 <?php } else {
                                     $i = 1;
                                     while ($row = mysqli_fetch_assoc($data)) {
-                                        $type = htmlspecialchars($row['ptype'] ?: 'BANK');
+                                        $type = htmlspecialchars($row['type']);
+                                        if ($type != "BANK") {
+                                            $type = htmlspecialchars($row['loaithe']);
+                                        }
                                     ?>
                                 <tr>
                                     <td><?php echo $i++; ?></td>
                                     <td><?php echo $type ?></td>
-                                    <td><?php echo get_string_tinhtrangthe((int)$row['pstt']); ?></td>
-                                    <td><?php echo number_format($row['pvnd']); ?></td>
+                                    <td><?php echo get_string_tinhtrangthe($row['tinhtrang']); ?></td>
+                                    <td><?php echo number_format($row['vnd']); ?></td>
                                     <td><?php echo htmlspecialchars($row['seri']); ?></td>
                                     <td><?php echo (new DateTime($row['time']))->format('H:i -d/m/y'); ?></td>
                                 </tr>

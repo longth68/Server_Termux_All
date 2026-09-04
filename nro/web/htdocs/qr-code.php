@@ -1,5 +1,5 @@
 <?php
-if (session_status() == PHP_SESSION_NONE) { session_start(); } // Khởi tạo session
+session_start(); // Khởi tạo session
 if (!isset($_SESSION['account'])) { // Kiểm tra nếu người dùng chưa đăng nhập
     header("Location: /register"); // Chuyển hướng đến trang đăng ký
     exit(); // Dừng thực thi mã tiếp theo
@@ -26,8 +26,7 @@ if (!isset($_SESSION['LAST_GET_QR'])) {
 function can_create_qr($username)
 {
 	$count = 0;
-	// HASHIRAMA: bang mb_bank thay cho naptien type=BANK
-	$result = _query("SELECT COUNT(*) as count FROM mb_bank WHERE username='$username' AND status='0'");
+	$result = _query("SELECT COUNT(*) as count FROM naptien WHERE type='BANK' AND uid='$username' AND tinhtrang='0'");
 	if ($row = mysqli_fetch_assoc($result)) {
 		$count = $row['count'];
 	}
@@ -92,8 +91,7 @@ function get_link_qr($bank_type, $bank_account, $account_name, $vnd, $sv_code, $
 {
 	$_SESSION['LAST_GET_QR'] = time();
 	$description = 'BASE ' . $_username . ' ' . $tranId;
-	// HASHIRAMA: bang mb_bank (tid = ma giao dich)
-	$query = "INSERT INTO `mb_bank` (`tid`, `description`, `amount`, `username`, `status`) VALUES ('$tranId', '$description', '$vnd', '$_username', 0)";
+	$query = "INSERT INTO `naptien` (`noidung`, `uid`, `vnd`, `tinhtrang`, `type`) VALUES ('$tranId', '$_username', '$vnd', 0, 'BANK')";
 
 	_query($query);
 

@@ -1,7 +1,8 @@
 #!/bin/bash
 # ============================================================
-#  nro_start.sh - CHAY SERVER NGOC RONG HASHIRAMA
-#  (dung chung MariaDB tu start_db.sh, web 8888, game 14445, login 9888)
+#  nro_start.sh - CHAY SERVER NGOC RONG ANWIN V3 (monolith)
+#  (dung chung MariaDB tu start_db.sh, web 8888, game 14445, api 8085)
+#  Anwin KHONG can ServerLogin rieng - chi 1 process game duy nhat
 # ============================================================
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,7 +10,7 @@ NRO="$DIR/nro"
 PID_DIR="$DIR/.pids"
 WEB_PORT="${NRO_WEB_PORT:-8888}"
 GAME_PORT=14445
-LOGIN_PORT=9888
+API_PORT=8085
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
@@ -18,44 +19,29 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 is_running() { [ -f "$1" ] && kill -0 "$(cat "$1" 2>/dev/null)" 2>/dev/null; }
 
-# 1. Dam bao MariaDB dung chung dang chay
+# 1. Dam bao MariaDB dung chung dang chay (+ DB awnv3)
 bash "$DIR/start_db.sh"
 
-# 2. Xac dinh jar
-JAR=""
-for c in "$NRO/Server/server.jar" "$NRO/server.jar"; do
-    [ -f "$c" ] && { JAR="$c"; break; }
-done
-if [ -z "$JAR" ]; then error "Khong tim thay server.jar Ngoc Rong!"; exit 1; fi
-
-# 3. Chay login server (xac thuc dang nhap game, port noi bo 9888)
-LOGIN_JAR="$NRO/ServerLogin/ServerLogin.jar"
-if is_running "$PID_DIR/nro_login.pid"; then
-    info "Ngoc Rong login server da chay (PID $(cat "$PID_DIR/nro_login.pid"))."
-elif [ ! -f "$LOGIN_JAR" ]; then
-    error "Khong tim thay ServerLogin.jar! Chay: bash update_nro.sh (hoac git pull)"
-else
-    info "Khoi dong Ngoc Rong login server (port $LOGIN_PORT)..."
-    mkdir -p "$DIR/logs" "$NRO/ServerLogin"
-    cd "$NRO/ServerLogin"
-    nohup java \
-        -Xms128M -Xmx512M \
-        -XX:+UseG1GC \
-        -Dfile.encoding=UTF-8 \
-        -Djava.awt.headless=true \
-        -jar "$LOGIN_JAR" >> "$DIR/logs/nro_login.log" 2>&1 &
-    echo $! > "$PID_DIR/nro_login.pid"
-    sleep 3
-    is_running "$PID_DIR/nro_login.pid" \
-        && info "Ngoc Rong login server da chay (PID $(cat "$PID_DIR/nro_login.pid"))." \
-        || error "Ngoc Rong login server loi. Xem: logs/nro_login.log"
+# 2. Giai nen data game neu chua co
+if [ ! -d "$NRO/Server/data/map" ]; then
+    if ls "$NRO"/ANWIN_data.tar.* >/dev/null 2>&1; then
+        info "Giai nen du lieu game Anwin (ANWIN_data.tar.*)..."
+        mkdir -p "$NRO/Server"
+        (cd "$NRO/Server" && cat "$NRO"/ANWIN_data.tar.* > anwin_data.tar \
+            && tar -xf anwin_data.tar && rm -f anwin_data.tar)
+        [ -d "$NRO/Server/data/map" ] && info "Giai nen xong." || { error "Giai nen that bai."; exit 1; }
+    else
+        error "Thieu file du lieu game (ANWIN_data.tar.*)! Chay: git pull"
+        exit 1
+    fi
 fi
 
-# 4. Chay game server
+# 3. Chay game server (classpath, khong jar)
 if is_running "$PID_DIR/nro_server.pid"; then
     info "Ngoc Rong server da chay (PID $(cat "$PID_DIR/nro_server.pid"))."
 else
-    info "Khoi dong Ngoc Rong game server (port $GAME_PORT)..."
+    if [ ! -d "$NRO/Server/classes" ]; then error "Thieu $NRO/Server/classes! Chay: git pull"; exit 1; fi
+    info "Khoi dong Ngoc Rong game server (port $GAME_PORT, api $API_PORT)..."
     mkdir -p "$DIR/logs" "$NRO/Server/log"
     cd "$NRO/Server"
     nohup java \
@@ -63,7 +49,8 @@ else
         -XX:+UseG1GC \
         -Dfile.encoding=UTF-8 \
         -Djava.awt.headless=true \
-        -jar "$JAR" >> "$DIR/logs/nro_server.log" 2>&1 &
+        -Danwin.api.port=$API_PORT \
+        -cp "classes:lib/*" nro.server.ServerManager >> "$DIR/logs/nro_server.log" 2>&1 &
     echo $! > "$PID_DIR/nro_server.pid"
     sleep 4
     is_running "$PID_DIR/nro_server.pid" \
@@ -71,7 +58,7 @@ else
         || error "Ngoc Rong server loi. Xem: logs/nro_server.log"
 fi
 
-# 5. Chay web
+# 4. Chay web
 if is_running "$PID_DIR/nro_web.pid"; then
     info "Ngoc Rong web da chay."
 else
@@ -89,4 +76,4 @@ else
     fi
 fi
 
-echo -e "${GREEN}✔ Ngoc Rong Online: game port $GAME_PORT | web http://localhost:$WEB_PORT${NC}"
+echo -e "${GREEN}✔ Ngoc Rong Anwin V3: game port $GAME_PORT | web http://localhost:$WEB_PORT${NC}"

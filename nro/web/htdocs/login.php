@@ -3,11 +3,10 @@ include_once 'head.php';
 $_alert = '';
 if ($_login == null) {
     if (isset($_POST['username'])) {
-        if (!$conn) {
-            $conn = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
-        }
         $user = mysqli_real_escape_string($conn, trim($_POST['username']));
         $pass = mysqli_real_escape_string($conn, trim($_POST['password']));
+
+        $conn = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
 
         $select = _fetch(_select("*", 'account', "username='$user'"));
 
@@ -55,7 +54,7 @@ if ($_login == null) {
 
         <button class="btn btn-primary w-100 mt-3" type="submit">Đăng nhập</button>
         <div class="text-center mt-5 text-white">
-            Cư dân chưa có tài khoản? <a class="text-dark blinking-text" href="register.php">Đăng ký ngay</a>
+            Cư dân chưa có tài khoản? <a class="text-dark blinking-text" href="register">Đăng ký ngay</a>
         </div>
     </form>
 </main>

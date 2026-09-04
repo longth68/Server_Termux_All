@@ -7,7 +7,7 @@ date_default_timezone_set('Asia/Ho_Chi_Minh');
 if (!$conn) {
 	die("KHONG THE KET NOI DEN CSDL! VUI LONG KIEM TRA LAI");
 } else {
-	mysqli_set_charset($conn, 'utf8mb4');
+	mysqli_set_charset($conn, 'utf8');
 }
 
 function _query($sql)

@@ -30,46 +30,28 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action_part'])) {
 }
 
 $search = trim($_POST['search_part'] ?? ($_GET['search_part'] ?? ''));
-$page = max(1, (int)($_GET['page'] ?? 1));
-$perPage = 50;
-$cnt = _fetch("SELECT COUNT(*) AS c FROM part" . ($search != "" ? " WHERE id LIKE '%".addslashes($search)."%'" : ""));
-$totalPages = max(1, (int)ceil(((int)($cnt['c'] ?? 0)) / $perPage));
-$page = min($page, $totalPages);
 $part_rows = [];
 $q = "SELECT * FROM part WHERE 1=1";
 if ($search != "") $q .= " AND id LIKE '%".addslashes($search)."%'";
-$q .= " ORDER BY id ASC LIMIT $perPage OFFSET " . (($page-1)*$perPage);
+$q .= " ORDER BY id ASC LIMIT 100";
 $res = _query($q);
 if ($res) { while($r = mysqli_fetch_assoc($res)) $part_rows[] = $r; }
-?>
-<h3 class="mb-4">Quản Lý Part</h3>
-<?php if($pm): ?><div class="alert alert-<?= strpos($pm,'Lỗi')!==false?'danger':'success' ?>"><?= $pm ?></div><?php endif; ?>
-<p class="text-muted">Server HASHIRAMA xuất part ra file nhị phân <code>data/part/part</code> lúc khởi động — sửa xong cần <b>restart server</b>.</p>
-<nav class="mb-2">
-    <ul class="pagination pagination-sm mb-0">
-        <li class="page-item <?= $page<=1?'disabled':'' ?>"><a class="page-link" href="?tab=part&page=<?= max(1,$page-1) ?>&search_part=<?= urlencode($search) ?>">« Trước</a></li>
-        <li class="page-item disabled"><span class="page-link">Trang <?= $page ?>/<?= $totalPages ?></span></li>
-        <li class="page-item <?= $page>=$totalPages?'disabled':'' ?>"><a class="page-link" href="?tab=part&page=<?= min($totalPages,$page+1) ?>&search_part=<?= urlencode($search) ?>">Sau »</a></li>
-    </ul>
-</nav>
 
-<?php
 $av_rows = [];
 $q = _query("SELECT * FROM head_avatar ORDER BY head_id ASC LIMIT 100");
 if ($q) { while($r = mysqli_fetch_assoc($q)) $av_rows[] = $r; }
 
 $fr_rows = [];
-$frames_ok = false;
-$chk = _query("SHOW TABLES LIKE 'array_head_2_frames'");
-if ($chk && mysqli_num_rows($chk) > 0) {
-    $q = _query("SELECT * FROM array_head_2_frames ORDER BY id ASC LIMIT 100");
-    if ($q) { while($r = mysqli_fetch_assoc($q)) { $fr_rows[] = $r; } $frames_ok = true; }
-}
+$q = _query("SELECT * FROM array_head_2_frames ORDER BY id ASC LIMIT 100");
+if ($q) { while($r = mysqli_fetch_assoc($q)) $fr_rows[] = $r; }
 ?>
+<h3 class="mb-4">Quản Lý Part</h3>
+<?php if($pm): ?><div class="alert alert-<?= strpos($pm,'Lỗi')!==false?'danger':'success' ?>"><?= $pm ?></div><?php endif; ?>
 
 <ul class="nav nav-tabs mb-3" id="partTabs" role="tablist">
     <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-part">Part</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-avatar">Head Avatar</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-frames">Head Frames</a></li>
 </ul>
 <div class="tab-content">
     <div class="tab-pane fade show active" id="tab-part">
@@ -142,9 +124,26 @@ if ($chk && mysqli_num_rows($chk) > 0) {
     </div>
     <div class="tab-pane fade" id="tab-frames">
         <div class="card p-3">
-            <div class="alert alert-secondary mb-0 small">
-                Head Frames không có trên server HASHIRAMA (code Java không đọc bảng này) — đã ẩn tính năng.
-            </div>
+            <table class="table table-bordered table-striped table-sm">
+                <thead class="table-dark"><tr><th>ID</th><th>Data</th><th>Hành Động</th></tr></thead>
+                <tbody>
+                <?php if(empty($fr_rows)): ?>
+                    <tr><td colspan="3" class="text-center text-muted">Không có dữ liệu</td></tr>
+                <?php else: foreach($fr_rows as $fr): ?>
+                    <tr>
+                        <td><?= $fr['id'] ?></td><td><small><?= htmlspecialchars(mb_substr($fr['data'],0,120)) ?></small></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick='editFrames(<?= json_encode($fr, JSON_HEX_APOS|JSON_HEX_QUOT) ?>)'>Sửa</button>
+                            <form method="POST" class="d-inline">
+                                <input type="hidden" name="action_part" value="del_frames"><input type="hidden" name="id" value="<?= $fr['id'] ?>">
+                                <button class="btn btn-sm btn-danger" onclick="return confirm('Xóa?')">Xóa</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; endif; ?>
+                </tbody>
+            </table>
+            <button class="btn btn-primary mt-2" onclick="addFrames()">+ Thêm Frames</button>
         </div>
     </div>
 </div>

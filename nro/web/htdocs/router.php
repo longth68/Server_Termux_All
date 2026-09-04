@@ -1,11 +1,13 @@
 <?php
+// Router cho PHP built-in server tren Termux (thay .htaccess cua Apache).
+// Dung: php -S 0.0.0.0:8888 router.php  (chay trong web/htdocs)
 $path = parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH);
-// Giai ma URL để phục vụ file có tên Unicode/khoảng trắng (logo Ỷ....png, "Nro HanZi.apk")
+// Giai ma URL de phuc vu file ten Unicode/khoang trang ("NRO_fixed.apk" ok, "Nro HanZi.jar" ok)
 $path = rawurldecode($path);
 $file = __DIR__ . $path;
 
 if ($path !== '/' && file_exists($file) && !is_dir($file)) {
-    return false;
+    return false; // file tinh -> de server tu phuc vu
 }
 
 $clean = trim($path, '/');

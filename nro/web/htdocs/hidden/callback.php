@@ -12,10 +12,8 @@ if ($validate != false) { // Nếu xác thực callback đúng thì chạy vào 
     $card_type = $validate['telco']; // Loại thẻ
     $amount = $validate['amount']; // Mệnh giá của thẻ
     $declared = $validate['declared_value'] * 1; // Mệnh giá được khai báo
-    $content = isset_sql($validate['trans_id']); // ID transaction 
-    $pin = isset_sql($validate['code']);
-    $serial = isset_sql($validate['serial']);
-    $sign = md5($partnerKey . $validate['code'] . $validate['serial']); // Sign
+    $content = $validate['trans_id']; // ID transaction 
+    $sign = md5($partnerKey . $pin . $serial); // Sign
 
     if ($sign != $validate['callback_sign']) { // Nếu sign không trùng
         fwrite($cb, "trans_id: " . $content . ", Sai chữ ký|");
@@ -24,8 +22,7 @@ if ($validate != false) { // Nếu xác thực callback đúng thì chạy vào 
         fwrite($cb, "trans_id: " . $content . ", Chữ ký đúng|");
     }
 
-    // HASHIRAMA: bang topup thay cho naptien
-    $query_str = "SELECT * FROM `topup` WHERE trangthai = 0 AND request_id = '{$content}' AND code = '{$pin}' AND seri = '{$serial}'";
+    $query_str = "SELECT * FROM `naptien` WHERE tinhtrang = '0' AND tranid = '{$content}' AND code = '{$pin}' AND seri = '{$serial}'";
     fwrite($cb, "query: " . $query_str . "|");
     $result = _query($query_str);
     if ($result->num_rows <= 0) {
@@ -38,16 +35,19 @@ if ($validate != false) { // Nếu xác thực callback đúng thì chạy vào 
         fwrite($cb, "status: " . $status . "\n\n");
         if ($status == '1') {
             // Xử lý nạp thẻ thành công tại đây.
+            $ticket = $declared / 10000;
+
+            // Nhân đôi số tiền nạp vào
             $doubleAmount = $declared * 1;
 
-            _query("UPDATE `account` SET vnd = vnd + {$doubleAmount}, tongnap = tongnap + {$doubleAmount} WHERE username = '" . isset_sql($result['username']) . "'");
-            _query("UPDATE `topup` SET `trangthai` = 1 WHERE `request_id` = '{$content}'"); // chuyển cho kết quả thành công      
+            _query("UPDATE `account` SET vnd = vnd + {$doubleAmount}, tongnap = tongnap + {$doubleAmount} WHERE username = '{$result['uid']}'");
+            _query("UPDATE `naptien` SET `tinhtrang` = 1 WHERE `id` = {$result['id']}"); // chuyển cho kết quả thành công      
         } else if ($status == '2') {
             // Xử lý nạp thẻ sai mệnh giá tại đây.
-            _query("UPDATE `topup` SET `trangthai` = 2, `vnd` = {$amount} WHERE `request_id` = '{$content}'"); // thất bại   
+            _query("UPDATE `naptien` SET `tinhtrang` = 2, `vnd` = {$amount} WHERE `id` = {$result['id']}"); // thất bại   
         } else {
             // Xử lý nạp thẻ thất bại tại đây.
-            _query("UPDATE `topup` SET `trangthai` = 3 WHERE `request_id` = '{$content}'"); // thất bại   
+            _query("UPDATE `naptien` SET `tinhtrang` = 3 WHERE `id` = {$result['id']}"); // thất bại   
         }
     } else {
         fwrite($cb, "trans_id: " . $content . ", query: " . $result->num_rows . "\n\n");
@@ -59,10 +59,9 @@ fclose($cb);
 
 function ValidateCallback($out)
 { // Hàm kiểm tra callback từ server
-    global $partnerKey;
     $jsonData = file_get_contents('php://input');
     $jsonArray = json_decode($jsonData, true);
-    if (!isset(
+    if (isset(
         $jsonArray['status'],
         $jsonArray['message'],
         $jsonArray['request_id'],
@@ -75,12 +74,8 @@ function ValidateCallback($out)
         $jsonArray['trans_id'],
         $jsonArray['callback_sign']
     )) {
-        return false;
+        return $jsonArray; // Xác thực thành công
+    } else {
+        return false; // Xác thực callback thất bại
     }
-    // Verify signature
-    $expectedSign = md5($partnerKey . $jsonArray['code'] . $jsonArray['serial']);
-    if ($expectedSign !== $jsonArray['callback_sign']) {
-        return false;
-    }
-    return $jsonArray;
 }

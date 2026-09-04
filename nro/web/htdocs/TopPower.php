@@ -1,11 +1,10 @@
 <?php
 include_once 'head.php';
 
-// HASHIRAMA: cot power + pet_power co san trong bang player
 $query = "SELECT p.name as char_name, 
-          p.power as power,
-          COALESCE(p.pet_power, 0) as power_pet,
-          (p.power + COALESCE(p.pet_power, 0)) as tong_power
+          CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(p.data_point, ',', 2), ',', -1) AS UNSIGNED) as power,
+          CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(p.pet, ',', 8), ',', -1) AS UNSIGNED) as power_pet,
+          CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(p.data_point, ',', 2), ',', -1) AS UNSIGNED) + CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(p.pet, ',', 8), ',', -1) AS UNSIGNED) as tong_power
           FROM player p 
           WHERE p.name IS NOT NULL 
           ORDER BY tong_power DESC 

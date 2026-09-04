@@ -1,3 +1,0 @@
-*NRO
-Hashirama
-Server 1:127.0.0.1:14445

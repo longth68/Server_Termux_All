@@ -5,8 +5,8 @@ if (isset($_SESSION['orderCode'])) {
     $orderCode = $_SESSION['orderCode'];
     $amount = $_SESSION['amount'];
 
-    // HASHIRAMA: ghi vao bang mb_bank thay cho naptien
-    $queryString = "INSERT INTO mb_bank(tid, description, amount, username, status) VALUES ('" . $orderCode . "', '" . $_username . " " . $orderCode . "','" . $amount . "','" . $_username . "','0')";
+    $currentMillis = time();
+    $queryString = "INSERT INTO naptien(uid, type, vnd, time, noidung, tinhtrang, tranid) VALUES ('" . $_username . "','BANK','" . $amount . "','" . $currentMillis . "','" . $_username . "','0','" . $orderCode . "')";
     _query($queryString);
 
     unset($_SESSION['orderCode']);

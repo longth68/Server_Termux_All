@@ -1,6 +1,6 @@
 # Server_Termux_All — 3 Game trong 1 Bộ Cài
 
-Bộ cài tích hợp **Ninja School Online**, **Hải Tặc Hot** và **Ngọc Rồng Hashirama** (3 server game hoàn toàn độc lập) chạy trên Termux Android.
+Bộ cài tích hợp **Ninja School Online**, **Hải Tặc Hot** và **Ngọc Rồng Anwin V3** (3 server game hoàn toàn độc lập) chạy trên Termux Android.
 Cả 3 dùng chung môi trường (Java 17/21 + MariaDB + PHP) và **chỉ khác cách chạy server** (jar, port riêng biệt không xung đột, DB riêng trên cùng MariaDB).
 
 ---
@@ -18,7 +18,7 @@ cd ~/Server_Termux_All
 git pull origin main
 bash update_nro.sh
 ```
-*Script `update_nro.sh` sẽ tự động kéo bản mới, nạp database `hashirama` chuẩn UTF-8, giải nén tài nguyên NRO và lắp ráp sẵn file cài đặt APK/JAR vào Web Download chỉ trong vài giây.*
+*Script `update_nro.sh` sẽ tự động kéo bản mới, nạp database `awnv3` chuẩn UTF-8 và giải nén tài nguyên NRO (client APK/JAR có sẵn trên Web Download).*
 
 ### Cách 2: Cập nhật qua Menu điều khiển
 1. Trong Termux, gõ: `menu` (hoặc `bash ~/Server_Termux_All/menu.sh`).
@@ -41,13 +41,13 @@ bash update_nro.sh
 |---|---|---|---|---|---|
 | **Ninja School** | **14444** | **8000** | — | `schoolzz` | `ninja/` |
 | **Hải Tặc Hot** | **2236** | **8080** | — | `htth` | `htth/` |
-| **Ngọc Rồng Hashirama** | **14445** | **8888** | **8085** | `hashirama` | `nro/` |
+| **Ngọc Rồng Anwin V3** | **14445** | **8888** | **8085** | `awnv3` | `nro/` |
 
 > 💡 **Quy hoạch cổng tránh xung đột:**
 > - Cổng Game NRO đặt là `14445` (không trùng `14444` của Ninja và `2236` của HTTH).
 > - Cổng API Server NRO đổi thành `8085` (để nhường cổng `8080` cho Web HTTH).
 > - Cổng Web Admin NRO đặt là `8888` (không trùng `8000` của Ninja và `8080` của HTTH).
-> - Máy chủ Login NRO (xác thực đăng nhập game, `nro/ServerLogin/`) chạy nội bộ cổng `9888` — cố tình tránh `8888` của Web PHP, client không kết nối trực tiếp cổng này.
+> - NRO Anwin V3 là server **monolith 1 process** (không cần ServerLogin riêng như bản Hashirama cũ).
 > - Cả 3 game có thể chạy **đồng thời cùng một lúc** mà không hề bị chiếm cổng hay lỗi xung đột.
 
 ---
@@ -87,7 +87,7 @@ Script này sẽ:
 - Khởi động MariaDB (dùng chung cho cả 3 game trên cổng `3306`).
 - Tự động tạo và nạp cơ sở dữ liệu `schoolzz` (Ninja School).
 - Tự động tạo và nạp cơ sở dữ liệu `htth` (Hải Tặc Hot).
-- Tự động tạo và nạp cơ sở dữ liệu `hashirama` (Ngọc Rồng Hashirama).
+- Tự động tạo và nạp cơ sở dữ liệu `awnv3` (Ngọc Rồng Anwin V3).
 
 ---
 
@@ -102,7 +102,7 @@ bash menu.sh
 Menu cho phép:
 - `3` → Chạy **Ninja School** (game 14444 + web 8000)
 - `4` → Chạy **Hải Tặc Hot** (game 2236 + web 8080)
-- `5` → Chạy **Ngọc Rồng Hashirama** (game 14445 + login 9888 + web 8888 + api 8085)
+- `5` → Chạy **Ngọc Rồng Anwin V3** (game 14445 + web 8888 + api 8085)
 - `6` → Chạy **CẢ 3 GAME CÙNG LÚC**
 - `7` → Dừng Ninja School
 - `8` → Dừng Hải Tặc Hot
@@ -117,7 +117,7 @@ Menu cho phép:
 ```bash
 bash ninja_start.sh    # Chạy Ninja School
 bash htth_start.sh     # Chạy Hải Tặc Hot
-bash nro_start.sh      # Chạy Ngọc Rồng Hashirama
+bash nro_start.sh      # Chạy Ngọc Rồng Anwin V3
 bash stop.sh           # Dừng tất cả game (giữ MariaDB)
 bash stop_db.sh        # Dừng MariaDB
 ```
@@ -128,14 +128,14 @@ bash stop_db.sh        # Dừng MariaDB
 
 ### Tải Client game Ngọc Rồng (Đã cấu hình sẵn IP 127.0.0.1:14445)
 Truy cập trang Web trên điện thoại: **`http://127.0.0.1:8888/`**
-- Bấm vào nút **Android** để tải file APK (`Nro HanZi.apk`).
+- Bấm vào nút **Android** để tải file APK (`NRO-LOCAL.apk`, client gốc theo server).
 - Bấm vào nút **Java** để tải file JAR (`Nro HanZi.jar`).
 *(Cả 2 bản đều đã được nạp sẵn IP `127.0.0.1` cổng `14445`, tải về là đăng nhập chơi được ngay!)*
 
 ### Chơi trên cùng điện thoại chạy server
 - **Ninja School**: Client trỏ về `127.0.0.1:14444`. Web đăng ký: `http://localhost:8000`.
 - **Hải Tặc Hot**: Client trỏ về `127.0.0.1:2236`. Web đăng ký: `http://localhost:8080`.
-- **Ngọc Rồng**: Client trỏ về `127.0.0.1:14445`. Web: `http://localhost:8888/` | Quản trị: `http://localhost:8888/admin.php` (tài khoản: `admin1` / `admin123123123`).
+- **Ngọc Rồng**: Client trỏ về `127.0.0.1:14445`. Web: `http://localhost:8888/` | Quản trị: `http://localhost:8888/admin.php` (đăng ký acc trên web rồi set `is_admin=1` trong DB).
 
 ### Chơi từ máy khác trong cùng WiFi/LAN
 1. Gõ `ip addr show wlan0` trong Termux để xem IP điện thoại (ví dụ: `192.168.1.50`).
@@ -143,17 +143,10 @@ Truy cập trang Web trên điện thoại: **`http://127.0.0.1:8888/`**
    - Ninja: `192.168.1.50:14444` | Web: `http://192.168.1.50:8000`
    - HTTH: `192.168.1.50:2236` | Web: `http://192.168.1.50:8080`
    - NRO: `192.168.1.50:14445` | Web: `http://192.168.1.50:8888/`
-3. Riêng client **JAR Ngọc Rồng** (IP cứng `127.0.0.1` trong file): muốn máy khác chơi thì patch IP WiFi vào JAR:
-   ```bash
-   cd ~/Server_Termux_All/nro
-   php patch_client_jar.php "web/htdocs/Downloads/Nro HanZi.jar" "Nro-Wifi.jar" 192.168.1.50
-   ```
-   *(Tool sửa trực tiếp constant pool, không vỡ cấu trúc JAR. Thay `192.168.1.50` bằng IP ở bước 1. Đổi cả port: thêm `14445` cuối lệnh.)*
-
 ---
 
 ## 6. Nhật ký Log Server
 Toàn bộ log được lưu trong thư mục `logs/`:
 - `logs/ninja_server.log`, `logs/ninja_web.log`
 - `logs/htth_server.log`, `logs/htth_web.log`
-- `logs/nro_server.log`, `logs/nro_login.log`, `logs/nro_web.log`
+- `logs/nro_server.log`, `logs/nro_web.log`

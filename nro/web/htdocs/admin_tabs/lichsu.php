@@ -1,12 +1,10 @@
 <?php
-/* Tab: Lịch sử giao dịch (history_transaction) - include bởi admin.php
- * HASHIRAMA: bang khong co cot id -> sap xep theo time_tran
- */
+/* Tab: Lịch sử giao dịch (history_transaction) - include bởi admin.php */
 $search = trim($_POST['search_lichsu'] ?? ($_GET['search_lichsu'] ?? ''));
 $h_rows = [];
-$q = "SELECT player_1, player_2, item_player_1, item_player_2, time_tran FROM history_transaction";
+$q = "SELECT id, player_1, player_2, item_player_1, item_player_2, time_tran FROM history_transaction";
 if ($search != "") $q .= " WHERE player_1 LIKE '%".addslashes($search)."%' OR player_2 LIKE '%".addslashes($search)."%'";
-$q .= " ORDER BY time_tran DESC LIMIT 200";
+$q .= " ORDER BY id DESC LIMIT 200";
 $res = _query($q);
 if ($res) { while($r = mysqli_fetch_assoc($res)) $h_rows[] = $r; }
 ?>
@@ -21,13 +19,13 @@ if ($res) { while($r = mysqli_fetch_assoc($res)) $h_rows[] = $r; }
     </form>
     <div style="max-height:600px;overflow-y:auto;">
         <table class="table table-bordered table-striped table-sm">
-            <thead class="table-dark"><tr><th>#</th><th>Người chơi 1</th><th>Người chơi 2</th><th>Vật phẩm 1</th><th>Vật phẩm 2</th><th>Thời gian</th></tr></thead>
+            <thead class="table-dark"><tr><th>ID</th><th>Người chơi 1</th><th>Người chơi 2</th><th>Vật phẩm 1</th><th>Vật phẩm 2</th><th>Thời gian</th></tr></thead>
             <tbody>
             <?php if(empty($h_rows)): ?>
                 <tr><td colspan="6" class="text-center text-muted">Không có dữ liệu</td></tr>
-            <?php else: $stt=0; foreach($h_rows as $h): $stt++; ?>
+            <?php else: foreach($h_rows as $h): ?>
                 <tr>
-                    <td><?= $stt ?></td>
+                    <td><?= $h['id'] ?></td>
                     <td><strong><?= htmlspecialchars($h['player_1']) ?></strong></td>
                     <td><strong><?= htmlspecialchars($h['player_2']) ?></strong></td>
                     <td><small><?= htmlspecialchars($h['item_player_1']) ?></small></td>

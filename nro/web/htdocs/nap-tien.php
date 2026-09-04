@@ -1,5 +1,5 @@
 <?php
-if (session_status() == PHP_SESSION_NONE) { session_start(); } // Khởi tạo session
+session_start(); // Khởi tạo session
 if (!isset($_SESSION['account'])) { // Kiểm tra nếu người dùng chưa đăng nhập
     header("Location: /register"); // Chuyển hướng đến trang đăng ký
     exit(); // Dừng thực thi mã tiếp theo

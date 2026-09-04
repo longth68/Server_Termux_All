@@ -10,10 +10,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action_badge'])) {
     $options = isset_sql(trim($_POST['options'] ?? '[]'));
 
     if ($act === 'add' && $name != '') {
-        // HASHIRAMA: data_badges khong co AUTO_INCREMENT -> tu sinh id = max+1
-        $newid = (int)(_fetch("SELECT COALESCE(MAX(id),0)+1 AS n FROM data_badges")["n"] ?? 1);
-        $q = "INSERT INTO data_badges (id, NAME, idEffect, idItem, Options) VALUES ($newid, '$name', $effect, $item, '$options')";
-        $bm = _query($q) ? "Đã thêm danh hiệu #$newid! (restart server để nạp)" : "Lỗi thêm!";
+        $q = "INSERT INTO data_badges (NAME, idEffect, idItem, Options) VALUES ('$name', $effect, $item, '$options')";
+        $bm = _query($q) ? "Đã thêm danh hiệu!" : "Lỗi thêm!";
     } elseif ($act === 'edit' && $id > 0) {
         $q = "UPDATE data_badges SET NAME='$name', idEffect=$effect, idItem=$item, Options='$options' WHERE id=$id";
         $bm = _query($q) ? "Đã cập nhật danh hiệu #$id!" : "Lỗi cập nhật!";

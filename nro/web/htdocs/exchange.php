@@ -55,8 +55,8 @@ if (is_numeric($vnd)) {
 	} else {
 		$nhan = floor($tien * 60);
 		if ($nhan != 0) {
-			// HASHIRAMA: khong co cot coin -> quy doi vao thoi_vang (thoi vang)
-			$query = _query(_update('account', "vnd = vnd - $vnd, thoi_vang = thoi_vang + $nhan", "username='$_username' AND vnd >= $vnd"));
+			$_vnd = $_vnd - $vnd;
+			$query = _query(_update('account', "vnd='$_vnd', coin=coin + $nhan", "username='$_username'"));
 
 			if ($query) {
 				# Lưu log quy đổi 

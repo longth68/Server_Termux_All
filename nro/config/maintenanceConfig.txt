@@ -1,3 +1,0 @@
-hour=23
-minute=58
-enabled=1

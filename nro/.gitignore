@@ -1,18 +1,14 @@
-﻿# Logs
+# Logs
 *.log
 log/
 
-# Dữ liệu game nén chia nhỏ: NRO_data.part1..5 (đã commit)
-# data, Eff, mob, resources được giải nén khi chạy - không commit
-data/
-Eff/
-mob/
-resources/
+# File tar trung gian khi giai nen (khong commit)
+anwin_data.tar
 nro_data.tar.gz
 NRO_data.tar.gz
 
-# APK dung lượng lớn >100MB chia thành part1, part2 (không commit file apk gốc 134MB)
-web/Downloads/*.apk
+# Du lieu da chia part (ANWIN_data.tar.* DA commit)
+# (giu nguyen de trich xuat tren Termux)
 
 # OS
 .DS_Store

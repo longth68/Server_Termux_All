@@ -24,23 +24,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action_char'])) {
 
 $search = trim($_POST['search_char'] ?? ($_GET['search_char'] ?? ''));
 $c_rows = [];
-$q = "SELECT p.id, p.name, p.account_id, p.head, a.username, a.active, a.ban, a.vnd, IF(p.id >= 3000000000, 1, 0) AS is_bot FROM player p LEFT JOIN account a ON p.account_id = a.id";
+$q = "SELECT p.id, p.name, p.account_id, p.head, a.username, a.active, a.ban, a.vnd FROM player p LEFT JOIN account a ON p.account_id = a.id";
 if ($search != "") $q .= " WHERE p.name LIKE '%".addslashes($search)."%' OR p.id='".addslashes($search)."' OR a.username LIKE '%".addslashes($search)."%'";
-$q .= " ORDER BY p.id DESC LIMIT 200";
+$q .= " ORDER BY p.id DESC LIMIT 100";
 $res = _query($q);
 if ($res) { while($r = mysqli_fetch_assoc($res)) $c_rows[] = $r; }
 
 // ===== Template cho modal chi tiet =====
-function table_exists($t) { $r = _query("SHOW TABLES LIKE '" . addslashes($t) . "'"); return $r && mysqli_num_rows($r) > 0; }
 $tplMain = [];   $r2 = _query("SELECT id, name FROM task_main_template ORDER BY id");
 while($r2 && $x = mysqli_fetch_assoc($r2)) $tplMain[] = ['id'=>(int)$x['id'], 'n'=>$x['name']];
 $tplSide = [];   $r2 = _query("SELECT id, name FROM side_task_template ORDER BY id");
 while($r2 && $x = mysqli_fetch_assoc($r2)) $tplSide[] = ['id'=>(int)$x['id'], 'n'=>$x['name']];
-// HASHIRAMA: 3 bang duoi day co the khong ton tai trong dump -> guard de trang loi SQL
-$tplClan = [];   if (table_exists('clan_task_template')) { $r2 = _query("SELECT id, name FROM clan_task_template ORDER BY id"); while($r2 && $x = mysqli_fetch_assoc($r2)) $tplClan[] = ['id'=>(int)$x['id'], 'n'=>$x['name']]; }
-$tplKol = [];    if (table_exists('task_kol_template')) { $r2 = _query("SELECT id, info FROM task_kol_template ORDER BY id"); while($r2 && $x = mysqli_fetch_assoc($r2)) $tplKol[] = ['id'=>(int)$x['id'], 'n'=>$x['info']]; }
-// Danh hieu: bang data_badges duoc tao boi sql/patch_hashirama_tables.sql (server doc tai Manager.java)
-$tplBadge = [];  if (table_exists('data_badges')) { $r2 = _query("SELECT b.idEffect, b.NAME, i.icon_id FROM data_badges b LEFT JOIN item_template i ON b.idItem = i.id ORDER BY b.id"); while($r2 && $x = mysqli_fetch_assoc($r2)) $tplBadge[] = ['id'=>(int)$x['idEffect'], 'n'=>$x['NAME'], 'ic'=>$x['icon_id'] !== null ? (int)$x['icon_id'] : -1]; }
+$tplClan = [];   $r2 = _query("SELECT id, name FROM clan_task_template ORDER BY id");
+while($r2 && $x = mysqli_fetch_assoc($r2)) $tplClan[] = ['id'=>(int)$x['id'], 'n'=>$x['name']];
+$tplKol = [];    $r2 = _query("SELECT id, info FROM task_kol_template ORDER BY id");
+while($r2 && $x = mysqli_fetch_assoc($r2)) $tplKol[] = ['id'=>(int)$x['id'], 'n'=>$x['info']];
+// Danh hieu: idBadGes trong player tham chieu data_badges.idEffect
+$tplBadge = [];  $r2 = _query("SELECT b.idEffect, b.NAME, i.icon_id FROM data_badges b LEFT JOIN item_template i ON b.idItem = i.id ORDER BY b.id");
+while($r2 && $x = mysqli_fetch_assoc($r2)) $tplBadge[] = ['id'=>(int)$x['idEffect'], 'n'=>$x['NAME'], 'ic'=>$x['icon_id'] !== null ? (int)$x['icon_id'] : -1];
 // Head: part TYPE=0, DATA = [[icon_gender0,dx,dy],[...],[...]]
 $tplHead = [];   $r2 = _query("SELECT id, DATA FROM part WHERE TYPE = 0");
 while($r2 && $x = mysqli_fetch_assoc($r2)) {
@@ -83,19 +84,17 @@ while($r2 && $x = mysqli_fetch_assoc($r2)) {
         <button class="btn btn-outline-primary">Tìm</button>
     </form>
     <div style="max-height:600px;overflow-y:auto;">
-        <table class="table table-bordered table-striped table-sm small">
-            <thead class="table-dark"><tr><th>ID</th><th>Loại</th><th>Tên Nhân Vật</th><th>Account</th><th>VNĐ</th><th>Map</th><th>Trạng Thái</th><th>Hành Động</th></tr></thead>
+        <table class="table table-bordered table-striped table-sm">
+            <thead class="table-dark"><tr><th>ID</th><th>Tên Nhân Vật</th><th>Account</th><th>VNĐ</th><th>Trạng Thái</th><th>Hành Động</th></tr></thead>
             <tbody>
             <?php if(empty($c_rows)): ?>
-                <tr><td colspan="8" class="text-center text-muted">Không có dữ liệu</td></tr>
+                <tr><td colspan="6" class="text-center text-muted">Không có dữ liệu</td></tr>
             <?php else: foreach($c_rows as $c): ?>
-                <tr id="plRow<?= $c['id'] ?>" class="<?= $c['is_bot'] ? 'table-light' : '' ?>">
+                <tr>
                     <td><?= $c['id'] ?></td>
-                    <td><?= $c['is_bot'] ? '<span class="badge bg-warning text-dark">BOT</span>' : '<span class="badge bg-success">Player</span>' ?></td>
                     <td><strong><?= htmlspecialchars($c['name']) ?></strong></td>
                     <td><?= htmlspecialchars($c['username'] ?? 'N/A') ?> <small class="text-muted">(<?= $c['account_id'] ?>)</small></td>
                     <td><?= number_format($c['vnd'] ?? 0) ?>đ</td>
-                    <td class="pv-map" data-pid="<?= $c['id'] ?>"><small class="text-muted">...</small></td>
                     <td>
                         <?= $c['active'] ? '<span class="badge bg-success">Đã mở</span>' : '<span class="badge bg-secondary">Chưa mở</span>' ?>
                         <?= $c['ban'] ? '<span class="badge bg-danger">Bị khóa</span>' : '' ?>
@@ -114,25 +113,6 @@ while($r2 && $x = mysqli_fetch_assoc($r2)) {
             </tbody>
         </table>
     </div>
-    <script>
-    (function(){
-        function loadCharMaps(){
-            fetch('?ajax=proxy&action=player_list').then(r=>r.json()).then(data=>{
-                let players = Array.isArray(data)?data:(data.players||[]);
-                players.forEach(p=>{
-                    let cell = document.querySelector('.pv-map[data-pid="'+p.id+'"]');
-                    if(cell){
-                        let mapStr = p.map || '?';
-                        if(p.zone_id >= 0) mapStr += ' (#'+p.zone_id+')';
-                        cell.innerHTML = '<small>'+mapStr+'</small>';
-                    }
-                });
-            }).catch(()=>{});
-        }
-        loadCharMaps();
-        setInterval(loadCharMaps, 5000);
-    })();
-    </script>
 </div>
 
 <!-- ================= MODAL CHI TIET NHAN VAT ================= -->
@@ -309,20 +289,9 @@ function renameChar(name){
 // ================= MODAL CHI TIET =================
 let plId = null, plData = null, plModalEl = null;
 function plApi(action, qs){
-    // chap ca chuoi ('a=1&b=2') va object ({a:1,b:2})
-    let q = '';
-    if (qs) {
-        q = (typeof qs === 'object') ? new URLSearchParams(qs).toString() : qs;
-    }
-    return fetch('?ajax=proxy&action='+action+(q?'&'+q:'')).then(r=>r.json());
+    return fetch('?ajax=proxy&action='+action+(qs?'&'+qs:'')).then(r=>r.json());
 }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
-// HASHIRAMA tra ve {success, message} thay vi {status, msg}
-function apiMsg(d){
-    if (!d) return 'Không có phản hồi!';
-    if (d.success === false || d.status === 'error') return 'Lỗi: ' + (d.message || d.msg || 'thất bại');
-    return d.message || d.msg || d.status || 'Thành công!';
-}
 function iconTag(iconId, size, full){ return '<img src="item_icon.php?id='+iconId+(full?'&size=3':'')+'" width="'+size+'" height="'+size+'" style="image-rendering:pixelated;" loading="lazy" title="Template #'+iconId+'">'; }
 
 function plOpen(id){
@@ -330,68 +299,12 @@ function plOpen(id){
     if(!plModalEl) plModalEl = new bootstrap.Modal(document.getElementById('plModal'));
     document.getElementById('plTitle').textContent = 'Nhân vật #'+id+' - đang tải...';
     document.getElementById('plOnline').className = 'badge bg-secondary ms-2';
-    let apiAction = (id >= 3000000000) ? 'bot_detail' : 'pl_detail';
-    plApi(apiAction,'id='+id).then(res=>{
-        if(res.status === 'success'){                 // dinh dang cu (du phong)
-            plData = res;
-        } else if(res.success && res.detail){         // dinh dang HASHIRAMA -> chuyen doi
-            plData = adaptHashiDetail(res.detail);
-        } else {
-            alert('Lỗi: '+(res.message || res.msg || res.status || 'không xác định'));
-            return;
-        }
+    plApi('pl_detail','id='+id).then(d=>{
+        if(d.status!=='success'){ alert('Lỗi: '+(d.msg||d.status)); return; }
+        plData = d;
         renderPl();
         plModalEl.show();
     });
-}
-// Chuyen JSON pl_detail cua HASHIRAMA ve dung shape ma modal dang hien thi
-function adaptHashiDetail(h){
-    function mapItems(arr){
-        return (arr||[]).map(it=>({
-            slot: it.slot, temp_id: it.temp_id, name: it.name, icon: it.icon,
-            qty: it.quantity,
-            optstr: (it.options||[]).map(o=>(o.name||('#'+o.id))+':'+o.param).join(';')
-        }));
-    }
-    let pt = h.point || {};
-    let inv = h.inventory || {};
-    let tm = h.task_main || {};
-    let ts = h.task_side || {};
-    let pet = null;
-    if (h.pet && h.pet.name !== undefined && h.pet.name !== null) {
-        pet = {
-            exists: true,
-            name: h.pet.name, gender: h.pet.gender, status: h.pet.status,
-            type: h.pet.is_mabu ? 1 : 0,
-            power: h.pet.power||0, tiemnang: 0,
-            hpg: h.pet.hpg||0, mpg: h.pet.mpg||0, dameg: h.pet.damg||0, defg: h.pet.defg||0, critg: 0
-        };
-    }
-    let badges = [];
-    (h.dataBadges||[]).forEach(function(b, idx){
-        let id = Number(b.idBadGes || b.id || 0);
-        if (id > 0) {
-            let found = TPL_BADGE.find(t=>Number(t.id)===id);
-            let time = Number(b.timeofUseBadges || b.time || 0);
-            badges.push({id: id, idx: idx, use: b.isUse !== false, time: time, n: found ? found.n : ('Badge #'+id)});
-        }
-    });
-    return {
-        status: 'success',
-        online: h.online == 1 || h.online === true,
-        info: { id: h.id, name: h.name, head: h.head, gender: h.gender },
-        power: pt.power||0, tiemnang: pt.tiem_nang||0,
-        hpg: pt.hpg||0, mpg: pt.mpg||0, dameg: pt.dameg||0, defg: pt.defg||0, critg: pt.critg||0,
-        gold: inv.gold||0, gem: inv.gem||0, ruby: inv.ruby||0,
-        items_body: mapItems(h.items_body),
-        items_bag: mapItems(h.items_bag),
-        items_box: mapItems(h.items_box),
-        pet: pet,
-        task_main: [tm.task_id!==undefined?tm.task_id:0, tm.index||0, tm.count||0],
-        task_side: { id: ts.template_id, count: ts.count, max: ts.max_count, left: ts.left_task, level: ts.level },
-        task_clan: {}, task_kol: {},
-        badges: badges
-    };
 }
 function plReload(){ plOpen(plId); }
 
@@ -469,7 +382,7 @@ function ensureItems(cb){
     if(plItemsCache){ cb(); return; }
     fetch('bot_items.php').then(r=>r.json()).then(list=>{
         plItemsCache = {};
-        (list||[]).forEach(t=>{ plItemsCache[t.id] = t; });
+        (list||[]).forEach(t=>{ plItemsCache[t.i] = t; });
         cb();
     }).catch(cb);
 }
@@ -477,8 +390,8 @@ function buildItemDatalist(){
     ensureItems(()=>{
         let dl = document.getElementById('plItemDL');
         dl.innerHTML = Object.values(plItemsCache)
-            .sort((a,b)=>a.id-b.id)
-            .map(t=>'<option value="'+t.id+'">'+esc(t.n)+'</option>').join('');
+            .sort((a,b)=>a.i-b.i)
+            .map(t=>'<option value="'+t.i+'">'+esc(t.n)+'</option>').join('');
     });
 }
 document.getElementById('plAddTemp').addEventListener('input', function(){
@@ -505,22 +418,22 @@ function plItemClick(it, type){
     if(act===null) return;
     if(act===''){ 
         if(!confirm('Xóa "'+it.name+'" khỏi ô '+it.slot+'?')) return;
-        plApi('pl_item_del',{id:plId,type:type,slot:it.slot}).then(d=>{alert(apiMsg(d));plReload();});
+        plApi('pl_item_del',{id:plId,type:type,slot:it.slot}).then(d=>{alert(d.msg);plReload();});
     } else {
-        plApi('pl_item_qty',{id:plId,type:type,slot:it.slot,qty:act}).then(d=>{alert(apiMsg(d));plReload();});
+        plApi('pl_item_qty',{id:plId,type:type,slot:it.slot,qty:act}).then(d=>{alert(d.msg);plReload();});
     }
 }
 function plItemAdd(){
     let temp = parseInt(gv('plAddTemp')), qty = parseInt(gv('plAddQty'))||1, type = gv('plAddType');
     if(isNaN(temp)){ alert('Nhập ID vật phẩm hợp lệ!'); return; }
-    plApi('pl_item_add',{id:plId,type:type,tempid:temp,qty:qty}).then(d=>{alert(apiMsg(d));plReload();});
+    plApi('pl_item_add',{id:plId,type:type,tempid:temp,qty:qty}).then(d=>{alert(d.msg);plReload();});
 }
 
 // ===== DE TU =====
 function plSavePet(){
-    plApi('pl_pet_save',{id:plId,type:gv('ppType'),gender:gv('ppGender'),name:gv('ppName'),status:gv('ppStatus'),
-        power:gv('ppPower'),tiemnang:gv('ppTiem'),hpg:gv('ppHpg'),mpg:gv('ppMpg'),
-        damg:gv('ppDameg'),defg:gv('ppDefg')}).then(d=>{alert(apiMsg(d));plReload();});
+    plApi('pl_pet_save',{id:plId,pet_type:gv('ppType'),pet_gender:gv('ppGender'),pet_name:gv('ppName'),pet_status:gv('ppStatus'),
+        pet_power:gv('ppPower'),pet_tiemnang:gv('ppTiem'),pet_hpg:gv('ppHpg'),pet_mpg:gv('ppMpg'),
+        pet_dameg:gv('ppDameg'),pet_defg:gv('ppDefg'),pet_critg:gv('ppCritg')}).then(d=>{alert(d.msg);plReload();});
 }
 
 // ===== NHIEM VU =====
@@ -530,7 +443,7 @@ function plSaveTask(){
         side_id:gv('ptSide'), side_count:gv('ptSideC'), side_max:gv('ptSideM'), side_left:gv('ptSideL'), side_level:gv('ptSideLv'),
         clan_id:gv('ptClan'), clan_count:gv('ptClanC'), clan_max:gv('ptClanM'), clan_left:gv('ptClanL'), clan_level:gv('ptClanLv'),
         kol_id:gv('ptKol'), kol_count:gv('ptKolC')};
-    plApi('pl_task_save', q).then(d=>{alert(apiMsg(d));});
+    plApi('pl_task_save', q).then(d=>{alert(d.msg);});
 }
 
 // ===== DANH HIEU =====
@@ -559,44 +472,32 @@ function renderBadges(){
     document.getElementById('pbRows').innerHTML = rows;
 }
 function plBadgeToggle(idx, use){
-    plApi('pl_badge_toggle',{id:plId,idx:idx,use:use}).then(d=>{alert(apiMsg(d));plReload();});
+    plApi('pl_badge_toggle',{id:plId,idx:idx,use:use}).then(d=>{alert(d.msg);plReload();});
 }
 function plBadgeExtend(idx){
     let days = prompt('Gia hạn bao nhiêu ngày?', 30);
     if(days===null||isNaN(days)||days<1) return;
-    plApi('pl_badge_toggle',{id:plId,idx:idx,days:days}).then(d=>{alert(apiMsg(d));plReload();});
+    plApi('pl_badge_toggle',{id:plId,idx:idx,days:days}).then(d=>{alert(d.msg);plReload();});
 }
 function plBadgeDel(idx){
     if(!confirm('Xóa danh hiệu này khỏi nhân vật?')) return;
-    plApi('pl_badge_del',{id:plId,idx:idx}).then(d=>{alert(apiMsg(d));plReload();});
+    plApi('pl_badge_del',{id:plId,idx:idx}).then(d=>{alert(d.msg);plReload();});
 }
 function plBadgeAdd(){
     let bid = gv('pbNewSel'), days = parseInt(gv('pbNewDays'))||30;
     if(!bid){ alert('Chọn danh hiệu trước!'); return; }
-    plApi('pl_badge_add',{id:plId,badge_id:bid,days:days}).then(d=>{alert(apiMsg(d));plReload();});
+    plApi('pl_badge_add',{id:plId,badge_id:bid,days:days}).then(d=>{alert(d.msg);plReload();});
 }
 
 // ===== LUU THONG TIN CHUNG =====
 function plSaveInfo(){
-    plApi('pl_save_info',{id:plId,name:gv('piName'),head:gv('piHead'),gender:gv('piGender'),
+    plApi('pl_save_info',{id:plId,name:gv('piName'),head:gv('piHead'),
         power:gv('piPower'),tiemnang:gv('piTiem'),hpg:gv('piHpg'),mpg:gv('piMpg'),
         dameg:gv('piDameg'),defg:gv('piDefg'),critg:gv('piCritg'),
-        gold:gv('piGold'),gem:gv('piGem'),ruby:gv('piRuby')}).then(d=>{alert(apiMsg(d));});
+        gold:gv('piGold'),gem:gv('piGem'),ruby:gv('piRuby')}).then(d=>{alert(d.msg);});
 }
 
 // Khoi tao datalist khi mo tab vat pham lan dau
 document.querySelector('a[href="#plTabItems"]').addEventListener('shown.bs.tab', buildItemDatalist);
 document.getElementById('piHead').addEventListener('input', updateHeadImg);
-// Doi gioi tinh -> tu dong chon head hop le cho gioi tinh moi + cap nhat anh xem truoc
-document.getElementById('piGender').addEventListener('change', function(){
-    let g = parseInt(this.value)||0;
-    // neu head hien tai khong co anh cho gioi tinh moi -> chon head dau tien hop le
-    let cur = TPL_HEAD.find(x=>Number(x.id)===parseInt(gv('piHead')));
-    let ok = cur && cur.ic && Number.isInteger(cur.ic[g]) && cur.ic[g] >= 0;
-    if (!ok) {
-        let alt = TPL_HEAD.find(x=>x.ic && Number.isInteger(x.ic[g]) && x.ic[g] >= 0);
-        if (alt) document.getElementById('piHead').value = alt.id;
-    }
-    updateHeadImg();
-});
 </script>

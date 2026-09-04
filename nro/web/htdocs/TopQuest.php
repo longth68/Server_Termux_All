@@ -1,13 +1,12 @@
 <?php
 include_once 'head.php';
 
-// HASHIRAMA: data_task = [count, taskId, index] -> task id la phan tu $[1]
 $query = "SELECT p.name AS char_name, 
-                 CAST(JSON_EXTRACT(p.data_task, '$[1]') AS UNSIGNED) AS task_id, 
+                 CAST(JSON_EXTRACT(p.data_task, '$[0]') AS UNSIGNED) AS task_id, 
                  t.name AS task_name 
           FROM player p 
           LEFT JOIN task_main_template t 
-          ON t.id = CAST(JSON_EXTRACT(p.data_task, '$[1]') AS UNSIGNED) 
+          ON t.id = CAST(JSON_EXTRACT(p.data_task, '$[0]') AS UNSIGNED) 
           WHERE p.name IS NOT NULL AND p.data_task != '' 
           ORDER BY task_id DESC 
           LIMIT 10";
