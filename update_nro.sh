@@ -46,25 +46,55 @@ chmod +x "$DIR"/*.sh 2>/dev/null || true
 info "Khoi dong MariaDB va kiem tra Database..."
 bash "$DIR/start_db.sh"
 
-# 4. Giai nen tai nguyen NRO neu chua co
+# 4. Kiem tra + tai bu part data (can file ANWIN_data.parts de biet tong so)
 NRO="$DIR/nro"
-if [ -d "$NRO" ]; then
-    if [ ! -d "$NRO/Server/data/map" ]; then
-        if ls "$NRO"/ANWIN_data.tar.* >/dev/null 2>&1; then
-            info "Dang giai nen tai nguyen Ngoc Rong Anwin..."
-            mkdir -p "$NRO/Server"
-            (cd "$NRO/Server" && cat "$NRO"/ANWIN_data.tar.* > anwin_data.tar \
-                && tar -xf anwin_data.tar && rm -f anwin_data.tar)
-            [ -d "$NRO/Server/data/map" ] && info "Giai nen tai nguyen NRO thanh cong!" || { error "Giai nen NRO that bai!"; exit 1; }
-        else
-            warn "Khong tim thay ANWIN_data.tar.* trong thu muc nro/!"
-        fi
-    else
-        info "Tai nguyen NRO da duoc giai nen san."
-    fi
-else
+if [ ! -d "$NRO" ]; then
     error "Thu muc $NRO khong ton tai!"
     exit 1
+fi
+EXPECT=$(cat "$NRO/ANWIN_data.parts" 2>/dev/null || echo "18")
+HAVE=$(ls "$NRO"/ANWIN_data.tar.* 2>/dev/null | wc -l)
+info "Part data NRO: co $HAVE/$EXPECT"
+if [ "$HAVE" -lt "$EXPECT" ]; then
+    warn "Thieu part data! Thu keo tiep bang git..."
+    if [ -d "$DIR/.git" ]; then
+        git -C "$DIR" pull --ff-only origin main 2>&1 | tail -n 3
+        HAVE=$(ls "$NRO"/ANWIN_data.tar.* 2>/dev/null | wc -l)
+        info "Sau git pull: co $HAVE/$EXPECT part"
+    fi
+fi
+# Van thieu -> tai bu tung part qua curl (ho tro resume)
+if [ "$HAVE" -lt "$EXPECT" ]; then
+    warn "Van thieu part, tai bu truc tiep tu GitHub (co the tiep tuc neu dut mang)..."
+    i=1
+    while [ "$i" -le "$EXPECT" ]; do
+        f=$(printf "ANWIN_data.tar.%03d" "$i")
+        if [ ! -f "$NRO/$f" ]; then
+            info "Dang tai $f ($i/$EXPECT)..."
+            if ! curl -L -C - --retry 3 -o "$NRO/$f" "https://raw.githubusercontent.com/longth68/Server_Termux_All/main/nro/$f"; then
+                error "Tai that bai: $f. Kiem tra mang roi chay lai script."
+                exit 1
+            fi
+        fi
+        i=$((i + 1))
+    done
+    HAVE=$(ls "$NRO"/ANWIN_data.tar.* 2>/dev/null | wc -l)
+fi
+
+# 5. Giai nen tai nguyen NRO neu chua co
+if [ ! -d "$NRO/Server/data/map" ]; then
+    if [ "$HAVE" -ge "$EXPECT" ] && [ "$EXPECT" -gt 0 ]; then
+        info "Dang giai nen tai nguyen Ngoc Rong Anwin..."
+        mkdir -p "$NRO/Server"
+        (cd "$NRO/Server" && cat "$NRO"/ANWIN_data.tar.* > anwin_data.tar \
+            && tar -xf anwin_data.tar && rm -f anwin_data.tar)
+        [ -d "$NRO/Server/data/map" ] && info "Giai nen tai nguyen NRO thanh cong!" || { error "Giai nen NRO that bai!"; exit 1; }
+    else
+        error "Chua du $EXPECT part data (moi co $HAVE). Khong giai nen."
+        exit 1
+    fi
+else
+    info "Tai nguyen NRO da duoc giai nen san."
 fi
 
 echo -e "\n${GREEN}====================================================${NC}"

@@ -31,7 +31,7 @@ if [ ! -d "$NRO/Server/data/map" ]; then
             && tar -xf anwin_data.tar && rm -f anwin_data.tar)
         [ -d "$NRO/Server/data/map" ] && info "Giai nen xong." || { error "Giai nen that bai."; exit 1; }
     else
-        error "Thieu file du lieu game (ANWIN_data.tar.*)! Chay: git pull"
+        error "Thieu file du lieu game (ANWIN_data.tar.*)! Chay: bash update_nro.sh (tu tai bu part thieu)"
         exit 1
     fi
 fi
