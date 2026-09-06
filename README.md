@@ -50,6 +50,23 @@ bash update_nro.sh
 
 ---
 
+## 🤖 BOT AI Ninja School (kiến trúc NRO)
+
+Ninja School đã được nâng cấp BOT AI theo kiến trúc `VirtualPlayer` của Ngọc Rồng:
+`Personality` (20 tính cách) + `Needs` (EXP/GOLD/ITEM/QUEST/SOCIAL/REST/EXPLORE) +
+`Memory` + `State machine` (18 trạng thái) + `Brain` + `Manager` —
+bot tự farm, nhặt đồ, hồi phục, chat, lập tổ đội, nhường quái cho người chơi thật
+(`player_protection`), tự đi theo map có người chơi.
+
+* Web Admin `/admin/bot` (web Ninja `http://localhost:8000`): **Cấu hình BOT AI**
+  (`population`, `bots_per_map`, `player_protection`, các `*_rate`) +
+  **Quản lý thông tin BOT** (xem từng bot: Lv/Map/State/Personality/Need, xóa lẻ).
+* File cấu hình: `ninja/server/bot_config.txt`. Bảng `bot_status` tự tạo khi
+  server chạy (máy mới cài đã có sẵn trong `exe_nsoz.sql`), không cần import tay.
+* Chi tiết: xem [`HUONG_DAN_BOT_AI.md`](HUONG_DAN_BOT_AI.md).
+
+---
+
 ## 1. Cài đặt Termux (Dành cho máy mới cài lần đầu)
 
 ```bash
