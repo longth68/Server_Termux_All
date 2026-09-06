@@ -62,6 +62,8 @@ switch ($page) {
             include("screens/admin/shop/index.php");
         } elseif ($tab === 'logs') {
             include("screens/admin/logs/index.php");
+        } elseif ($tab === 'clan') {
+            include("screens/admin/clan/index.php");
         } else {
             include("screens/admin/index.php");
         }
