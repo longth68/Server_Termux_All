@@ -168,6 +168,10 @@ public class AutoFarmBot extends Bot {
     public long nextAiSocialTime = 0L;
     public long nextAiPrivateTime = 0L;
     public long lastAiMapChange = 0L;
+    /** Khoảng cách progression so với player mạnh nhất (1..maxGap) — cố định lúc spawn. */
+    public int progressionGap = 0;
+    /** Lần cuối spawn scheduler sinh bot (chống log spam). */
+    public long spawnReasonTime = 0L;
 
     private AutoFarmBot(int id, String name, int level, byte typePk, byte classId) {
         super(id, name, level, typePk, classId);
@@ -1286,6 +1290,10 @@ public class AutoFarmBot extends Bot {
                 level,
                 Char.PK_NORMAL,
                 classId);
+        // BotFactory: gap progression riêng + goal theo personality (yêu cầu 20/21)
+        bot.progressionGap = Exe_Z.util.NinjaUtils.nextInt(
+                Math.max(1, Exe_Z.bot.ai.BotConfig.PROG_MIN_GAP),
+                Math.max(1, Exe_Z.bot.ai.BotConfig.PROG_MAX_GAP));
         bot.setDefault();
         if (speed > 0) {
             bot.speed = (byte) speed;
@@ -1515,12 +1523,25 @@ public class AutoFarmBot extends Bot {
     /**
      * Cap level BOT: LUÔN THẤP HƠN người chơi mạnh nhất online (mẫu NRO
      * playerProtection — bot giả vờ cày cuốc bám đuổi nhưng không bao giờ vượt).
-     * Nếu có người online: cap = maxReal - 1. Không ai online: không đổi.
+     * Gap theo BotConfig (min..max). Không ai online → không cap.
      */
     public static int capLevel(int level) {
         int m = maxOnlineRealLevel();
         if (m > 1) {
-            int cap = Math.max(1, m - 1);
+            int cap = Math.max(1, m - Exe_Z.bot.ai.BotConfig.PROG_MIN_GAP);
+            if (level > cap) {
+                return cap;
+            }
+        }
+        return Math.max(1, level);
+    }
+
+    /** Cap theo gap RIÊNG của bot (dùng cho chặn exp trên chính bot đó). */
+    public int capLevelOwn(int level) {
+        int m = maxOnlineRealLevel();
+        if (m > 1) {
+            int gap = progressionGap > 0 ? progressionGap : Exe_Z.bot.ai.BotConfig.PROG_MIN_GAP;
+            int cap = Math.max(1, m - gap);
             if (level > cap) {
                 return cap;
             }
@@ -1529,12 +1550,16 @@ public class AutoFarmBot extends Bot {
     }
 
     /**
-     * Chỉ số theo level, bằng 80% mốc chuẩn để BOT ngang tầm nhưng không quá mạnh:
-     * lv100 -> HP 40000 / dame 2400 (bản cũ fix cứng 50000/3000 mọi level).
+     * Chỉ số theo level × powerRatio (BOT < PLAYER): lv100 -> HP 40000×ratio /
+     * dame 2400×ratio. Ratio ngẫu nhiên min..max config lúc sinh chỉ số.
      */
     public static int[] scaledStats(int level) {
         level = Math.max(1, level);
-        return new int[]{Math.max(100, level * 400), Math.max(10, level * 24)};
+        float ratio = Exe_Z.bot.ai.BotConfig.POWER_MIN_RATIO
+                + NinjaUtils.nextInt(0, 100) / 100f
+                        * (Exe_Z.bot.ai.BotConfig.POWER_MAX_RATIO - Exe_Z.bot.ai.BotConfig.POWER_MIN_RATIO);
+        ratio = Math.max(0.1f, Math.min(1.0f, ratio));
+        return new int[]{Math.max(100, (int) (level * 400 * ratio)), Math.max(10, (int) (level * 24 * ratio))};
     }
 
     /** Xóa BOT vượt level người mạnh nhất (đồng bộ sức mạnh kiểu NRO). */

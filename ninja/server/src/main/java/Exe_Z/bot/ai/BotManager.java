@@ -9,8 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Port từ NRO VirtualPlayerManager: giữ population, đi theo người chơi,
- * đồng bộ level, relocate. Chạy cùng BotSweeper cũ (tương thích).
+ * Port từ NRO VirtualPlayerManager — BotPopulationManager + BotSpawnScheduler.
+ * Population scale theo số player online (base + perPlayer×online, trần max).
+ * Spawn GRADUAL: mỗi bot sinh cách nhau delay ngẫu nhiên min..max (yêu cầu 4/6/23).
+ * Đồng bộ progression (BOT < PLAYER) mỗi 60s. Không follow player (luật).
  */
 public class BotManager implements Runnable {
 
@@ -19,6 +21,8 @@ public class BotManager implements Runnable {
     private long lastFill = 0L;
     private long lastSave = 0L;
     private long lastSync = 0L;
+    /** Thời điểm được phép sinh bot tiếp theo (spawn scheduler). */
+    private long nextSpawnAt = 0L;
 
     public static BotManager gI() {
         return INSTANCE;
@@ -62,36 +66,50 @@ public class BotManager implements Runnable {
         }
     }
 
-    /** Giữ tổng số bot toàn server quanh POPULATION. */
+    /** Population mong muốn theo mode: base + perPlayer×online, trần POPULATION. */
+    public int desiredPopulation() {
+        int online;
+        try {
+            online = Exe_Z.server.ServerManager.getNumberOnline();
+        } catch (Exception e) {
+            online = 0;
+        }
+        String mode = BotConfig.SPAWN_MODE;
+        if ("PREEXISTING".equals(mode) || "PRE_EXISTING".equals(mode)) {
+            return Math.max(BotConfig.POP_BASE, BotConfig.POPULATION);
+        }
+        // GRADUAL / MIXED / DYNAMIC: scale theo player online
+        int desired = BotConfig.POP_BASE + BotConfig.POP_PER_PLAYER * online;
+        return Math.min(desired, BotConfig.POPULATION);
+    }
+
+    /**
+     * BotSpawnScheduler + population fill (yêu cầu 4/5/6/23).
+     * Mỗi lần chỉ sinh 1 bot, cách nhau delay ngẫu nhiên min..max config —
+     * không spawn loạt cùng lúc.
+     */
     public void fillToTarget() {
         long now = System.currentTimeMillis();
-        if (now - lastFill < 10000L) {
+        if (now < nextSpawnAt) {
             return;
         }
-        lastFill = now;
         int cur = AutoFarmBot.count();
-        if (cur >= BotConfig.POPULATION) {
+        int desired = desiredPopulation();
+        if (cur >= desired) {
             return;
         }
-        int need = Math.min(BotConfig.POPULATION - cur, 5);
-        int spawnedTotal = 0;
-        int maxAttempts = need * 3; // thử nhiều zone hơn số bot cần
-        for (int attempt = 0; attempt < maxAttempts && spawnedTotal < need; attempt++) {
-            int lv = AutoFarmBot.capLevel(50 + NinjaUtils.nextInt(0, 60));
-            Zone z = BotMovement.pickAnyZone();
-            if (z == null) {
-                continue; // thử zone khác thay vì dừng hẳn
-            }
-            int[] st = AutoFarmBot.scaledStats(lv);
-            int spawned = AutoFarmBot.spawnByMap(z.map.id, 1, lv, st[0], st[1], 0);
-            if (spawned > 0) {
-                spawnedTotal++;
-            } else {
-                System.out.println("[BOT][MANAGER] spawnByMap failed on map " + z.map.id + " zone " + z.id + " lv=" + lv);
-            }
+        nextSpawnAt = now + NinjaUtils.nextInt(BotConfig.SPAWN_MIN_DELAY, BotConfig.SPAWN_MAX_DELAY);
+        int lv = Exe_Z.bot.ai.BotProgressionController.spawnLevel();
+        Zone z = BotMovement.pickAnyZone();
+        if (z == null) {
+            return;
         }
-        if (spawnedTotal > 0) {
-            System.out.println("[BOT][MANAGER] fillToTarget: spawned " + spawnedTotal + "/" + need + " bots, total=" + AutoFarmBot.count());
+        int[] st = AutoFarmBot.scaledStats(lv);
+        int spawned = AutoFarmBot.spawnByMap(z.map.id, 1, lv, st[0], st[1], 0);
+        if (spawned > 0) {
+            System.out.println("[BOT-SPAWN] map=" + z.map.id + " zone=" + z.id
+                    + " lv=" + lv + " reason=population"
+                    + " total=" + AutoFarmBot.count() + "/" + desired);
         }
     }
 
@@ -167,7 +185,8 @@ public class BotManager implements Runnable {
         try {
             int removed = AutoFarmBot.removeOverleveled();
             if (removed > 0) {
-                System.out.println("[BOT][MANAGER] Da don " + removed + " bot vuot level nguoi manh nhat.");
+                System.out.println("[BOT-PROGRESSION] removed " + removed
+                        + " overleveled bots (playerMax=" + AutoFarmBot.maxOnlineRealLevel() + ")");
             }
         } catch (Exception ignored) {
         }

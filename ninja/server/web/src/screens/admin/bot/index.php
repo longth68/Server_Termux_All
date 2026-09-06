@@ -189,6 +189,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             'exp_rate' => isset($_POST['exp_rate']) ? max(0, min(1, floatval($_POST['exp_rate']))) : 0.6,
             'presence_per_player' => isset($_POST['presence_per_player']) ? max(0, min(50, intval($_POST['presence_per_player']))) : 5,
             'presence_visit_seconds' => isset($_POST['presence_visit_seconds']) ? max(30, min(3600, intval($_POST['presence_visit_seconds']))) : 300,
+            'spawn_mode' => in_array(strval($_POST['spawn_mode'] ?? 'MIXED'), ['GRADUAL', 'PREEXISTING', 'MIXED']) ? strval($_POST['spawn_mode']) : 'MIXED',
+            'population_base' => isset($_POST['population_base']) ? max(0, min(50, intval($_POST['population_base']))) : 6,
+            'population_per_player' => isset($_POST['population_per_player']) ? max(0, min(50, intval($_POST['population_per_player']))) : 5,
+            'spawn_min_delay' => isset($_POST['spawn_min_delay']) ? max(1000, min(60000, intval($_POST['spawn_min_delay']))) : 3000,
+            'spawn_max_delay' => isset($_POST['spawn_max_delay']) ? max(1000, min(120000, intval($_POST['spawn_max_delay']))) : 15000,
+            'progression_min_gap' => isset($_POST['progression_min_gap']) ? max(1, min(20, intval($_POST['progression_min_gap']))) : 1,
+            'progression_max_gap' => isset($_POST['progression_max_gap']) ? max(1, min(30, intval($_POST['progression_max_gap']))) : 3,
+            'power_min_ratio' => isset($_POST['power_min_ratio']) ? max(0.1, min(1.0, floatval($_POST['power_min_ratio']))) : 0.7,
+            'power_max_ratio' => isset($_POST['power_max_ratio']) ? max(0.1, min(1.0, floatval($_POST['power_max_ratio']))) : 0.9,
         ];
         $data = json_encode($cfg, JSON_UNESCAPED_UNICODE);
         $stmt = $conn->prepare("INSERT INTO `web_admin_commands` (`command`, `data`, `status`) VALUES ('BOT_CONFIG', ?, 0)");
@@ -233,7 +242,7 @@ if ($result) {
 // Đọc cấu hình BOT AI hiện tại từ file (cùng máy Termux), fallback giá trị mặc định.
 // Tự parse từng dòng key=value (không dùng parse_ini_file để tránh warning
 // với dòng comment '#' của Java Properties).
-$botCfg = ['enabled' => true, 'population' => 20, 'bots_per_map' => 3, 'player_protection' => 80, 'chat_rate' => 1.0, 'map_change_rate' => 1.0, 'gift_rate' => 1.0, 'afk_rate' => 1.0, 'gold_rate' => 1.0, 'exp_rate' => 0.6, 'presence_per_player' => 5, 'presence_visit_seconds' => 300];
+$botCfg = ['enabled' => true, 'population' => 20, 'bots_per_map' => 3, 'player_protection' => 80, 'chat_rate' => 1.0, 'map_change_rate' => 1.0, 'gift_rate' => 1.0, 'afk_rate' => 1.0, 'gold_rate' => 1.0, 'exp_rate' => 0.6, 'presence_per_player' => 5, 'presence_visit_seconds' => 300, 'spawn_mode' => 'MIXED', 'population_base' => 6, 'population_per_player' => 5, 'spawn_min_delay' => 3000, 'spawn_max_delay' => 15000, 'progression_min_gap' => 1, 'progression_max_gap' => 3, 'power_min_ratio' => 0.7, 'power_max_ratio' => 0.9];
 $cfgCandidates = [
     dirname(__DIR__, 5) . '/bot_config.txt', // ninja/server/bot_config.txt
     __DIR__ . '/../../../../../../bot_config.txt',
@@ -256,7 +265,13 @@ foreach ($cfgCandidates as $cfgPath) {
                 $v = trim(substr($line, $pos + 1));
                 if (array_key_exists($k, $botCfg)) {
                     $d = $botCfg[$k];
-                    $botCfg[$k] = is_bool($d) ? ($v !== 'false' && $v !== '0') : (is_int($d) ? intval($v) : floatval($v));
+                    if (is_bool($d)) {
+                        $botCfg[$k] = ($v !== 'false' && $v !== '0');
+                    } elseif (is_string($d)) {
+                        $botCfg[$k] = $v;
+                    } else {
+                        $botCfg[$k] = is_int($d) ? intval($v) : floatval($v);
+                    }
                 }
             }
         }
@@ -485,6 +500,46 @@ if ($result) {
                     <div class="col-6 col-md-3">
                         <label class="fw-semibold">Bot quanh mỗi người (0-50)</label>
                         <input type="number" name="presence_per_player" class="form-control" value="<?= intval($botCfg['presence_per_player']) ?>" min="0" max="50">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Chế độ spawn</label>
+                        <select name="spawn_mode" class="form-select">
+                            <option value="MIXED" <?= $botCfg['spawn_mode'] === 'MIXED' ? 'selected' : '' ?>>MIXED (khuyến nghị)</option>
+                            <option value="GRADUAL" <?= $botCfg['spawn_mode'] === 'GRADUAL' ? 'selected' : '' ?>>GRADUAL (theo player online)</option>
+                            <option value="PREEXISTING" <?= $botCfg['spawn_mode'] === 'PREEXISTING' ? 'selected' : '' ?>>PREEXISTING (có sẵn trong map)</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Bot có sẵn (base, 0-50)</label>
+                        <input type="number" name="population_base" class="form-control" value="<?= intval($botCfg['population_base']) ?>" min="0" max="50">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Thêm mỗi player (0-50)</label>
+                        <input type="number" name="population_per_player" class="form-control" value="<?= intval($botCfg['population_per_player']) ?>" min="0" max="50">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Delay spawn min (ms)</label>
+                        <input type="number" name="spawn_min_delay" class="form-control" value="<?= intval($botCfg['spawn_min_delay']) ?>" min="1000" max="60000" step="500">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Delay spawn max (ms)</label>
+                        <input type="number" name="spawn_max_delay" class="form-control" value="<?= intval($botCfg['spawn_max_delay']) ?>" min="1000" max="120000" step="500">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Gap level min (BOT &lt; PLAYER)</label>
+                        <input type="number" name="progression_min_gap" class="form-control" value="<?= intval($botCfg['progression_min_gap']) ?>" min="1" max="20">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Gap level max</label>
+                        <input type="number" name="progression_max_gap" class="form-control" value="<?= intval($botCfg['progression_max_gap']) ?>" min="1" max="30">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Power ratio min (0.1-1)</label>
+                        <input type="number" step="0.05" name="power_min_ratio" class="form-control" value="<?= floatval($botCfg['power_min_ratio']) ?>" min="0.1" max="1">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Power ratio max</label>
+                        <input type="number" step="0.05" name="power_max_ratio" class="form-control" value="<?= floatval($botCfg['power_max_ratio']) ?>" min="0.1" max="1">
                     </div>
                     <div class="col-6 col-md-3">
                         <label class="fw-semibold">Thời gian bám theo (giây)</label>

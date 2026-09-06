@@ -1,6 +1,17 @@
-; NSO Bot AI config - BOT luon bat nhu NRO khi enabled=true
+; NSO Bot AI config - BOT luon thap hon PLAYER (progression ceiling)
 enabled=true
 population=20
+spawn.mode=MIXED
+population.base=6
+population.per_player=5
+spawn.min_delay=3000
+spawn.max_delay=15000
+progression.min_gap=1
+progression.max_gap=3
+power.min_ratio=0.70
+power.max_ratio=0.90
+follow_player=false
+trade.gift_to_player=true
 exp_rate=0.6
 gold_rate=1.0
 chat_rate=1.0

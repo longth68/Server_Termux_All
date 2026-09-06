@@ -723,6 +723,46 @@ public class WebAdminCommandPoller extends Thread {
             int v = ((Number) obj.get("presence_visit_seconds")).intValue();
             Exe_Z.bot.ai.BotConfig.PRESENCE_VISIT_SECONDS = Math.max(30, Math.min(3600, v));
         }
+        // Cấu hình mở rộng (yêu cầu 27): spawn mode/scheduler + progression ceiling
+        if (obj.get("spawn_mode") != null) {
+            Exe_Z.bot.ai.BotConfig.set("spawn.mode", String.valueOf(obj.get("spawn_mode")));
+        }
+        if (obj.get("population_base") != null) {
+            Exe_Z.bot.ai.BotConfig.POP_BASE = clamp(((Number) obj.get("population_base")).intValue(), 0, 50);
+        }
+        if (obj.get("population_per_player") != null) {
+            Exe_Z.bot.ai.BotConfig.POP_PER_PLAYER = clamp(((Number) obj.get("population_per_player")).intValue(), 0, 50);
+        }
+        if (obj.get("spawn_min_delay") != null) {
+            Exe_Z.bot.ai.BotConfig.SPAWN_MIN_DELAY = clamp(((Number) obj.get("spawn_min_delay")).intValue(), 1000, 60000);
+            if (Exe_Z.bot.ai.BotConfig.SPAWN_MAX_DELAY < Exe_Z.bot.ai.BotConfig.SPAWN_MIN_DELAY) {
+                Exe_Z.bot.ai.BotConfig.SPAWN_MAX_DELAY = Exe_Z.bot.ai.BotConfig.SPAWN_MIN_DELAY;
+            }
+        }
+        if (obj.get("spawn_max_delay") != null) {
+            Exe_Z.bot.ai.BotConfig.SPAWN_MAX_DELAY = clamp(((Number) obj.get("spawn_max_delay")).intValue(), 1000, 120000);
+            if (Exe_Z.bot.ai.BotConfig.SPAWN_MAX_DELAY < Exe_Z.bot.ai.BotConfig.SPAWN_MIN_DELAY) {
+                Exe_Z.bot.ai.BotConfig.SPAWN_MIN_DELAY = Exe_Z.bot.ai.BotConfig.SPAWN_MAX_DELAY;
+            }
+        }
+        if (obj.get("progression_min_gap") != null) {
+            Exe_Z.bot.ai.BotConfig.PROG_MIN_GAP = clamp(((Number) obj.get("progression_min_gap")).intValue(), 1, 20);
+            if (Exe_Z.bot.ai.BotConfig.PROG_MAX_GAP < Exe_Z.bot.ai.BotConfig.PROG_MIN_GAP) {
+                Exe_Z.bot.ai.BotConfig.PROG_MAX_GAP = Exe_Z.bot.ai.BotConfig.PROG_MIN_GAP;
+            }
+        }
+        if (obj.get("progression_max_gap") != null) {
+            Exe_Z.bot.ai.BotConfig.PROG_MAX_GAP = clamp(((Number) obj.get("progression_max_gap")).intValue(), 1, 30);
+            if (Exe_Z.bot.ai.BotConfig.PROG_MAX_GAP < Exe_Z.bot.ai.BotConfig.PROG_MIN_GAP) {
+                Exe_Z.bot.ai.BotConfig.PROG_MIN_GAP = Exe_Z.bot.ai.BotConfig.PROG_MAX_GAP;
+            }
+        }
+        if (obj.get("power_min_ratio") != null) {
+            Exe_Z.bot.ai.BotConfig.POWER_MIN_RATIO = ((Number) obj.get("power_min_ratio")).floatValue();
+        }
+        if (obj.get("power_max_ratio") != null) {
+            Exe_Z.bot.ai.BotConfig.POWER_MAX_RATIO = ((Number) obj.get("power_max_ratio")).floatValue();
+        }
         Exe_Z.bot.ai.BotConfig.save();
         GlobalService.getInstance().chat("Hệ thống",
                 "Web Admin đã cập nhật cấu hình BOT AI (pop=" + Exe_Z.bot.ai.BotConfig.POPULATION
