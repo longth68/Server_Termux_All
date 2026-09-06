@@ -260,11 +260,11 @@ if ($search != '') {
     $searchId = intval($search);
     $params = true;
 }
-$sql = "SELECT p.`id` AS `char_id`, p.`name`, CAST(JSON_EXTRACT(p.`data`, '$.exp') AS INT) AS `exp`, u.`id` AS `user_id`, u.`username`, u.`status`, u.`ban_until`
+$sql = "SELECT p.`id` AS `char_id`, p.`name`, CAST(JSON_UNQUOTE(JSON_EXTRACT(p.`data`, '$.exp')) AS UNSIGNED) AS `exp`, p.`online` AS `p_online`, u.`id` AS `user_id`, u.`username`, u.`status`, u.`ban_until`
         FROM `players` p
         JOIN `users` u ON u.`id` = p.`user_id`
         $where
-        ORDER BY CAST(JSON_EXTRACT(p.`data`, '$.exp') AS INT) DESC
+        ORDER BY CAST(JSON_UNQUOTE(JSON_EXTRACT(p.`data`, '$.exp')) AS UNSIGNED) DESC
         LIMIT 50";
 if ($params != '') {
     $stmt = $conn->prepare($sql);
@@ -288,7 +288,7 @@ $pbag = [];
 $peqOffline = false;
 if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
     $dn = trim(strval($_GET['detail']));
-    $stmt = $conn->prepare("SELECT p.*, CAST(JSON_EXTRACT(p.`data`, '$.exp') AS INT) AS `exp`, u.`username`, u.`status` AS `ustatus`, u.`luong`, u.`coin`, u.`ban_until`, u.`tongnap`, u.`online` AS `uonline`, u.`created_at` AS `reg_at` FROM `players` p JOIN `users` u ON u.`id` = p.`user_id` WHERE p.`name` = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT p.*, CAST(JSON_UNQUOTE(JSON_EXTRACT(p.`data`, '$.exp')) AS UNSIGNED) AS `exp`, p.`online` AS `p_online`, u.`username`, u.`status` AS `ustatus`, u.`luong`, u.`coin`, u.`ban_until`, u.`tongnap`, u.`online` AS `uonline`, u.`created_at` AS `reg_at` FROM `players` p JOIN `users` u ON u.`id` = p.`user_id` WHERE p.`name` = ? LIMIT 1");
     $stmt->bind_param("s", $dn);
     $stmt->execute();
     $res = $stmt->get_result();
@@ -464,9 +464,11 @@ $conn->close();
                             <td><?= htmlspecialchars($p['username']) ?></td>
                             <td>
                                 <?php
-                                if (intval($p['status']) === 1) {
+                                $isOnline = intval($p['p_online'] ?? 0) === 1;
+                                $isBanned = $p['ban_until'] && strtotime($p['ban_until']) > time();
+                                if ($isOnline) {
                                     echo '<b class="text-success">Đang online</b>';
-                                } elseif ($p['ban_until'] && strtotime($p['ban_until']) > time()) {
+                                } elseif ($isBanned) {
                                     echo '<b class="text-danger">Bị khóa đến ' . date('d/m/Y', strtotime($p['ban_until'])) . '</b>';
                                 } else {
                                     echo '<span class="text-muted">Offline</span>';
@@ -595,7 +597,7 @@ if ($pdetail) {
                     <div class="col-6 col-md-3"><b>HP:</b> <?= $plive ? intval($plive['hp'] ?? 0) . '/' . intval($plive['max_hp'] ?? 0) : '-' ?></div>
                     <div class="col-6 col-md-3"><b>Clan:</b> <?= htmlspecialchars(strval($plive['clan'] ?? '-')) ?></div>
                     <div class="col-6 col-md-3"><b>Status:</b> <?= intval($pdetail['ustatus'] ?? 0) == 1 ? '<span class="text-success">Active</span>' : (intval($pdetail['ustatus'] ?? 0) === 2 ? '<span class="text-danger">Block</span>' : '<span class="text-muted">Inactive</span>') ?></div>
-                    <div class="col-6 col-md-3"><b>Online:</b> <?= intval($pdetail['uonline'] ?? 0) == 1 ? '<span class="text-success">YES</span>' : '<span class="text-muted">NO</span>' ?></div>
+                    <div class="col-6 col-md-3"><b>Online:</b> <?= (intval($pdetail['p_online'] ?? 0) == 1 || $plive) ? '<span class="text-success">YES</span>' : '<span class="text-muted">NO</span>' ?></div>
                 </div>
                 <hr>
                 <h6 class="fw-bold">Sửa nhanh chỉ số (áp dụng cả online lẫn offline)</h6>
