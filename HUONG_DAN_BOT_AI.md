@@ -20,6 +20,10 @@ Bản này port kiến trúc `VirtualPlayer` của NRO sang Ninja School (`Exe_Z
 * `ninja/server/bot_config.txt`: cấu hình mặc định (port từ NRO).
 * `ninja/server/exe_nsoz.sql`: thêm `CREATE TABLE bot_status` cho máy cài mới.
   Máy cũ **không cần import tay** — server tự tạo bảng khi chạy.
+* Đợt fix `46a8f92d`: `speed` hiển thị đúng (trước đây bị ghi đè 0),
+  fallback tọa độ kẹp `short` theo `tilemap.pxw/pxh` (hết rơi đáy map),
+  `BotManager` đếm bot thật theo zone (`countInZone`), `bot_save.json`
+  lưu snapshot thật.
 
 ## 2. Cập nhật trên Termux (máy đang chạy bản cũ)
 
@@ -83,3 +87,22 @@ cp target/Nso-jar-with-dependencies.jar app.jar
 * Log server có `[BOT][MANAGER] NsoBotManager started` và `[BOT][SWEEPER]`.
 * Bảng `bot_status` có dữ liệu: `SELECT COUNT(*) FROM bot_status;`
 * `/admin/bot` hiện số bot + bảng chi tiết sau ~1 vòng poll (3 giây).
+* Vào game kiểm tra: BOT mặc đồ đúng (áo/quần/vũ khí theo level, đầu nam/nữ),
+  di chuyển mượt trong map (không đứng yên, không rơi đáy map), đánh quái
+  mất HP, chat/party/giao dịch bình thường.
+
+## 7. Đã kiểm chứng khớp game (2 game khác nhau cũng an toàn)
+
+BOT NSO chạy process `ninja/server/app.jar` hoàn toàn độc lập với NRO —
+chỉ mượn ý tưởng kiến trúc, toàn bộ API gọi (`Zone.move/join/out`,
+`MapService.chat/attackMonster/pickItem/loadHP/playerMove`, `Mob.lock/addHp/die`,
+`collisionY`, `setXY`, `joinZone`) đều là hàm NSO gốc:
+
+* Trang bị: `equipment[type 0..9]` đúng slot, `FashionFromEquip` dựng hình,
+  `setFashion()` trước `zone.join()` nên client thấy chuẩn.
+* Tọa độ: bước 55 trong `waypoints`, snap đất `collisionY`, kẹp `short`,
+  bot được miễn check anti-cheat tốc độ của người chơi.
+* Combat: khóa mob, trừ HP thật, broadcast đúng, `die()` hồi sinh chuẩn,
+  nhường quái trong `player_protection` px quanh người chơi thật.
+* Không đụng DB `schoolzz`: config + save đều là file text
+  (`bot_config.txt`, `bot_save.json`).
