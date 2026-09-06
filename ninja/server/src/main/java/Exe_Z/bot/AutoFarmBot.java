@@ -1489,6 +1489,39 @@ public class AutoFarmBot extends Bot {
                     } catch (Exception ignored) {
                     }
                     o.put("top_need", top);
+                    // Chi tiết kiểu NRO: vàng, giới tính, class, mục tiêu dài hạn, số bạn, online
+                    long gold = 0L;
+                    try {
+                        if (b.user != null) {
+                            gold = b.user.gold;
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    o.put("gold", gold);
+                    o.put("gender", (int) b.gender);
+                    o.put("class_id", (int) b.classId);
+                    String goal = "FARM";
+                    try {
+                        if (b.botGoals != null && b.botGoals.longTerm != null) {
+                            goal = b.botGoals.longTerm.name();
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    o.put("goal", goal);
+                    o.put("damage", b.damage);
+                    int friends = 0;
+                    try {
+                        friends = b.botMemory.countFriends();
+                    } catch (Exception ignored) {
+                    }
+                    o.put("friends", friends);
+                    long onlineMin = 0L;
+                    try {
+                        onlineMin = Math.max(0L,
+                                (System.currentTimeMillis() - (b.despawnAt - BOT_LIFETIME)) / 60000L);
+                    } catch (Exception ignored) {
+                    }
+                    o.put("online_min", onlineMin);
                     out.add(o);
                     if (out.size() >= limit) {
                         break;

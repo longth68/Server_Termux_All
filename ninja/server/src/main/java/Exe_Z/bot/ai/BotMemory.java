@@ -47,6 +47,17 @@ public class BotMemory {
         return "stranger";
     }
 
+    /** Số người chơi đã thành bạn (relation >= 70) — hiển thị kiểu NRO. */
+    public int countFriends() {
+        int n = 0;
+        for (Integer v : relations.values()) {
+            if (v != null && v >= 70) {
+                n++;
+            }
+        }
+        return n;
+    }
+
     public void rememberChat(String line) {
         if (line == null) {
             return;

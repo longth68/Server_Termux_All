@@ -268,6 +268,13 @@ if [ "$NINJA_OK" -eq 1 ]; then
             state VARCHAR(30) DEFAULT '',
             personality VARCHAR(255) DEFAULT '',
             top_need VARCHAR(30) DEFAULT '',
+            gold BIGINT DEFAULT 0,
+            gender TINYINT DEFAULT 0,
+            class_id TINYINT DEFAULT 0,
+            goal VARCHAR(30) DEFAULT '',
+            damage INT DEFAULT 0,
+            friends INT DEFAULT 0,
+            online_min INT DEFAULT 0,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
     " >/dev/null 2>&1; then

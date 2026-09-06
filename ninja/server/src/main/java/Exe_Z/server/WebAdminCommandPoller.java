@@ -158,6 +158,22 @@ public class WebAdminCommandPoller extends Thread {
                     + "`updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP, "
                     + "PRIMARY KEY (`id`), UNIQUE KEY `name` (`name`)) "
                     + "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+            // Nâng cấp bảng máy cũ: thêm cột chi tiết kiểu NRO
+            String[] alterCols = {
+                "ADD COLUMN IF NOT EXISTS `gold` bigint(20) NOT NULL DEFAULT 0",
+                "ADD COLUMN IF NOT EXISTS `gender` tinyint(4) NOT NULL DEFAULT 0",
+                "ADD COLUMN IF NOT EXISTS `class_id` tinyint(4) NOT NULL DEFAULT 0",
+                "ADD COLUMN IF NOT EXISTS `goal` varchar(30) DEFAULT ''",
+                "ADD COLUMN IF NOT EXISTS `damage` int(11) NOT NULL DEFAULT 0",
+                "ADD COLUMN IF NOT EXISTS `friends` int(11) NOT NULL DEFAULT 0",
+                "ADD COLUMN IF NOT EXISTS `online_min` int(11) NOT NULL DEFAULT 0"
+            };
+            for (String alter : alterCols) {
+                try {
+                    create.executeUpdate("ALTER TABLE `bot_status` " + alter + ";");
+                } catch (Exception ignored) {
+                }
+            }
             java.util.List<JSONObject> bots = AutoFarmBot.snapshotInfo(200);
             del = conn.prepareStatement("DELETE FROM `bot_status`;");
             del.executeUpdate();
@@ -165,8 +181,9 @@ public class WebAdminCommandPoller extends Thread {
                 return;
             }
             ins = conn.prepareStatement("INSERT INTO `bot_status` "
-                    + "(`name`,`level`,`map_id`,`zone_id`,`x`,`y`,`hp`,`max_hp`,`state`,`personality`,`top_need`,`updated_at`) "
-                    + "VALUES (?,?,?,?,?,?,?,?,?,?,?,NOW());");
+                    + "(`name`,`level`,`map_id`,`zone_id`,`x`,`y`,`hp`,`max_hp`,`state`,`personality`,`top_need`,"
+                    + "`gold`,`gender`,`class_id`,`goal`,`damage`,`friends`,`online_min`,`updated_at`) "
+                    + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW());");
             for (JSONObject b : bots) {
                 ins.setString(1, str(b.get("name")));
                 ins.setInt(2, num(b.get("level")));
@@ -179,6 +196,13 @@ public class WebAdminCommandPoller extends Thread {
                 ins.setString(9, str(b.get("state")));
                 ins.setString(10, str(b.get("personality")));
                 ins.setString(11, str(b.get("top_need")));
+                ins.setLong(12, lng(b.get("gold")));
+                ins.setInt(13, num(b.get("gender")));
+                ins.setInt(14, num(b.get("class_id")));
+                ins.setString(15, str(b.get("goal")));
+                ins.setInt(16, num(b.get("damage")));
+                ins.setInt(17, num(b.get("friends")));
+                ins.setLong(18, lng(b.get("online_min")));
                 ins.addBatch();
             }
             ins.executeBatch();

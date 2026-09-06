@@ -197,7 +197,7 @@ foreach ([dirname(__DIR__, 5) . '/bot_chat.txt', __DIR__ . '/../../../../../../b
 }
 
 $bots = [];
-$result = $conn->query("SELECT `name`, `level`, `map_id`, `zone_id`, `x`, `y`, `hp`, `max_hp`, `state`, `personality`, `top_need`, `updated_at` FROM `bot_status` ORDER BY `level` DESC, `name` ASC LIMIT 200");
+$result = $conn->query("SELECT `name`, `level`, `map_id`, `zone_id`, `x`, `y`, `hp`, `max_hp`, `state`, `personality`, `top_need`, `gold`, `gender`, `class_id`, `goal`, `damage`, `friends`, `online_min`, `updated_at` FROM `bot_status` ORDER BY `level` DESC, `name` ASC LIMIT 200");
 if ($result) {
     while ($row = $result->fetch_assoc()) {
         $bots[] = $row;
@@ -371,24 +371,34 @@ $conn->close();
                     <tr class="text-start fw-bold text-uppercase gs-0">
                         <th>Tên</th>
                         <th>Lv</th>
+                        <th>Phái/Class</th>
                         <th>Map/Khu</th>
                         <th>HP</th>
+                        <th>Vàng</th>
                         <th>State</th>
-                        <th>Personality</th>
+                        <th>Mục tiêu</th>
                         <th>Need</th>
+                        <th>Bạn</th>
+                        <th>Online</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($bots as $b): ?>
-                        <tr>
+                    <?php
+                    $classNames = [1 => 'Kiếm', 2 => 'Tiêu', 3 => 'Kunai', 4 => 'Cung', 5 => 'Đao', 6 => 'Quạt'];
+                    foreach ($bots as $b): ?>
+                        <tr title="<?= htmlspecialchars(strval($b['personality'])) ?>">
                             <td><?= htmlspecialchars($b['name']) ?></td>
                             <td><?= intval($b['level']) ?></td>
+                            <td><?= intval($b['gender']) == 1 ? 'Nam' : 'Nữ' ?>/<?= htmlspecialchars($classNames[intval($b['class_id'])] ?? ('C' . intval($b['class_id']))) ?></td>
                             <td><?= intval($b['map_id']) ?>/<?= intval($b['zone_id']) ?></td>
                             <td><?= number_format(intval($b['hp'])) ?>/<?= number_format(intval($b['max_hp'])) ?></td>
+                            <td><?= number_format(intval($b['gold'])) ?></td>
                             <td><?= htmlspecialchars($b['state']) ?></td>
-                            <td><small><?= htmlspecialchars(mb_strimwidth(strval($b['personality']), 0, 40, '...')) ?></small></td>
+                            <td><?= htmlspecialchars($b['goal']) ?></td>
                             <td><?= htmlspecialchars($b['top_need']) ?></td>
+                            <td><?= intval($b['friends']) ?></td>
+                            <td><?= intval($b['online_min']) ?>p</td>
                             <td>
                                 <form method="POST" onsubmit="return confirm('Xóa bot <?= htmlspecialchars($b['name']) ?>?')">
                                     <input type="hidden" name="action" value="kill_one">
