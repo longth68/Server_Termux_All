@@ -166,7 +166,11 @@ public class WebAdminCommandPoller extends Thread {
                 "ADD COLUMN IF NOT EXISTS `goal` varchar(30) DEFAULT ''",
                 "ADD COLUMN IF NOT EXISTS `damage` int(11) NOT NULL DEFAULT 0",
                 "ADD COLUMN IF NOT EXISTS `friends` int(11) NOT NULL DEFAULT 0",
-                "ADD COLUMN IF NOT EXISTS `online_min` int(11) NOT NULL DEFAULT 0"
+                "ADD COLUMN IF NOT EXISTS `online_min` int(11) NOT NULL DEFAULT 0",
+                "ADD COLUMN IF NOT EXISTS `gear` text",
+                "ADD COLUMN IF NOT EXISTS `needs` text",
+                "ADD COLUMN IF NOT EXISTS `profile` text",
+                "ADD COLUMN IF NOT EXISTS `near` varchar(60) DEFAULT ''"
             };
             for (String alter : alterCols) {
                 try {
@@ -182,8 +186,9 @@ public class WebAdminCommandPoller extends Thread {
             }
             ins = conn.prepareStatement("INSERT INTO `bot_status` "
                     + "(`name`,`level`,`map_id`,`zone_id`,`x`,`y`,`hp`,`max_hp`,`state`,`personality`,`top_need`,"
-                    + "`gold`,`gender`,`class_id`,`goal`,`damage`,`friends`,`online_min`,`updated_at`) "
-                    + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW());");
+                    + "`gold`,`gender`,`class_id`,`goal`,`damage`,`friends`,`online_min`,`gear`,"
+                    + "`needs`,`profile`,`near`,`updated_at`) "
+                    + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW());");
             for (JSONObject b : bots) {
                 ins.setString(1, str(b.get("name")));
                 ins.setInt(2, num(b.get("level")));
@@ -203,6 +208,19 @@ public class WebAdminCommandPoller extends Thread {
                 ins.setInt(16, num(b.get("damage")));
                 ins.setInt(17, num(b.get("friends")));
                 ins.setLong(18, lng(b.get("online_min")));
+                String gear = "{}";
+                try {
+                    JSONObject g = AutoFarmBot.snapshotGear(str(b.get("name")));
+                    gear = g.toJSONString();
+                    if (gear.length() > 60000) {
+                        gear = "{}";
+                    }
+                } catch (Exception ignored) {
+                }
+                ins.setString(19, gear);
+                ins.setString(20, str(b.get("needs")));
+                ins.setString(21, str(b.get("profile")));
+                ins.setString(22, str(b.get("near")));
                 ins.addBatch();
             }
             ins.executeBatch();
@@ -258,6 +276,52 @@ public class WebAdminCommandPoller extends Thread {
         }
     }
 
+    private void gearGive(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("name");
+        int item = obj.get("item") != null ? ((Number) obj.get("item")).intValue() : 0;
+        int qty = obj.get("qty") != null ? ((Number) obj.get("qty")).intValue() : 1;
+        boolean ok = AutoFarmBot.gearGive(name, item, qty);
+        Log.info("[WebAdmin] BOT_GEAR_GIVE name=" + name + " item=" + item + " qty=" + qty + " ok=" + ok);
+    }
+
+    private void gearTake(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("name");
+        String place = (String) obj.get("place");
+        int slot = obj.get("slot") != null ? ((Number) obj.get("slot")).intValue() : -1;
+        boolean ok = AutoFarmBot.gearTake(name, place, slot);
+        Log.info("[WebAdmin] BOT_GEAR_TAKE name=" + name + " " + place + "[" + slot + "] ok=" + ok);
+    }
+
+    private void gearWear(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("name");
+        int slot = obj.get("slot") != null ? ((Number) obj.get("slot")).intValue() : -1;
+        boolean ok = AutoFarmBot.gearWear(name, slot);
+        Log.info("[WebAdmin] BOT_GEAR_WEAR name=" + name + " bag[" + slot + "] ok=" + ok);
+    }
+
+    private void botTeleport(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        boolean ok = AutoFarmBot.teleportTo((String) obj.get("name"), (String) obj.get("target"));
+        Log.info("[WebAdmin] BOT_TELEPORT " + obj.toJSONString() + " ok=" + ok);
+    }
+
+    private void botGold(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("name");
+        long amount = obj.get("amount") != null ? ((Number) obj.get("amount")).longValue() : 0;
+        boolean ok = AutoFarmBot.addGold(name, amount);
+        Log.info("[WebAdmin] BOT_GOLD name=" + name + " amount=" + amount + " ok=" + ok);
+    }
+
+    private void botRegear(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        boolean ok = AutoFarmBot.regear((String) obj.get("name"));
+        Log.info("[WebAdmin] BOT_REGEAR " + obj.toJSONString() + " ok=" + ok);
+    }
+
     private void killOneBot(String data) throws ParseException {
         JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
         String name = (String) obj.get("name");
@@ -295,6 +359,24 @@ public class WebAdminCommandPoller extends Thread {
             case "BOT_EDIT":
                 botEdit(data);
                 break;
+            case "BOT_GEAR_GIVE":
+                gearGive(data);
+                break;
+            case "BOT_GEAR_TAKE":
+                gearTake(data);
+                break;
+            case "BOT_GEAR_WEAR":
+                gearWear(data);
+                break;
+            case "BOT_TELEPORT":
+                botTeleport(data);
+                break;
+            case "BOT_GOLD":
+                botGold(data);
+                break;
+            case "BOT_REGEAR":
+                botRegear(data);
+                break;
             case "BOT_CONFIG":
                 botConfig(data);
                 break;
@@ -312,6 +394,12 @@ public class WebAdminCommandPoller extends Thread {
                 break;
             case "SERVER_CONTROL":
                 serverControl(data);
+                break;
+            case "CHAR_RENAME":
+                charRename(data);
+                break;
+            case "PLAYER_GIVE":
+                playerGive(data);
                 break;
             case "UPDATE_SERVER_CONFIG":
                 Config.getInstance().reload();
@@ -462,6 +550,117 @@ public class WebAdminCommandPoller extends Thread {
             return min;
         }
         return Math.min(v, max);
+    }
+
+    // Đổi tên nhân vật (mẫu NRO renameChar): update DB + live nếu online
+    private void charRename(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String oldName = (String) obj.get("old");
+        String newName = (String) obj.get("new");
+        if (oldName == null || oldName.isEmpty() || newName == null || newName.isEmpty()) {
+            return;
+        }
+        newName = newName.trim();
+        if (newName.length() < 3 || newName.length() > 12) {
+            Log.warn("[WebAdmin] CHAR_RENAME tên mới không hợp lệ: " + newName);
+            return;
+        }
+        Connection conn = null;
+        PreparedStatement st = null;
+        ResultSet rs = null;
+        try {
+            conn = DbManager.getInstance().getConnection(DbManager.GAME);
+            st = conn.prepareStatement("SELECT `id` FROM `players` WHERE `name` = ? LIMIT 1;");
+            st.setString(1, newName);
+            rs = st.executeQuery();
+            if (rs.next()) {
+                Log.warn("[WebAdmin] CHAR_RENAME trùng tên: " + newName);
+                return;
+            }
+        } catch (SQLException e) {
+            Log.error("CHAR_RENAME check err: " + e.getMessage(), e);
+            return;
+        } finally {
+            close(rs);
+            close(st);
+            close(conn);
+        }
+        try {
+            conn = DbManager.getInstance().getConnection(DbManager.GAME);
+            st = conn.prepareStatement("UPDATE `players` SET `name` = ? WHERE `name` = ? LIMIT 1;");
+            st.setString(1, newName);
+            st.setString(2, oldName);
+            if (st.executeUpdate() <= 0) {
+                Log.warn("[WebAdmin] CHAR_RENAME không tìm thấy: " + oldName);
+                return;
+            }
+        } catch (SQLException e) {
+            Log.error("CHAR_RENAME update err: " + e.getMessage(), e);
+            return;
+        } finally {
+            close(st);
+            close(conn);
+        }
+        Char c = ServerManager.findCharByName(oldName);
+        if (c != null) {
+            try {
+                c.name = newName;
+                if (c.zone != null) {
+                    c.zone.getService().playerAdd(c);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        Log.info("[WebAdmin] CHAR_RENAME " + oldName + " -> " + newName);
+        GlobalService.getInstance().chat("Hệ thống", "Web Admin đã đổi tên " + oldName + " thành " + newName + ".");
+    }
+
+    // Tặng đồ cho người chơi đang online (mẫu NRO plItemAdd)
+    private void playerGive(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("char");
+        int itemId = obj.get("item") != null ? ((Number) obj.get("item")).intValue() : 0;
+        int qty = obj.get("qty") != null ? ((Number) obj.get("qty")).intValue() : 1;
+        if (name == null || name.isEmpty() || itemId <= 0) {
+            return;
+        }
+        Char c = ServerManager.findCharByName(name);
+        if (c == null) {
+            Log.warn("[WebAdmin] PLAYER_GIVE người chơi offline: " + name);
+            return;
+        }
+        try {
+            Exe_Z.item.ItemTemplate t = Exe_Z.item.ItemManager.getInstance().getItemTemplate(itemId);
+            if (t == null) {
+                Log.warn("[WebAdmin] PLAYER_GIVE item không tồn tại: " + itemId);
+                return;
+            }
+            Exe_Z.item.Item it;
+            if (t.type >= 0 && t.type <= 15) {
+                it = Exe_Z.item.ItemFactory.getInstance().newEquipment(itemId);
+            } else {
+                it = Exe_Z.item.ItemFactory.getInstance().newItem(itemId);
+            }
+            if (it == null) {
+                return;
+            }
+            try {
+                it.setQuantity(Math.max(1, Math.min(qty, 9999)));
+            } catch (Exception ignored) {
+            }
+            if (!c.addItemToBag(it)) {
+                Log.warn("[WebAdmin] PLAYER_GIVE túi đầy: " + name);
+                return;
+            }
+            c.updateItemQuantity();
+            try {
+                c.getService().updateItem();
+            } catch (Exception ignored) {
+            }
+            Log.info("[WebAdmin] PLAYER_GIVE " + name + " item=" + itemId + " qty=" + qty);
+        } catch (Exception e) {
+            Log.error("PLAYER_GIVE err: " + e.getMessage(), e);
+        }
     }
 
     // Bỏ qua nhiệm vụ hiện tại của người chơi, nhảy sang nhiệm vụ tiếp theo

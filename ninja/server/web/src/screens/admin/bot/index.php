@@ -125,6 +125,56 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             $stmt->close();
         }
+    } elseif ($action == 'gear_give' || $action == 'gear_take' || $action == 'gear_wear') {
+        $botName = isset($_POST['bot_name']) ? trim(strval($_POST['bot_name'])) : '';
+        $cmdMap = ['gear_give' => 'BOT_GEAR_GIVE', 'gear_take' => 'BOT_GEAR_TAKE', 'gear_wear' => 'BOT_GEAR_WEAR'];
+        $payload = ['name' => $botName];
+        if ($action == 'gear_give') {
+            $payload['item'] = isset($_POST['item_id']) ? max(1, intval($_POST['item_id'])) : 0;
+            $payload['qty'] = isset($_POST['qty']) ? max(1, min(9999, intval($_POST['qty']))) : 1;
+        } else {
+            $payload['slot'] = isset($_POST['slot']) ? intval($_POST['slot']) : -1;
+            if ($action == 'gear_take') {
+                $payload['place'] = isset($_POST['place']) ? strval($_POST['place']) : 'bag';
+            }
+        }
+        if ($botName === '') {
+            $msg = '<div class="alert alert-danger">Thiếu tên bot.</div>';
+        } else {
+            $data = json_encode($payload, JSON_UNESCAPED_UNICODE);
+            $cmd = $cmdMap[$action];
+            $stmt = $conn->prepare("INSERT INTO `web_admin_commands` (`command`, `data`, `status`) VALUES (?, ?, 0)");
+            $stmt->bind_param("ss", $cmd, $data);
+            if ($stmt->execute()) {
+                $msg = '<div class="alert alert-success">Đã gửi lệnh đồ cho bot <b>' . htmlspecialchars($botName) . '</b>.</div>';
+            } else {
+                $msg = '<div class="alert alert-danger">Có lỗi khi gửi lệnh.</div>';
+            }
+            $stmt->close();
+        }
+    } elseif ($action == 'bot_teleport' || $action == 'bot_gold' || $action == 'bot_regear') {
+        $botName = isset($_POST['bot_name']) ? trim(strval($_POST['bot_name'])) : '';
+        $cmdMap = ['bot_teleport' => 'BOT_TELEPORT', 'bot_gold' => 'BOT_GOLD', 'bot_regear' => 'BOT_REGEAR'];
+        $payload = ['name' => $botName];
+        if ($action == 'bot_teleport') {
+            $payload['target'] = isset($_POST['target']) ? trim(strval($_POST['target'])) : '';
+        } elseif ($action == 'bot_gold') {
+            $payload['amount'] = isset($_POST['amount']) ? intval($_POST['amount']) : 0;
+        }
+        if ($botName === '') {
+            $msg = '<div class="alert alert-danger">Thiếu tên bot.</div>';
+        } else {
+            $data = json_encode($payload, JSON_UNESCAPED_UNICODE);
+            $cmd = $cmdMap[$action];
+            $stmt = $conn->prepare("INSERT INTO `web_admin_commands` (`command`, `data`, `status`) VALUES (?, ?, 0)");
+            $stmt->bind_param("ss", $cmd, $data);
+            if ($stmt->execute()) {
+                $msg = '<div class="alert alert-success">Đã gửi lệnh cho bot <b>' . htmlspecialchars($botName) . '</b>.</div>';
+            } else {
+                $msg = '<div class="alert alert-danger">Có lỗi khi gửi lệnh.</div>';
+            }
+            $stmt->close();
+        }
     } elseif ($action == 'bot_config') {
         $cfg = [
             'enabled' => isset($_POST['enabled']) ? (intval($_POST['enabled']) === 1) : true,
@@ -225,7 +275,7 @@ if ($result) {
 }
 
 $history = [];
-$result = $conn->query("SELECT `id`, `command`, `target_user`, `data`, `status`, `created_at` FROM `web_admin_commands` WHERE `command` IN ('SPAWN_BOT','KILL_BOT','KILL_ONE_BOT','BOT_CONFIG','BOT_EDIT') ORDER BY `id` DESC LIMIT 30");
+$result = $conn->query("SELECT `id`, `command`, `target_user`, `data`, `status`, `created_at` FROM `web_admin_commands` WHERE `command` IN ('SPAWN_BOT','KILL_BOT','KILL_ONE_BOT','BOT_CONFIG','BOT_EDIT','BOT_GEAR_GIVE','BOT_GEAR_TAKE','BOT_GEAR_WEAR','BOT_TELEPORT','BOT_GOLD','BOT_REGEAR') ORDER BY `id` DESC LIMIT 30");
 if ($result) {
     while ($row = $result->fetch_assoc()) {
         $history[] = $row;
@@ -387,7 +437,7 @@ $classNames = [1 => 'Kiếm', 2 => 'Tiêu', 3 => 'Kunai', 4 => 'Cung', 5 => 'Đa
 $detail = null;
 if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
     $dn = trim(strval($_GET['detail']));
-    $stmt = $conn->prepare("SELECT `name`, `level`, `map_id`, `zone_id`, `x`, `y`, `hp`, `max_hp`, `state`, `personality`, `top_need`, `gold`, `gender`, `class_id`, `goal`, `damage`, `friends`, `online_min`, `updated_at` FROM `bot_status` WHERE `name` = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT `name`, `level`, `map_id`, `zone_id`, `x`, `y`, `hp`, `max_hp`, `state`, `personality`, `top_need`, `gold`, `gender`, `class_id`, `goal`, `damage`, `friends`, `online_min`, `gear`, `needs`, `profile`, `near`, `updated_at` FROM `bot_status` WHERE `name` = ? LIMIT 1");
     $stmt->bind_param("s", $dn);
     $stmt->execute();
     $res = $stmt->get_result();
@@ -416,6 +466,37 @@ if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
                 <div class="col-6 col-md-3"><b>Bạn:</b> <?= intval($detail['friends']) ?></div>
                 <div class="col-6 col-md-3"><b>Online:</b> <?= intval($detail['online_min']) ?> phút</div>
                 <div class="col-12"><b>Personality:</b> <small><?= htmlspecialchars(strval($detail['personality'])) ?></small></div>
+                <div class="col-12"><b>Gần nhất:</b> <?= htmlspecialchars(strval($detail['near'] ?? '')) ?: '<i>không có người chơi quanh</i>' ?></div>
+                <?php
+                $needsArr = json_decode(strval($detail['needs'] ?? ''), true);
+                $profArr = json_decode(strval($detail['profile'] ?? ''), true);
+                ?>
+                <?php if (is_array($needsArr) && count($needsArr)): ?>
+                <div class="col-12"><b>Needs:</b> <small><?= htmlspecialchars(implode(' | ', array_map(fn($k, $v) => "$k=$v", array_keys($needsArr), $needsArr))) ?></small></div>
+                <?php endif; ?>
+                <?php if (is_array($profArr) && count($profArr)): ?>
+                <div class="col-12"><b>Chỉ số AI:</b> <small><?= htmlspecialchars(implode(' | ', array_map(fn($k, $v) => "$k=$v", array_keys($profArr), $profArr))) ?></small></div>
+                <?php endif; ?>
+            </div>
+            <h6 class="fw-bold mt-2">Thao tác nhanh (mẫu NRO)</h6>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+                <form method="POST" class="d-flex gap-2">
+                    <input type="hidden" name="action" value="bot_teleport">
+                    <input type="hidden" name="bot_name" value="<?= htmlspecialchars($detail['name']) ?>">
+                    <input type="text" name="target" class="form-control" placeholder="Tên người chơi..." required>
+                    <button type="submit" class="btn btn-warning">Dịch chuyển tới</button>
+                </form>
+                <form method="POST" class="d-flex gap-2">
+                    <input type="hidden" name="action" value="bot_gold">
+                    <input type="hidden" name="bot_name" value="<?= htmlspecialchars($detail['name']) ?>">
+                    <input type="number" name="amount" class="form-control" placeholder="Vàng..." required>
+                    <button type="submit" class="btn btn-warning">Cộng vàng</button>
+                </form>
+                <form method="POST">
+                    <input type="hidden" name="action" value="bot_regear">
+                    <input type="hidden" name="bot_name" value="<?= htmlspecialchars($detail['name']) ?>">
+                    <button type="submit" class="btn btn-warning">Mặc lại đồ</button>
+                </form>
             </div>
             <h6 class="fw-bold">Chỉnh sửa BOT đang chạy</h6>
             <form method="POST">

@@ -17429,6 +17429,10 @@ CREATE TABLE IF NOT EXISTS `bot_status` (
   `damage` int(11) NOT NULL DEFAULT 0,
   `friends` int(11) NOT NULL DEFAULT 0,
   `online_min` int(11) NOT NULL DEFAULT 0,
+  `gear` text,
+  `needs` text,
+  `profile` text,
+  `near` varchar(60) DEFAULT '',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)

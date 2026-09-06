@@ -275,6 +275,10 @@ if [ "$NINJA_OK" -eq 1 ]; then
             damage INT DEFAULT 0,
             friends INT DEFAULT 0,
             online_min INT DEFAULT 0,
+            gear TEXT,
+            needs TEXT,
+            profile TEXT,
+            near VARCHAR(60) DEFAULT '',
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
     " >/dev/null 2>&1; then

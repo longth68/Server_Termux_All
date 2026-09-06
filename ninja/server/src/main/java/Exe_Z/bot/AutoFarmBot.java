@@ -1558,6 +1558,281 @@ public class AutoFarmBot extends Bot {
         return n;
     }
 
+    private static final String[] EQUIP_SLOT_NAMES = {
+        "Nón", "Vũ khí", "Áo", "Liên", "Găng tay", "Nhẫn", "Quần", "Ngọc bội", "Giày", "Phụ"
+    };
+
+    /** Người chơi thật gần BOT nhất trong zone (presence kiểu NRO). */
+    private static String nearestRealPlayerInfo(AutoFarmBot b) {
+        try {
+            if (b == null || b.zone == null) {
+                return "";
+            }
+            Char best = null;
+            int bd = Integer.MAX_VALUE;
+            synchronized (b.zone.players) {
+                for (Char p : b.zone.players) {
+                    if (p == null || p == b || p instanceof Bot) {
+                        continue;
+                    }
+                    if (p.user == null || p.user.session == null || p.isDead) {
+                        continue;
+                    }
+                    int d = NinjaUtils.getDistance(b.x, b.y, p.x, p.y);
+                    if (d < bd) {
+                        bd = d;
+                        best = p;
+                    }
+                }
+            }
+            if (best != null) {
+                return best.name + " (" + bd + "px)";
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
+    }
+
+    /** Dịch chuyển BOT tới zone người chơi (mẫu NRO bdTeleport). */
+    public static boolean teleportTo(String name, String targetPlayer) {
+        AutoFarmBot b = findBot(name);
+        if (b == null || targetPlayer == null || targetPlayer.isEmpty()) {
+            return false;
+        }
+        try {
+            Char target = Exe_Z.server.ServerManager.findCharByName(targetPlayer);
+            if (target == null || target.zone == null) {
+                return false;
+            }
+            b.outZone();
+            b.joinZone(target.mapId, target.zone.id, -1);
+            b.setXY((short) Math.max(0, target.x + NinjaUtils.nextInt(-40, 40)),
+                    (short) Math.max(0, target.y));
+            if (b.zone != null) {
+                b.zone.getService().playerMove(b);
+            }
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /** Cộng vàng cho BOT (mẫu NRO bdAddGold). */
+    public static boolean addGold(String name, long amount) {
+        AutoFarmBot b = findBot(name);
+        if (b == null || b.user == null || amount == 0) {
+            return false;
+        }
+        try {
+            b.user.gold = (int) Math.max(0, (long) b.user.gold + amount);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /** Mặc lại đồ theo level (mẫu NRO bdRegear). */
+    public static boolean regear(String name) {
+        AutoFarmBot b = findBot(name);
+        if (b == null) {
+            return false;
+        }
+        try {
+            Exe_Z.bot.ai.BotEquipment.setupStarterGear(b, Math.max(1, b.level), b.classId);
+            b.setFashion();
+            refreshLook(b);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static AutoFarmBot findBot(String name) {
+        if (name == null || name.isEmpty()) {
+            return null;
+        }
+        synchronized (BOTS) {
+            for (AutoFarmBot b : BOTS) {
+                if (b != null && !b.isCleaned && name.equals(b.name)) {
+                    return b;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String itemName(Exe_Z.item.Item it) {
+        try {
+            if (it != null && it.template != null && it.template.name != null) {
+                return it.template.name;
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
+    }
+
+    /** Snapshot trang bị + túi đồ để Web Admin hiển thị. */
+    @SuppressWarnings("unchecked")
+    public static org.json.simple.JSONObject snapshotGear(String name) {
+        org.json.simple.JSONObject o = new org.json.simple.JSONObject();
+        org.json.simple.JSONArray eq = new org.json.simple.JSONArray();
+        org.json.simple.JSONArray bag = new org.json.simple.JSONArray();
+        o.put("eq", eq);
+        o.put("bag", bag);
+        AutoFarmBot b = findBot(name);
+        if (b == null) {
+            return o;
+        }
+        try {
+            if (b.equipment != null) {
+                for (int i = 0; i < b.equipment.length && i < 10; i++) {
+                    Exe_Z.item.Item it = b.equipment[i];
+                    if (it == null) {
+                        continue;
+                    }
+                    org.json.simple.JSONObject e = new org.json.simple.JSONObject();
+                    e.put("slot", i);
+                    e.put("slot_name", i < EQUIP_SLOT_NAMES.length ? EQUIP_SLOT_NAMES[i] : ("Ô " + i));
+                    e.put("id", it.id);
+                    e.put("name", itemName(it));
+                    e.put("qty", 1);
+                    try {
+                        e.put("upg", (int) it.upgrade);
+                    } catch (Exception ignored) {
+                        e.put("upg", 0);
+                    }
+                    eq.add(e);
+                }
+            }
+            if (b.bag != null) {
+                for (int i = 0; i < b.bag.length; i++) {
+                    Exe_Z.item.Item it = b.bag[i];
+                    if (it == null) {
+                        continue;
+                    }
+                    org.json.simple.JSONObject e = new org.json.simple.JSONObject();
+                    e.put("slot", i);
+                    e.put("id", it.id);
+                    e.put("name", itemName(it));
+                    int q = 1;
+                    try {
+                        q = it.getQuantity();
+                    } catch (Exception ignored) {
+                    }
+                    e.put("qty", q);
+                    bag.add(e);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return o;
+    }
+
+    /** Cho BOT món đồ theo template id (Web Admin). */
+    public static boolean gearGive(String name, int itemId, int qty) {
+        AutoFarmBot b = findBot(name);
+        if (b == null || itemId <= 0) {
+            return false;
+        }
+        try {
+            Exe_Z.item.ItemTemplate t = Exe_Z.item.ItemManager.getInstance().getItemTemplate(itemId);
+            if (t == null) {
+                return false;
+            }
+            Exe_Z.item.Item it;
+            if (t.type >= 0 && t.type <= 15) {
+                it = Exe_Z.item.ItemFactory.getInstance().newEquipment(itemId);
+            } else {
+                it = Exe_Z.item.ItemFactory.getInstance().newItem(itemId);
+            }
+            if (it == null) {
+                return false;
+            }
+            try {
+                it.setQuantity(Math.max(1, Math.min(qty <= 0 ? 1 : qty, 9999)));
+            } catch (Exception ignored) {
+            }
+            return b.addItemToBag(it);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /** Lấy đồ ra khỏi BOT (bag theo slot, equip theo slot). */
+    public static boolean gearTake(String name, String place, int slot) {
+        AutoFarmBot b = findBot(name);
+        if (b == null) {
+            return false;
+        }
+        try {
+            if ("equip".equalsIgnoreCase(place)) {
+                if (b.equipment == null || slot < 0 || slot >= b.equipment.length
+                        || slot > 9 || b.equipment[slot] == null) {
+                    return false;
+                }
+                b.equipment[slot] = null;
+            } else {
+                if (b.bag == null || slot < 0 || slot >= b.bag.length || b.bag[slot] == null) {
+                    return false;
+                }
+                b.bag[slot] = null;
+            }
+            b.setFashion();
+            refreshLook(b);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /** Mặc đồ từ túi vào ô trang bị tương ứng (đổi đồ cũ về túi nếu còn chỗ). */
+    public static boolean gearWear(String name, int bagSlot) {
+        AutoFarmBot b = findBot(name);
+        if (b == null || b.bag == null || bagSlot < 0 || bagSlot >= b.bag.length) {
+            return false;
+        }
+        try {
+            Exe_Z.item.Item it = b.bag[bagSlot];
+            if (it == null || it.template == null) {
+                return false;
+            }
+            int type = it.template.type;
+            if (type < 0 || type > 9 || b.equipment == null || type >= b.equipment.length) {
+                return false;
+            }
+            Exe_Z.item.Item old = null;
+            try {
+                old = (Exe_Z.item.Item) b.equipment[type];
+            } catch (Exception ignored) {
+            }
+            if (!(it instanceof Exe_Z.item.Equip)) {
+                return false;
+            }
+            b.equipment[type] = (Exe_Z.item.Equip) it;
+            b.bag[bagSlot] = old;
+            b.setFashion();
+            refreshLook(b);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /** Broadcast lại ngoại hình cho cả map thấy (out + join lại). */
+    private static void refreshLook(AutoFarmBot b) {
+        try {
+            Zone z = b.zone;
+            if (z == null) {
+                return;
+            }
+            short x = b.x, y = b.y;
+            z.out(b);
+            b.setXY(x, y);
+            z.join(b);
+        } catch (Exception ignored) {
+        }
+    }
+
     /** Xóa 1 bot theo tên (Web Admin quản lý thông tin chi tiết). */
     public static boolean removeByName(String name) {
         if (name == null || name.isEmpty()) {
@@ -1649,6 +1924,31 @@ public class AutoFarmBot extends Bot {
                     } catch (Exception ignored) {
                     }
                     o.put("friends", friends);
+                    // Chi tiết kiểu NRO vp_detail: needs + profile + người gần nhất
+                    try {
+                        org.json.simple.JSONObject needs = new org.json.simple.JSONObject();
+                        for (String k : new String[]{"exp", "gold", "item", "quest", "social", "rest", "explore"}) {
+                            double v = b.botNeeds.get(k);
+                            needs.put(k, Math.round(v * 100.0) / 100.0);
+                        }
+                        o.put("needs", needs.toJSONString());
+                    } catch (Exception ignored) {
+                        o.put("needs", "{}");
+                    }
+                    try {
+                        org.json.simple.JSONObject prof = new org.json.simple.JSONObject();
+                        prof.put("talk", b.botProfile.talkativeness);
+                        prof.put("risk", b.botProfile.riskTolerance);
+                        prof.put("help", b.botProfile.helpfulness);
+                        prof.put("comp", b.botProfile.competitiveness);
+                        prof.put("lazy", b.botProfile.laziness);
+                        prof.put("greed", b.botProfile.greed);
+                        prof.put("reaction", b.botProfile.reactionDelay);
+                        o.put("profile", prof.toJSONString());
+                    } catch (Exception ignored) {
+                        o.put("profile", "{}");
+                    }
+                    o.put("near", nearestRealPlayerInfo(b));
                     long onlineMin = 0L;
                     try {
                         onlineMin = Math.max(0L,

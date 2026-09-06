@@ -46,6 +46,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $conn->query("DELETE FROM `players` WHERE `user_id` NOT IN (SELECT `id` FROM `users` WHERE `admin_web` = 1)");
             $conn->query("DELETE FROM `users` WHERE `admin_web` = 0");
             $msg = '<div class="alert alert-success">Đã làm sạch toàn bộ tài khoản người chơi cũ (chỉ giữ lại tài khoản Admin).</div>';
+        } elseif ($action == 'CHAR_RENAME') {
+            $newName = isset($_POST['new_name']) ? trim(strval($_POST['new_name'])) : '';
+            if ($newName === '') {
+                $msg = '<div class="alert alert-danger">Vui lòng nhập tên mới.</div>';
+            } else {
+                $data = json_encode(['old' => $char, 'new' => $newName], JSON_UNESCAPED_UNICODE);
+                $cmd = 'CHAR_RENAME';
+                $stmt = $conn->prepare("INSERT INTO `web_admin_commands` (`command`, `target_user`, `data`, `status`) VALUES (?, ?, ?, 0)");
+                $stmt->bind_param("sss", $cmd, $char, $data);
+                if ($stmt->execute()) {
+                    $msg = '<div class="alert alert-success">Đã gửi lệnh đổi tên <b>' . htmlspecialchars($char) . '</b> thành <b>' . htmlspecialchars($newName) . '</b>.</div>';
+                } else {
+                    $msg = '<div class="alert alert-danger">Có lỗi khi gửi lệnh.</div>';
+                }
+                $stmt->close();
+            }
+        } elseif ($action == 'PLAYER_GIVE') {
+            $itemId = isset($_POST['item_id']) ? max(1, intval($_POST['item_id'])) : 0;
+            $qty = isset($_POST['qty']) ? max(1, min(9999, intval($_POST['qty']))) : 1;
+            $data = json_encode(['char' => $char, 'item' => $itemId, 'qty' => $qty], JSON_UNESCAPED_UNICODE);
+            $cmd = 'PLAYER_GIVE';
+            $stmt = $conn->prepare("INSERT INTO `web_admin_commands` (`command`, `target_user`, `data`, `status`) VALUES (?, ?, ?, 0)");
+            $stmt->bind_param("sss", $cmd, $char, $data);
+            if ($stmt->execute()) {
+                $msg = '<div class="alert alert-success">Đã gửi lệnh tặng đồ cho <b>' . htmlspecialchars($char) . '</b> (item ' . $itemId . ' x' . $qty . ', chỉ khi online).</div>';
+            } else {
+                $msg = '<div class="alert alert-danger">Có lỗi khi gửi lệnh.</div>';
+            }
+            $stmt->close();
         } else {
             $data = json_encode(['char' => $char], JSON_UNESCAPED_UNICODE);
             $stmt = $conn->prepare("INSERT INTO `web_admin_commands` (`command`, `target_user`, `data`, `status`) VALUES (?, ?, ?, 0)");
@@ -94,7 +123,7 @@ if ($result && $result !== true) {
 }
 
 $history = [];
-$result = $conn->query("SELECT `id`, `command`, `target_user`, `status`, `created_at` FROM `web_admin_commands` WHERE `command` IN ('KICK','BAN') ORDER BY `id` DESC LIMIT 30");
+$result = $conn->query("SELECT `id`, `command`, `target_user`, `status`, `created_at` FROM `web_admin_commands` WHERE `command` IN ('KICK','BAN','CHAR_RENAME','PLAYER_GIVE') ORDER BY `id` DESC LIMIT 30");
 if ($result) {
     while ($row = $result->fetch_assoc()) {
         $history[] = $row;
@@ -135,6 +164,44 @@ $conn->close();
                 </div>
             </form>
             <p class="text-muted mt-2 mb-0"><small>Kick: đẩy người chơi ra khỏi game (chỉ áp dụng khi online). Ban: khóa tài khoản vĩnh viễn, áp dụng cả khi online lẫn offline.</small></p>
+            <hr>
+            <h6 class="fw-bold">Đổi tên nhân vật (mẫu NRO)</h6>
+            <form method="POST">
+                <div class="row g-2">
+                    <div class="col-12 col-md-4">
+                        <label class="fw-semibold">Tên cũ</label>
+                        <input type="text" name="char_name" class="form-control" placeholder="Tên hiện tại" required>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="fw-semibold">Tên mới (3-12 ký tự)</label>
+                        <input type="text" name="new_name" class="form-control" maxlength="12" required>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                    <button type="submit" class="btn btn-primary" name="action" value="CHAR_RENAME">Đổi tên</button>
+                </div>
+            </form>
+            <hr>
+            <h6 class="fw-bold">Tặng đồ cho người online (mẫu NRO)</h6>
+            <form method="POST">
+                <div class="row g-2">
+                    <div class="col-12 col-md-4">
+                        <label class="fw-semibold">Tên nhân vật (đang online)</label>
+                        <input type="text" name="char_name" class="form-control" required>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="fw-semibold">ID vật phẩm</label>
+                        <input type="number" name="item_id" class="form-control" min="1" required>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="fw-semibold">Số lượng</label>
+                        <input type="number" name="qty" class="form-control" value="1" min="1" max="9999">
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                    <button type="submit" class="btn btn-success" name="action" value="PLAYER_GIVE">Tặng đồ</button>
+                </div>
+            </form>
             <hr>
             <form method="POST">
                 <input type="hidden" name="char_name" value="ALL_USERS">
