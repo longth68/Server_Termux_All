@@ -96,15 +96,33 @@ if ($result) {
     $status = $result->fetch_assoc();
 }
 
-// Đọc cấu hình BOT AI hiện tại từ file (cùng máy Termux), fallback giá trị mặc định
+// Đọc cấu hình BOT AI hiện tại từ file (cùng máy Termux), fallback giá trị mặc định.
+// Tự parse từng dòng key=value (không dùng parse_ini_file để tránh warning
+// với dòng comment '#' của Java Properties).
 $botCfg = ['enabled' => true, 'population' => 20, 'bots_per_map' => 3, 'player_protection' => 80, 'chat_rate' => 1.0, 'map_change_rate' => 1.0, 'gift_rate' => 1.0, 'afk_rate' => 1.0, 'gold_rate' => 1.0];
-foreach ([__DIR__ . '/../../../../../bot_config.txt', __DIR__ . '/../../../../bot_config.txt'] as $cfgPath) {
-    if (is_file($cfgPath)) {
-        $parsed = parse_ini_file($cfgPath, false, INI_SCANNER_RAW);
-        if (is_array($parsed)) {
-            foreach ($botCfg as $k => $v) {
-                if (isset($parsed[$k])) {
-                    $botCfg[$k] = is_bool($v) ? ($parsed[$k] !== 'false') : (is_int($v) ? intval($parsed[$k]) : floatval($parsed[$k]));
+$cfgCandidates = [
+    dirname(__DIR__, 5) . '/bot_config.txt', // ninja/server/bot_config.txt
+    __DIR__ . '/../../../../../../bot_config.txt',
+    __DIR__ . '/../../../../../bot_config.txt',
+];
+foreach ($cfgCandidates as $cfgPath) {
+    if (is_readable($cfgPath)) {
+        $lines = @file($cfgPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (is_array($lines)) {
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if ($line === '' || $line[0] === '#' || $line[0] === ';') {
+                    continue;
+                }
+                $pos = strpos($line, '=');
+                if ($pos === false) {
+                    continue;
+                }
+                $k = trim(substr($line, 0, $pos));
+                $v = trim(substr($line, $pos + 1));
+                if (array_key_exists($k, $botCfg)) {
+                    $d = $botCfg[$k];
+                    $botCfg[$k] = is_bool($d) ? ($v !== 'false' && $v !== '0') : (is_int($d) ? intval($v) : floatval($v));
                 }
             }
         }

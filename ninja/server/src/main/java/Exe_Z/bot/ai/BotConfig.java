@@ -55,18 +55,21 @@ public class BotConfig {
     public static synchronized void save() {
         try {
             File f = new File(loaded ? FILE : "ninja/server/" + FILE);
-            Properties p = new Properties();
-            p.setProperty("enabled", String.valueOf(ENABLED));
-            p.setProperty("population", String.valueOf(POPULATION));
-            p.setProperty("gold_rate", String.valueOf(GOLD_RATE));
-            p.setProperty("chat_rate", String.valueOf(CHAT_RATE));
-            p.setProperty("map_change_rate", String.valueOf(MAP_CHANGE_RATE));
-            p.setProperty("gift_rate", String.valueOf(GIFT_RATE));
-            p.setProperty("afk_rate", String.valueOf(AFK_RATE));
-            p.setProperty("player_protection", String.valueOf(PLAYER_PROTECTION_PX));
-            p.setProperty("bots_per_map", String.valueOf(BOTS_PER_MAP));
+            // Ghi tay định dạng key=value với comment ';' để Web PHP đọc được
+            // (Java Properties.store dùng '#' + timestamp, PHP parse_ini_file hay báo warning).
+            StringBuilder sb = new StringBuilder();
+            sb.append("; NSO Bot AI config - BOT luon bat nhu NRO khi enabled=true\n");
+            sb.append("enabled=").append(ENABLED).append('\n');
+            sb.append("population=").append(POPULATION).append('\n');
+            sb.append("gold_rate=").append(GOLD_RATE).append('\n');
+            sb.append("chat_rate=").append(CHAT_RATE).append('\n');
+            sb.append("map_change_rate=").append(MAP_CHANGE_RATE).append('\n');
+            sb.append("gift_rate=").append(GIFT_RATE).append('\n');
+            sb.append("afk_rate=").append(AFK_RATE).append('\n');
+            sb.append("player_protection=").append(PLAYER_PROTECTION_PX).append('\n');
+            sb.append("bots_per_map=").append(BOTS_PER_MAP).append('\n');
             try (OutputStreamWriter w = new OutputStreamWriter(new FileOutputStream(f), StandardCharsets.UTF_8)) {
-                p.store(w, "NSO Bot AI config (port tu NRO VirtualConfig)");
+                w.write(sb.toString());
             }
         } catch (Exception ignored) {
         }
