@@ -243,22 +243,27 @@ public class WebAdminCommandPoller extends Thread {
                     + "`y` int(11) NOT NULL DEFAULT 0, `hp` bigint(20) NOT NULL DEFAULT 0, "
                     + "`max_hp` bigint(20) NOT NULL DEFAULT 0, `state` varchar(30) DEFAULT '', "
                     + "`personality` varchar(255) DEFAULT '', `top_need` varchar(30) DEFAULT '', "
+                    + "`gold` bigint(20) NOT NULL DEFAULT 0, `gender` tinyint(4) NOT NULL DEFAULT 0, "
+                    + "`class_id` tinyint(4) NOT NULL DEFAULT 0, `goal` varchar(30) DEFAULT '', "
+                    + "`damage` int(11) NOT NULL DEFAULT 0, `friends` int(11) NOT NULL DEFAULT 0, "
+                    + "`online_min` int(11) NOT NULL DEFAULT 0, `gear` text, `needs` text, "
+                    + "`profile` text, `near` varchar(60) DEFAULT '', "
                     + "`updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP, "
                     + "PRIMARY KEY (`id`), UNIQUE KEY `name` (`name`)) "
                     + "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-            // Nâng cấp bảng máy cũ: thêm cột chi tiết kiểu NRO
+            // Nâng cấp bảng máy cũ: thêm cột chi tiết kiểu NRO (không dùng IF NOT EXISTS - chỉ MariaDB hỗ trợ)
             String[] alterCols = {
-                "ADD COLUMN IF NOT EXISTS `gold` bigint(20) NOT NULL DEFAULT 0",
-                "ADD COLUMN IF NOT EXISTS `gender` tinyint(4) NOT NULL DEFAULT 0",
-                "ADD COLUMN IF NOT EXISTS `class_id` tinyint(4) NOT NULL DEFAULT 0",
-                "ADD COLUMN IF NOT EXISTS `goal` varchar(30) DEFAULT ''",
-                "ADD COLUMN IF NOT EXISTS `damage` int(11) NOT NULL DEFAULT 0",
-                "ADD COLUMN IF NOT EXISTS `friends` int(11) NOT NULL DEFAULT 0",
-                "ADD COLUMN IF NOT EXISTS `online_min` int(11) NOT NULL DEFAULT 0",
-                "ADD COLUMN IF NOT EXISTS `gear` text",
-                "ADD COLUMN IF NOT EXISTS `needs` text",
-                "ADD COLUMN IF NOT EXISTS `profile` text",
-                "ADD COLUMN IF NOT EXISTS `near` varchar(60) DEFAULT ''"
+                "ADD COLUMN `gold` bigint(20) NOT NULL DEFAULT 0",
+                "ADD COLUMN `gender` tinyint(4) NOT NULL DEFAULT 0",
+                "ADD COLUMN `class_id` tinyint(4) NOT NULL DEFAULT 0",
+                "ADD COLUMN `goal` varchar(30) DEFAULT ''",
+                "ADD COLUMN `damage` int(11) NOT NULL DEFAULT 0",
+                "ADD COLUMN `friends` int(11) NOT NULL DEFAULT 0",
+                "ADD COLUMN `online_min` int(11) NOT NULL DEFAULT 0",
+                "ADD COLUMN `gear` text",
+                "ADD COLUMN `needs` text",
+                "ADD COLUMN `profile` text",
+                "ADD COLUMN `near` varchar(60) DEFAULT ''"
             };
             for (String alter : alterCols) {
                 try {
