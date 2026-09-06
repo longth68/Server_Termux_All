@@ -281,7 +281,7 @@ if ($result) {
         $history[] = $row;
     }
 }
-$conn->close();
+    // $conn->close(); // Đóng ở cuối file sau khi xong mọi truy vấn
 ?>
 <div class="bg-content" style="border-radius: 1rem; padding:10px">
     <div style="text-align:center;">
@@ -632,10 +632,13 @@ if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
                             <td><?= date('H:i d/m/Y', strtotime($h['created_at'])) ?></td>
                         </tr>
                     <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    <?php else: ?>
-        <div class="text-center"><small class="fw-semibold">Chưa có lệnh bot nào.</small></div>
-    <?php endif; ?>
+</tbody>
+    </table>
 </div>
+<?php else: ?>
+    <div class="text-center"><small class="fw-semibold">Chưa có lệnh bot nào.</small></div>
+<?php endif; ?>
+</div>
+<?php
+$conn->close();
+?>
