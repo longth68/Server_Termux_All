@@ -120,12 +120,22 @@ bot tự farm, nhặt đồ, hồi phục, chat, lập tổ đội, nhường qu
   `mob.die()` hồi sinh chuẩn; bot nhường quái trong vòng `player_protection`
   quanh người chơi thật.
 
-* Web Admin `/admin/bot` (web Ninja `http://localhost:8000`): **Cấu hình BOT AI**
-  (`enabled`, `population`, `bots_per_map` 1-8, `player_protection`, các
-  `*_rate`) + **Quản lý thông tin BOT** (xem từng bot: Tên/Lv/Map-Khu/HP/State/
-  Personality/Need, nút xóa lẻ `KILL_ONE_BOT`, xóa tất cả `KILL_BOT`).
-* File cấu hình: `ninja/server/bot_config.txt`. Bảng `bot_status` tự tạo khi
-  server chạy (máy mới cài đã có sẵn trong `exe_nsoz.sql`), không cần import tay.
+* Web Admin `/admin/bot` (web Ninja `http://localhost:8000`):
+  - **Cấu hình BOT AI** (`enabled`, `population`, `exp_rate`, `bots_per_map`,
+    `presence_per_player`, `player_protection`, các `*_rate`).
+  - **Quản lý thông tin BOT** (Tên/Lv/Phái-Class/Map-Khu/HP/Vàng/State/Mục tiêu/
+    Need/Bạn/Online + needs, chỉ số AI, người gần nhất).
+  - **Chi tiết từng BOT**: xem full + **chỉnh sửa** (level/HP/dame),
+    **sửa trang bị-túi đồ** (cho/gỡ/mặc), thao tác nhanh (dịch chuyển tới người
+    chơi, cộng vàng, mặc lại đồ, xóa lẻ, xóa tất cả).
+  - **Câu chat tùy chỉnh** (`bot_chat.txt`): thêm/xóa trên web, server tự nạp.
+* Web Admin `/admin/user`: **đổi tên nhân vật**, **tặng đồ cho người online**
+  (mẫu NRO), bên cạnh Kick/Ban/Xóa/Tìm kiếm có sẵn.
+* BOT scale theo **cấp độ** người chơi (NRO scale theo sức mạnh): level không
+  vượt người online mạnh nhất, chỉ số 80% mốc chuẩn — ngang tầm, không quá mạnh.
+* File cấu hình: `ninja/server/bot_config.txt`, `bot_chat.txt`. Bảng
+  `bot_status` tự tạo/nâng cấp khi server chạy (máy mới có sẵn trong
+  `exe_nsoz.sql`), không cần import tay.
 * Cập nhật trên Termux: `git pull origin main` rồi
   `bash ninja_stop.sh; bash ninja_start.sh` (không mất dữ liệu `schoolzz`).
 * Chi tiết: xem [`HUONG_DAN_BOT_AI.md`](HUONG_DAN_BOT_AI.md).
