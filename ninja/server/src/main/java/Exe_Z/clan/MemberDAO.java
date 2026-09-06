@@ -72,6 +72,7 @@ public class MemberDAO implements Dao<Member> {
                 rs.close();
             } finally {
                 st.close();
+                conn.close();
             }
         } catch (SQLException ex) {
             Log.error("load member fail");
@@ -119,6 +120,7 @@ public class MemberDAO implements Dao<Member> {
                 stmt2.executeUpdate();
             } finally {
                 stmt2.close();
+                conn.close();
             }
             members.add(member);
         } catch (SQLException ex) {
@@ -134,12 +136,16 @@ public class MemberDAO implements Dao<Member> {
                 Connection conn = DbManager.getInstance().getConnection(DbManager.GAME);
                 PreparedStatement stmt2 = conn.prepareStatement(
                         "UPDATE `clan_member` SET `level` = ?, `point_clan` = ?, `point_clan_week` = ? WHERE `id` = ? LIMIT 1");
-                stmt2.setInt(1, member.getLevel());
-                stmt2.setInt(2, member.getPointClan());
-                stmt2.setInt(3, member.getPointClanWeek());
-                stmt2.setInt(4, member.getId());
-                stmt2.executeUpdate();
-                stmt2.close();
+                try {
+                    stmt2.setInt(1, member.getLevel());
+                    stmt2.setInt(2, member.getPointClan());
+                    stmt2.setInt(3, member.getPointClanWeek());
+                    stmt2.setInt(4, member.getId());
+                    stmt2.executeUpdate();
+                } finally {
+                    stmt2.close();
+                    conn.close();
+                }
             } catch (SQLException ex) {
                 Log.error("update member clan err", ex);
             } finally {
@@ -187,6 +193,7 @@ public class MemberDAO implements Dao<Member> {
                     stmt3.close();
                 }
             }
+            conn.close();
             get(member.getId()).ifPresent(mem -> members.remove(mem));
         } catch (SQLException ex) {
             Log.error("delete err");

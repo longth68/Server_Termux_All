@@ -80,6 +80,7 @@ public class ClanDAO implements Dao<Clan> {
                 if (rs != null) {
                     rs.close();
                 }
+                conn.close();
             }
             clans.add(clan);
         } catch (SQLException ex) {
@@ -140,6 +141,7 @@ public class ClanDAO implements Dao<Clan> {
                 res.close();
             } finally {
                 stmt.close();
+                conn.close();
             }
             Log.info("Load clan data successfully");
         } catch (SQLException ex) {
@@ -203,6 +205,7 @@ public class ClanDAO implements Dao<Clan> {
                 }
                 finally {
                     stmt.close();
+                    conn.close();
                 }
                 List<Member> members = clan.memberDAO.getAll();
                 synchronized (members) {
@@ -228,6 +231,7 @@ public class ClanDAO implements Dao<Clan> {
                 ps.executeUpdate();
             } finally {
                 ps.close();
+                conn.close();
             }
             get(clan.id).ifPresent(exist -> clans.remove(exist));
         } catch (SQLException ex) {
