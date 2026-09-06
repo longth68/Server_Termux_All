@@ -35,7 +35,7 @@ bash update_nro.sh
 
 ## 🔄 HƯỚNG DẪN CẬP NHẬT BỘ CÀI (KHÔNG MẤT DỮ LIỆU)
 
-Khi có bản mới trên GitHub (BOT AI, Web Admin, fix...), chỉ cần kéo code mới —
+Khi có bản mới trên GitHub (BOT AI NSO, Web Admin, fix...), chỉ cần kéo code mới —
 **dữ liệu cả 3 game (DB + file runtime) được giữ nguyên**.
 
 ### Bước 1: Kéo code mới
@@ -50,23 +50,33 @@ git pull origin main
   git stash pop
   ```
 
-### Bước 2: Cập nhật tài nguyên NRO (nếu có)
+### Bước 2: Cập nhật Ninja School NSO (BOT AI + Web Admin mới)
+```bash
+bash ninja_stop.sh
+bash start_db.sh
+bash ninja_start.sh
+```
+* Nhận `ninja/server/app.jar` mới (BOT AI + lệnh `BOT_CONFIG`/`KILL_ONE_BOT`).
+* `start_db.sh` tự tạo bảng `bot_status` nếu máy cũ chưa có, **không xóa DB
+  `schoolzz` cũ** (chỉ tạo + nạp DB khi chưa có).
+* Web Admin Ninja (`http://localhost:8000/admin/bot`) có ngay mục
+  **Cấu hình BOT AI** + **Quản lý thông tin BOT**.
+
+### Bước 3: Cập nhật Ngọc Rồng (nếu có bản NRO mới)
 ```bash
 bash update_nro.sh
 ```
-* Script tự nạp DB `hashirama` nếu chưa có, giải nén tài nguyên nếu chưa có,
+* Script tự nạp DB `awnv3` nếu chưa có, giải nén tài nguyên nếu chưa có,
   không đụng tới DB `schoolzz` / `htth` cũ.
 
-### Bước 3: Khởi động lại game
+### Bước 4: Khởi động lại game
 ```bash
 bash menu.sh
 ```
-* `3` → chạy Ninja (nhận BOT AI + `app.jar` mới) | `4` → HTTH | `5` → NRO
-* `6` → chạy cả 3 | `10` → dừng tất cả game (giữ MariaDB)
-* Hoặc nhanh: `bash stop.sh` rồi `bash ninja_start.sh` (chỉ Ninja).
+* `3` → chạy Ninja | `4` → HTTH | `5` → NRO Anwin V3
+* `6` → chạy cả 3 | `10` → dừng tất cả game (giữ MariaDB).
 
 ### Lưu ý
-* `start_db.sh` chỉ **tạo + nạp DB khi chưa có**, không xóa DB cũ.
 * `bot_config.txt` / `bot_save.json` là file text riêng, `git pull` không xóa.
 * Muốn về bản cũ: `git log --oneline -5` rồi
   `git checkout <commit> -- <đường-dẫn-file>` (VD `ninja/server/app.jar`).
