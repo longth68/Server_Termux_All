@@ -334,6 +334,7 @@ $conn->close();
                                 ?>
                             </td>
                             <td>
+                                <a class="btn btn-info btn-sm mb-1 fw-semibold" href="?detail=<?= urlencode($p['name']) ?>">Chi tiết</a>
                                 <form method="POST" class="d-inline">
                                     <input type="hidden" name="char_name" value="<?= htmlspecialchars($p['name']) ?>">
                                     <button type="submit" name="action" value="KICK" class="btn btn-warning btn-sm mb-1">Kick</button>
@@ -353,7 +354,7 @@ $conn->close();
 </div>
 
 <div class="mt-4">
-    <h5 class="fw-bold">Lịch sử Kick / Ban</h5>
+    <h5 class="fw-bold">Lịch sử lệnh</h5>
     <?php if (count($history) > 0): ?>
         <div class="table-responsive" style="border-radius: 1rem;">
             <table class="table text-white fw-semibold mb-0" role="table">
@@ -370,7 +371,19 @@ $conn->close();
                     <?php foreach ($history as $h): ?>
                         <tr>
                             <td><?= $h['id'] ?></td>
-                            <td><?= htmlspecialchars($h['command']) == 'KICK' ? '<span class="text-warning">KICK</span>' : '<span class="text-danger">BAN</span>' ?></td>
+                            <td>
+                                <?php
+                                $cmd = strval($h['command']);
+                                $badge = '<span class="text-warning">' . htmlspecialchars($cmd) . '</span>';
+                                if ($cmd === 'KICK') { $badge = '<span class="text-warning">KICK</span>'; }
+                                elseif ($cmd === 'BAN') { $badge = '<span class="text-danger">BAN</span>'; }
+                                elseif ($cmd === 'CHAR_RENAME') { $badge = '<span class="text-info">RENAME</span>'; }
+                                elseif ($cmd === 'PLAYER_GIVE') { $badge = '<span class="text-success">GIVE</span>'; }
+                                elseif ($cmd === 'PLAYER_GEAR_TAKE') { $badge = '<span class="text-danger">GỠ ĐỒ</span>'; }
+                                elseif ($cmd === 'PLAYER_GEAR_WEAR') { $badge = '<span class="text-success">MẶC ĐỒ</span>'; }
+                                echo $badge;
+                                ?>
+                            </td>
                             <td><?= htmlspecialchars($h['target_user']) ?></td>
                             <td><?= intval($h['status']) === 0 ? '<b class="text-warning">Chờ xử lý</b>' : '<b class="text-success">Đã xử lý</b>' ?></td>
                             <td><?= date('H:i d/m/Y', strtotime($h['created_at'])) ?></td>
@@ -386,50 +399,114 @@ $conn->close();
 
 <?php if ($pdetail): ?>
 <div class="mt-4">
-    <div class="card">
+    <div class="card border-info">
         <div class="card-body">
-            <h5 class="fw-bold">Chi tiết nhân vật: <?= htmlspecialchars($pdetail['name']) ?></h5>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="fw-bold mb-0">Chi tiết nhân vật: <?= htmlspecialchars($pdetail['name']) ?></h5>
+                <a class="btn btn-secondary btn-sm" href="?q=<?= urlencode($pdetail['name']) ?>">Đóng</a>
+            </div>
+            <?php if ($peqOffline): ?>
+                <div class="alert alert-warning py-2"><small>Nhân vật offline. Đồ chỉ xem, không thể sửa từ xa (server chỉ cập nhật khi online).</small></div>
+            <?php endif; ?>
             <div class="row g-2 mb-2">
-                <div class="col-6 col-md-3"><b>Level:</b> <?= intval($pdetail['level']) ?? 0 ?></div>
-                <div class="col-6 col-md-3"><b>Phái:</b> <?= intval($pdetail['gender']) == 1 ? 'Nam' : 'Nữ' ?></div>
-                <div class="col-6 col-md-3"><b>Class:</b> <?= htmlspecialchars($classNames[intval($pdetail['class'])] ?? ('C' . intval($pdetail['class']))) ?></div>
-                <div class="col-6 col-md-3"><b>Clan:</b> <?= htmlspecialchars($pdetail['clan'] ?? 0) ?></div>
+                <div class="col-6 col-md-3"><b>Level:</b> <?= intval($pdetail['level'] ?? 0) ?></div>
+                <div class="col-6 col-md-3"><b>Phái:</b> <?= intval($pdetail['gender'] ?? 0) == 1 ? 'Nam' : 'Nữ' ?></div>
+                <div class="col-6 col-md-3"><b>Class:</b> <?= htmlspecialchars($classNames[intval($pdetail['class'] ?? 0)] ?? ('C' . intval($pdetail['class'] ?? 0))) ?></div>
+                <div class="col-6 col-md-3"><b>Username:</b> <?= htmlspecialchars($pdetail['username'] ?? '-') ?></div>
                 <div class="col-6 col-md-3"><b>Map:</b> <?= intval($pdetail['map'] ?? 0) ?></div>
                 <div class="col-6 col-md-3"><b>Vàng:</b> <?= number_format(intval($pdetail['yen'] ?? 0)) ?></div>
                 <div class="col-6 col-md-3"><b>Xu:</b> <?= number_format(intval($pdetail['xu'] ?? 0)) ?></div>
-                <div class="col-6 col-md-3"><b>Xu箱:</b> <?= number_format(intval($pdetail['xuInBox'] ?? 0)) ?></div>
-                <div class="col-6 col-md-3"><b>Status:</b> <?= intval($pdetail['ustatus'] ?? 0) == 1 ? 'Active' : (intval($pdetail['ustatus'] ?? 0) === 2 ? 'Block' : 'Inactive') ?></div>
-                <div class="col-6 col-md-3"><b>Online:</b> <?= intval($pdetail['uonline'] ?? 0) == 1 ? 'Yes' : 'No' ?></div>
+                <div class="col-6 col-md-3"><b>Xu hòm:</b> <?= number_format(intval($pdetail['xuInBox'] ?? 0)) ?></div>
+                <div class="col-6 col-md-3"><b>HP:</b> <?= $plive ? intval($plive['hp'] ?? 0) . '/' . intval($plive['hpmax'] ?? 0) : '-' ?></div>
+                <div class="col-6 col-md-3"><b>MP:</b> <?= $plive ? intval($plive['mp'] ?? 0) . '/' . intval($plive['mpmax'] ?? 0) : '-' ?></div>
+                <div class="col-6 col-md-3"><b>Status:</b> <?= intval($pdetail['ustatus'] ?? 0) == 1 ? '<span class="text-success">Active</span>' : (intval($pdetail['ustatus'] ?? 0) === 2 ? '<span class="text-danger">Block</span>' : '<span class="text-muted">Inactive</span>') ?></div>
+                <div class="col-6 col-md-3"><b>Online:</b> <?= intval($pdetail['uonline'] ?? 0) == 1 ? '<span class="text-success">YES</span>' : '<span class="text-muted">NO</span>' ?></div>
             </div>
-            <h6 class="fw-bold mt-2">Trang bị (từ player_status live, offline chỉ xem)</h6>
+
+            <h6 class="fw-bold mt-3">Trang bị (10 ô) <?= $peqOffline ? '<small class="text-muted">(offline, chỉ xem)</small>' : '' ?></h6>
             <div class="row g-2 mb-2">
                 <div class="col-12">
                     <table class="table table-sm text-white mb-0">
-                        <thead><tr class="fw-bold text-uppercase"><th>Ô</th><th>ID</th><th>Tên</th><th>Upg</th></tr></thead>
+                        <thead><tr class="fw-bold text-uppercase"><th>Ô</th><th>ID</th><th>Tên</th><th>+Up</th><th>Thao tác</th></tr></thead>
                         <tbody>
-                        <?php foreach (range(0, 9) as $i): ?>
+                        <?php for ($i = 0; $i < 10; $i++):
+                            $item = null;
+                            foreach ($peq as $e) {
+                                if (intval($e['slot'] ?? -1) === $i) { $item = $e; break; }
+                            }
+                            $slotLabel = $slotNames[$i] ?? ('Ô ' . $i);
+                        ?>
                             <tr>
-                                <td><?= $slotNames[$i] ?? ('Ô ' . $i) ?></td>
-                                <td></td><td></td><td></td>
+                                <td><b><?= $slotLabel ?></b></td>
+                                <td><?= $item ? intval($item['id']) : '<span class="text-muted">-</span>' ?></td>
+                                <td><?= $item ? htmlspecialchars(strval($item['name'] ?? '')) : '<span class="text-muted">trống</span>' ?></td>
+                                <td><?= $item ? '+' . intval($item['upg'] ?? 0) : '' ?></td>
+                                <td>
+                                    <?php if ($item && !$peqOffline): ?>
+                                    <form method="POST" class="d-inline">
+                                        <input type="hidden" name="char_name" value="<?= htmlspecialchars($pdetail['name']) ?>">
+                                        <input type="hidden" name="place" value="equip">
+                                        <input type="hidden" name="slot" value="<?= $i ?>">
+                                        <button type="submit" name="action" value="PLAYER_GEAR_TAKE" class="btn btn-danger btn-sm" onclick="return confirm('Gỡ <?= htmlspecialchars($slotLabel) ?> của <?= htmlspecialchars($pdetail['name']) ?>?')">Gỡ</button>
+                                    </form>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <h6 class="fw-bold">Túi đồ</h6>
-            <div class="row g-2 mb-2">
-                <div class="col-12">
-                    <table class="table table-sm text-white mb-0">
-                        <thead><tr class="fw-bold text-uppercase"><th>Ô</th><th>ID</th><th>Tên</th><th>Qty</th></tr></thead>
-                        <tbody>
-                        <?php for ($i = 0; $i < 20; $i++): ?>
-                            <tr><td><?= $i ?></td><td></td><td></td><td></td></tr>
                         <?php endfor; ?>
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            <h6 class="fw-bold mt-3">Túi đồ (20 ô) <?= $peqOffline ? '<small class="text-muted">(offline, chỉ xem)</small>' : '' ?></h6>
+            <div class="row g-2 mb-2">
+                <div class="col-12">
+                    <table class="table table-sm text-white mb-0">
+                        <thead><tr class="fw-bold text-uppercase"><th>Ô</th><th>ID</th><th>Tên</th><th>SL</th><th>+Up</th><th>Thao tác</th></tr></thead>
+                        <tbody>
+                        <?php for ($i = 0; $i < 20; $i++):
+                            $item = null;
+                            foreach ($pbag as $b) {
+                                if (intval($b['slot'] ?? -1) === $i) { $item = $b; break; }
+                            }
+                        ?>
+                            <tr>
+                                <td><b><?= $i ?></b></td>
+                                <td><?= $item ? intval($item['id']) : '<span class="text-muted">-</span>' ?></td>
+                                <td><?= $item ? htmlspecialchars(strval($item['name'] ?? '')) : '<span class="text-muted">trống</span>' ?></td>
+                                <td><?= $item ? intval($item['qty'] ?? 1) : '' ?></td>
+                                <td><?= $item ? '+' . intval($item['upg'] ?? 0) : '' ?></td>
+                                <td>
+                                    <?php if ($item && !$peqOffline): ?>
+                                    <form method="POST" class="d-inline">
+                                        <input type="hidden" name="char_name" value="<?= htmlspecialchars($pdetail['name']) ?>">
+                                        <input type="hidden" name="slot" value="<?= $i ?>">
+                                        <button type="submit" name="action" value="PLAYER_GEAR_WEAR" class="btn btn-success btn-sm" onclick="return confirm('Mặc đồ ô <?= $i ?> cho <?= htmlspecialchars($pdetail['name']) ?>?')">Mặc</button>
+                                    </form>
+                                    <form method="POST" class="d-inline">
+                                        <input type="hidden" name="char_name" value="<?= htmlspecialchars($pdetail['name']) ?>">
+                                        <input type="hidden" name="place" value="bag">
+                                        <input type="hidden" name="slot" value="<?= $i ?>">
+                                        <button type="submit" name="action" value="PLAYER_GEAR_TAKE" class="btn btn-danger btn-sm" onclick="return confirm('Gỡ đồ ô <?= $i ?> của <?= htmlspecialchars($pdetail['name']) ?>?')">Gỡ</button>
+                                    </form>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endfor; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <hr>
+            <h6 class="fw-bold">Thao tác nhanh trên nhân vật này</h6>
+            <form method="POST" class="d-inline">
+                <input type="hidden" name="char_name" value="<?= htmlspecialchars($pdetail['name']) ?>">
+                <button type="submit" name="action" value="KICK" class="btn btn-warning btn-sm">Kick</button>
+                <button type="submit" name="action" value="BAN" class="btn btn-danger btn-sm" onclick="return confirm('Khóa tài khoản này?')">Ban</button>
+                <button type="submit" name="action" value="DELETE_CHAR" class="btn btn-dark btn-sm" onclick="return confirm('Xóa nhân vật này?')">Xóa NV</button>
+            </form>
+            <p class="text-muted mt-2 mb-0"><small>Thao tác Kick/Ban/Gỡ đồ/Mặc đồ yêu cầu nhân vật đang online. Server tự xử lý qua <code>web_admin_commands</code>.</small></p>
         </div>
     </div>
 </div>
