@@ -64,6 +64,8 @@ switch ($page) {
             include("screens/admin/logs/index.php");
         } elseif ($tab === 'clan') {
             include("screens/admin/clan/index.php");
+        } elseif ($tab === 'top') {
+            include("screens/admin/top/index.php");
         } else {
             include("screens/admin/index.php");
         }
