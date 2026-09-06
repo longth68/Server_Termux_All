@@ -412,7 +412,7 @@ $conn->close();
                                 <td><?= $slotNames[$i] ?? ('Ô ' . $i) ?></td>
                                 <td></td><td></td><td></td>
                             </tr>
-                        <?php endfor; ?>
+                        <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
