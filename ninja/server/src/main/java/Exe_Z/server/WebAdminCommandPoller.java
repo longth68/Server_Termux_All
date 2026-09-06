@@ -15,6 +15,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import org.json.simple.JSONObject;
@@ -322,7 +323,7 @@ public class WebAdminCommandPoller extends Thread {
                     + "(`name`,`level`,`map_id`,`zone_id`,`x`,`y`,`hp`,`max_hp`,`state`,`personality`,`top_need`,"
                     + "`gold`,`gender`,`class_id`,`goal`,`damage`,`friends`,`online_min`,`gear`,"
                     + "`needs`,`profile`,`near`,`updated_at`) "
-                    + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW());");
+                    + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);");
             for (JSONObject b : bots) {
                 ins.setString(1, str(b.get("name")));
                 ins.setInt(2, num(b.get("level")));
@@ -355,6 +356,7 @@ public class WebAdminCommandPoller extends Thread {
                 ins.setString(20, str(b.get("needs")));
                 ins.setString(21, str(b.get("profile")));
                 ins.setString(22, str(b.get("near")));
+                ins.setTimestamp(23, new java.sql.Timestamp(System.currentTimeMillis()));
                 ins.addBatch();
             }
             ins.executeBatch();

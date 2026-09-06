@@ -75,18 +75,24 @@ public class BotManager implements Runnable {
             return;
         }
         int need = Math.min(BotConfig.POPULATION - cur, 5);
-        for (int i = 0; i < need; i++) {
+        int spawnedTotal = 0;
+        int maxAttempts = need * 3; // thử nhiều zone hơn số bot cần
+        for (int attempt = 0; attempt < maxAttempts && spawnedTotal < need; attempt++) {
             int lv = AutoFarmBot.capLevel(50 + NinjaUtils.nextInt(0, 60));
             Zone z = BotMovement.pickAnyZone();
             if (z == null) {
-                System.out.println("[BOT][MANAGER] Khong tim duoc zone de spawn bot (maps chua load?).");
-                return;
+                continue; // thử zone khác thay vì dừng hẳn
             }
             int[] st = AutoFarmBot.scaledStats(lv);
             int spawned = AutoFarmBot.spawnByMap(z.map.id, 1, lv, st[0], st[1], 0);
-            if (spawned <= 0) {
-                return;
+            if (spawned > 0) {
+                spawnedTotal++;
+            } else {
+                System.out.println("[BOT][MANAGER] spawnByMap failed on map " + z.map.id + " zone " + z.id + " lv=" + lv);
             }
+        }
+        if (spawnedTotal > 0) {
+            System.out.println("[BOT][MANAGER] fillToTarget: spawned " + spawnedTotal + "/" + need + " bots, total=" + AutoFarmBot.count());
         }
     }
 
