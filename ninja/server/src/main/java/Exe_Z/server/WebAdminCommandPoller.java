@@ -242,6 +242,7 @@ public class WebAdminCommandPoller extends Thread {
             close(conn);
         }
         updateBotStatus();
+        updateBossStatus();
     }
 
     /** Chẩn đoán nhanh trạng thái BOT để hiển thị trên Web Admin (mẫu NRO api/bot_status). */
@@ -527,6 +528,12 @@ public class WebAdminCommandPoller extends Thread {
                 break;
             case "SPAWN_BOSS":
                 spawnBoss(data);
+                break;
+            case "KILL_BOSS":
+                killBoss(data);
+                break;
+            case "BOSS_LIST":
+                updateBossStatus();
                 break;
             case "SERVER_CONTROL":
                 serverControl(data);
@@ -1279,9 +1286,154 @@ public class WebAdminCommandPoller extends Thread {
         if (key == null || key.isEmpty()) {
             return;
         }
+        java.util.List<Exe_Z.server.SpawnBoss> list = SpawnBossManager.getInstance().getListSpawnBoss(key);
+        if (list == null || list.isEmpty()) {
+            Log.warn("[WebAdmin] SPAWN_BOSS: không tìm thấy nhóm boss " + key);
+            return;
+        }
+        long bossId = obj.get("bossId") != null ? ((Number) obj.get("bossId")).longValue() : -1;
+        if (bossId >= 0) {
+            // Triệu hồi 1 boss cụ thể trong nhóm (mẫu NRO boss_summon)
+            for (Exe_Z.server.SpawnBoss sb : list) {
+                if (sb.getId() == bossId) {
+                    sb.spawn();
+                    Log.info("[WebAdmin] SPAWN_BOSS key=" + key + " bossId=" + bossId);
+                    return;
+                }
+            }
+            Log.warn("[WebAdmin] SPAWN_BOSS: không có bossId " + bossId + " trong nhóm " + key);
+            return;
+        }
         SpawnBossManager.getInstance().spawnNow(key);
-        GlobalService.getInstance().chat("Hệ thống", "Web Admin đã triệu hồi boss nhóm " + key + ".");
         Log.info("[WebAdmin] SPAWN_BOSS key=" + key);
+    }
+
+    // Tắt boss đang sống (mẫu NRO boss_kill). bossId=-1 hoặc thiếu key => tắt toàn bộ boss đang sống.
+    private void killBoss(String data) throws ParseException {
+        JSONObject obj;
+        try {
+            obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        } catch (ParseException e) {
+            obj = new JSONObject();
+        }
+        String key = (String) obj.get("key");
+        long bossId = obj.get("bossId") != null ? ((Number) obj.get("bossId")).longValue() : -1;
+        int killed = 0;
+        String[] keys = (key != null && !key.isEmpty())
+                ? new String[]{key}
+                : new String[]{SpawnBossManager.VUNG_DAT_MA_QUY, SpawnBossManager.THUONG,
+                    SpawnBossManager.LANG_TRUYEN_THUYET, SpawnBossManager.LANG_CO, SpawnBossManager.HANG_VI_THU};
+        for (String k : keys) {
+            java.util.List<Exe_Z.server.SpawnBoss> list = SpawnBossManager.getInstance().getListSpawnBoss(k);
+            if (list == null) {
+                continue;
+            }
+            for (Exe_Z.server.SpawnBoss sb : list) {
+                if (bossId >= 0 && sb.getId() != bossId) {
+                    continue;
+                }
+                Exe_Z.mob.Mob mob = sb.getCurrMonster();
+                if (mob == null) {
+                    continue;
+                }
+                try {
+                    if (mob.zone != null) {
+                        mob.zone.removeMonster(mob);
+                    }
+                    sb.setCurrMonster(null);
+                    killed++;
+                } catch (Exception e) {
+                    Log.error("KILL_BOSS remove err: " + e.getMessage(), e);
+                }
+            }
+        }
+        GlobalService.getInstance().chat("Hệ thống", "Web Admin đã tắt " + killed + " boss.");
+        Log.info("[WebAdmin] KILL_BOSS killed=" + killed + " key=" + key + " bossId=" + bossId);
+    }
+
+    // Ghi danh sách boss (config + trạng thái live) vào bảng boss_status cho Web Admin (mẫu NRO boss_list)
+    private void updateBossStatus() {
+        Connection conn = null;
+        Statement create = null;
+        PreparedStatement del = null;
+        PreparedStatement ins = null;
+        try {
+            conn = DbManager.getInstance().getConnection(DbManager.GAME);
+            create = conn.createStatement();
+            create.executeUpdate("CREATE TABLE IF NOT EXISTS `boss_status` ("
+                    + "`id` int(11) NOT NULL AUTO_INCREMENT, `boss_id` int(11) NOT NULL DEFAULT 0, "
+                    + "`bkey` varchar(30) DEFAULT '', `mob_name` varchar(60) DEFAULT '', "
+                    + "`map_id` int(11) NOT NULL DEFAULT 0, `map_name` varchar(60) DEFAULT '', "
+                    + "`zone_id` int(11) NOT NULL DEFAULT -1, `hp` bigint(20) NOT NULL DEFAULT 0, "
+                    + "`max_hp` bigint(20) NOT NULL DEFAULT 0, `alive` tinyint(1) NOT NULL DEFAULT 0, "
+                    + "`updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP, "
+                    + "PRIMARY KEY (`id`), KEY `bkey` (`bkey`)) "
+                    + "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+            String[] keys = {SpawnBossManager.VUNG_DAT_MA_QUY, SpawnBossManager.THUONG,
+                SpawnBossManager.LANG_TRUYEN_THUYET, SpawnBossManager.LANG_CO, SpawnBossManager.HANG_VI_THU};
+            del = conn.prepareStatement("DELETE FROM `boss_status`;");
+            del.executeUpdate();
+            ins = conn.prepareStatement("INSERT INTO `boss_status` "
+                    + "(`boss_id`,`bkey`,`mob_name`,`map_id`,`map_name`,`zone_id`,`hp`,`max_hp`,`alive`,`updated_at`) "
+                    + "VALUES (?,?,?,?,?,?,?,?,?,NOW())");
+            int n = 0;
+            for (String k : keys) {
+                java.util.List<Exe_Z.server.SpawnBoss> list = SpawnBossManager.getInstance().getListSpawnBoss(k);
+                if (list == null) {
+                    continue;
+                }
+                for (Exe_Z.server.SpawnBoss sb : list) {
+                    String mobName = "";
+                    long hp = 0, maxHp = 0;
+                    int zoneId = -1;
+                    boolean alive = false;
+                    Exe_Z.mob.Mob mob = sb.getCurrMonster();
+                    if (mob != null && !mob.isDead) {
+                        try {
+                            mobName = mob.template != null ? mob.template.name : "";
+                            hp = mob.hp;
+                            maxHp = mob.template != null ? mob.template.hp : 0;
+                            zoneId = mob.zone != null ? mob.zone.id : -1;
+                            alive = true;
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    if (!alive) {
+                        // Lấy tên mob theo config khi boss chưa xuất hiện
+                        try {
+                            Integer mobID = sb.getMobs().first();
+                            if (mobID != null) {
+                                Exe_Z.mob.MobTemplate mt = Exe_Z.mob.MobManager.getInstance().find(mobID);
+                                if (mt != null) {
+                                    mobName = mt.getName();
+                                    maxHp = mt.getHp();
+                                }
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    ins.setInt(1, sb.getId());
+                    ins.setString(2, k);
+                    ins.setString(3, mobName);
+                    ins.setInt(4, sb.getMap() != null ? sb.getMap().id : -1);
+                    ins.setString(5, sb.getMap() != null && sb.getMap().tilemap != null ? sb.getMap().tilemap.name : "");
+                    ins.setInt(6, zoneId);
+                    ins.setLong(7, hp);
+                    ins.setLong(8, maxHp);
+                    ins.setInt(9, alive ? 1 : 0);
+                    ins.addBatch();
+                    n++;
+                }
+            }
+            ins.executeBatch();
+        } catch (Exception e) {
+            Log.error("WebAdminCommandPoller boss_status err: " + e.getMessage(), e);
+        } finally {
+            close(ins);
+            close(del);
+            close(create);
+            close(conn);
+        }
     }
 
     private void serverControl(String data) throws ParseException {

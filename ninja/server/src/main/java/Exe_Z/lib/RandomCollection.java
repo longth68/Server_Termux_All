@@ -30,6 +30,10 @@ public class RandomCollection<E> {
         return map.higherEntry(value).getValue();
     }
 
+    public E first() {
+        return map.isEmpty() ? null : map.firstEntry().getValue();
+    }
+
     public RandomCollection() {
         this(new Random());
     }
