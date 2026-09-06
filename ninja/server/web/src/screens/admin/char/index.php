@@ -14,11 +14,16 @@ $conn = SQL();
 $msg = '';
 
 $itemNames = [];
-$r = $conn->query("SELECT id, name, level FROM item ORDER BY id");
+$r = $conn->query("SELECT id, name, level, icon FROM item ORDER BY id");
 if ($r) {
     while ($row = $r->fetch_assoc()) {
-        $itemNames[(int)$row['id']] = ['name' => $row['name'], 'level' => (int)$row['level']];
+        $itemNames[(int)$row['id']] = ['name' => $row['name'], 'level' => (int)$row['level'], 'icon' => (int)$row['icon']];
     }
+}
+function ciIcon($id, $size = 40) {
+    global $itemNames;
+    if (!isset($itemNames[$id]) || $itemNames[$id]['icon'] <= 0) return '';
+    return '<img src="/images/1/Small' . $itemNames[$id]['icon'] . '.png" width="' . $size . '" height="' . $size . '" style="image-rendering:pixelated;vertical-align:middle;margin-right:6px" onerror="this.style.display=\'none\'">';
 }
 
 // Tìm nhân vật
@@ -188,7 +193,8 @@ $conn->close();
             <form method="POST">
                 <input type="hidden" name="add_item" value="1">
                 <div class="row g-2">
-                    <div class="col-6 col-md-4"><input type="number" name="item_id" class="form-control" placeholder="ID Item" required></div>
+                    <div class="col-6 col-md-3"><input type="number" name="item_id" id="ci_item_id" class="form-control" placeholder="ID Item" required></div>
+                    <div class="col-6 col-md-2"><button type="button" class="btn btn-info w-100" onclick="ciPick()"><i class="fa-solid fa-box-open"></i> Chọn</button></div>
                     <div class="col-4 col-md-2"><input type="number" name="quantity" class="form-control" value="1" placeholder="SL"></div>
                     <div class="col-6 col-md-3">
                         <select name="bag_field" class="form-control">
@@ -196,9 +202,10 @@ $conn->close();
                             <option value="box">Rương đồ</option>
                         </select>
                     </div>
-                    <div class="col-6 col-md-3"><button type="submit" class="btn btn-success w-100">Thêm</button></div>
+                    <div class="col-6 col-md-2"><button type="submit" class="btn btn-success w-100">Thêm</button></div>
                 </div>
-                <p class="text-muted mt-2 mb-0"><small>Nhập ID item (xem danh sách ở bảng item DB).</small></p>
+                <div id="ci_preview" class="mt-2"></div>
+                <p class="text-muted mt-2 mb-0"><small>Nhập ID hoặc bấm "Chọn" để tìm theo tên + icon.</small></p>
             </form>
         </div>
     </div>
@@ -217,7 +224,7 @@ $conn->close();
                         <tr>
                             <td><?= $i ?></td>
                             <td><?= (int)$it['id'] ?></td>
-                            <td><?= htmlspecialchars($nm) ?><?= isset($itemNames[(int)$it['id']]) ? ' <small class="text-muted">(lv '.$itemNames[(int)$it['id']]['level'].')</small>' : '' ?></td>
+                            <td><?= ciIcon((int)$it['id']) ?><?= htmlspecialchars($nm) ?><?= isset($itemNames[(int)$it['id']]) ? ' <small class="text-muted">(lv '.$itemNames[(int)$it['id']]['level'].')</small>' : '' ?></td>
                             <td>
                                 <form method="POST" class="d-flex gap-1" style="display:inline-flex!important">
                                     <input type="hidden" name="set_qty" value="<?= $i ?>">
@@ -257,7 +264,7 @@ $conn->close();
                         <tr>
                             <td><?= $i ?></td>
                             <td><?= (int)$it['id'] ?></td>
-                            <td><?= htmlspecialchars($nm) ?></td>
+                            <td><?= ciIcon((int)$it['id']) ?><?= htmlspecialchars($nm) ?></td>
                             <td><?= isset($it['quantity']) ? (int)$it['quantity'] : 1 ?></td>
                             <td>
                                 <form method="POST" style="display:inline">
@@ -276,3 +283,16 @@ $conn->close();
     </div>
 </div>
 <?php endif; ?>
+<script src="/static/js/item-picker.js"></script>
+<script>
+    function ciPick() {
+        ItemPicker.open({
+            mode: 'single',
+            target: 'ci_item_id',
+            onPick: function (it) {
+                var p = document.getElementById('ci_preview');
+                if (p) p.innerHTML = '<span class="badge bg-light text-dark border">' + ItemPicker.img(it.id, 28) + ' ' + ItemPicker.label(it.id) + '</span>';
+            }
+        });
+    }
+</script>

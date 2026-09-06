@@ -323,10 +323,11 @@ if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
                     if (!is_array($it)) {
                         continue;
                     }
+                    $iid = isset($it['id']) ? intval($it['id']) : 0;
                     $entry = [
                         'slot' => isset($it['index']) ? intval($it['index']) : -1,
-                        'id' => isset($it['id']) ? intval($it['id']) : 0,
-                        'name' => '',
+                        'id' => $iid,
+                        'name' => isset($itemMeta[$iid]) ? $itemMeta[$iid]['name'] : '',
                         'qty' => isset($it['quantity']) ? intval($it['quantity']) : 1,
                         'upg' => isset($it['upgrade']) ? intval($it['upgrade']) : 0,
                     ];
@@ -428,13 +429,18 @@ $conn->close();
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="fw-semibold">ID vật phẩm</label>
-                        <input type="number" name="item_id" class="form-control" min="1" required>
+                        <input type="number" name="item_id" id="give_item_id" class="form-control" min="1" required>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="fw-semibold">&nbsp;</label>
+                        <button type="button" class="btn btn-info w-100" onclick="ItemPicker.open({mode:'single',target:'give_item_id',onPick:function(it){var p=document.getElementById('give_preview');if(p)p.innerHTML='<span class=\'badge bg-light text-dark border\'>'+ItemPicker.img(it.id,24)+' '+ItemPicker.label(it.id)+'</span>';} })"><i class="fa-solid fa-box-open"></i> Chọn</button>
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="fw-semibold">Số lượng</label>
                         <input type="number" name="qty" class="form-control" value="1" min="1" max="9999">
                     </div>
                 </div>
+                <div id="give_preview" class="mt-1"></div>
                 <div class="d-flex gap-2 mt-2">
                     <button type="submit" class="btn btn-success" name="action" value="PLAYER_GIVE">Tặng đồ</button>
                 </div>
@@ -883,7 +889,8 @@ if ($pdetail) {
                         <form method="POST" class="d-inline">
                             <input type="hidden" name="char_name" value="<?= htmlspecialchars($pdetail['name']) ?>">
                             <div class="input-group input-group-sm mb-1">
-                                <input type="number" name="item_id" class="form-control" min="1" placeholder="Item ID" required>
+                                <input type="number" name="item_id" id="act_item_id" class="form-control" min="1" placeholder="Item ID" required>
+                                <button type="button" class="btn btn-info" onclick="ItemPicker.open({mode:'single',target:'act_item_id'})"><i class="fa-solid fa-box-open"></i></button>
                                 <input type="number" name="qty" class="form-control" value="1" min="1" max="9999">
                                 <button type="submit" name="action" value="PLAYER_GIVE" class="btn btn-success">Tặng đồ (online)</button>
                             </div>
@@ -913,6 +920,7 @@ if ($pdetail) {
     </div>
     <span class="small text-muted ms-2">Lần cập nhật: <span id="lastRefresh">-</span></span>
 </div>
+<script src="/static/js/item-picker.js"></script>
 <script>
     (function () {
         var box = document.getElementById('autoRefresh');

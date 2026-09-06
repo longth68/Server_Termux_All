@@ -89,8 +89,12 @@ $conn->close();
                             <td role="cell"><input type="text" class="box-text" id="giftcode" name="giftcode" placeholder="Tên mã quà tặng" value="<?php echo htmlspecialchars($giftcode['code']); ?>" /></td>
                         </tr>
                         <tr role="row">
-                            <td>item Code:</td>
-                            <td><textarea class="box-text" id="items" name="items"><?php echo htmlspecialchars($giftcode['items']); ?></textarea></td>
+                            <td>Vật Phẩm Code:</td>
+                            <td>
+                                <button type="button" class="btn btn-info btn-sm mb-2" onclick="gcPickItems()"><i class="fa-solid fa-box-open"></i> Chọn vật phẩm</button>
+                                <div id="gc-item-preview" class="d-flex flex-wrap gap-2 mb-2"></div>
+                                <textarea class="box-text" id="items" name="items" oninput="gcRenderPreview()" style="height:120px"><?php echo htmlspecialchars($giftcode['items']); ?></textarea>
+                            </td>
                         </tr>
                         <tr role="row">
                             <td>Xu Code:</td>
@@ -115,6 +119,30 @@ $conn->close();
             </form>
         </div>
     </div>
+    <script src="/static/js/item-picker.js"></script>
+    <script>
+        function gcRenderPreview() {
+            var raw = document.getElementById('items').value || '[]';
+            var arr = [];
+            try { arr = JSON.parse(raw); } catch (e) { arr = []; }
+            var prev = document.getElementById('gc-item-preview');
+            if (!prev || !arr.length) { if (prev) prev.innerHTML = ''; return; }
+            ItemPicker.ready(function () {
+                prev.innerHTML = arr.map(function (it) {
+                    return '<div class="border rounded p-1 text-center" style="width:96px">'
+                        + ItemPicker.img(it.id, 48)
+                        + '<div class="small" style="font-size:10px">' + ItemPicker.label(it.id) + '</div>'
+                        + '<span class="badge bg-primary" style="font-size:10px">x' + (it.quantity || 1) + (it.upgrade ? ' +' + it.upgrade : '') + '</span></div>';
+                }).join('');
+            });
+        }
+        function gcPickItems() {
+            var existing = [];
+            try { existing = JSON.parse(document.getElementById('items').value || '[]'); } catch (e) { existing = []; }
+            ItemPicker.open({ mode: 'giftcode', target: 'items', existing: existing, onDone: gcRenderPreview });
+        }
+        document.addEventListener('DOMContentLoaded', gcRenderPreview);
+    </script>
 </body>
 </html>
 <style>

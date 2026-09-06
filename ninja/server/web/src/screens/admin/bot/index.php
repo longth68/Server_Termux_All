@@ -210,6 +210,20 @@ if ($result) {
     }
 }
 
+// Ánh xạ item id -> icon để hiển thị trang bị BOT có hình
+$itemMeta = [];
+$rm = $conn->query("SELECT `id`, `icon` FROM `item`");
+if ($rm) {
+    while ($row = $rm->fetch_assoc()) {
+        $itemMeta[(int)$row['id']] = (int)$row['icon'];
+    }
+}
+function botItemImg($id, $size = 40) {
+    global $itemMeta;
+    if (!isset($itemMeta[$id]) || $itemMeta[$id] <= 0) return '';
+    return '<img src="/images/1/Small' . $itemMeta[$id] . '.png" width="' . $size . '" height="' . $size . '" style="image-rendering:pixelated;vertical-align:middle;margin-right:6px" onerror="this.style.display=\'none\'">';
+}
+
 $status = null;
 $result = $conn->query("SELECT * FROM `server_status` WHERE `id` = 1 LIMIT 1");
 if ($result) {
@@ -530,6 +544,35 @@ if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
                 <div class="col-12"><b>Chỉ số AI:</b> <small><?= htmlspecialchars(implode(' | ', array_map(fn($k, $v) => "$k=$v", array_keys($profArr), $profArr))) ?></small></div>
                 <?php endif; ?>
             </div>
+            <?php
+            $gear = json_decode(strval($detail['gear'] ?? ''), true);
+            $geq = (is_array($gear) && isset($gear['eq']) && is_array($gear['eq'])) ? $gear['eq'] : [];
+            $gbag = (is_array($gear) && isset($gear['bag']) && is_array($gear['bag'])) ? $gear['bag'] : [];
+            ?>
+            <?php if (count($geq) || count($gbag)): ?>
+            <h6 class="fw-bold mt-2"><i class="fa-solid fa-shield-halved text-primary"></i> Trang bị</h6>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+                <?php foreach ($geq as $e): ?>
+                    <div class="border rounded p-1 text-center" style="width:100px;background:#fff">
+                        <?= botItemImg(intval($e['id'] ?? 0), 44) ?>
+                        <div class="small" style="font-size:10px"><?= htmlspecialchars(strval($e['name'] ?? ('#' . intval($e['id'] ?? 0)))) ?></div>
+                        <span class="badge bg-info" style="font-size:9px"><?= htmlspecialchars(strval($e['slot_name'] ?? ('Ô ' . intval($e['slot'] ?? 0)))) ?><?= (intval($e['upg'] ?? 0) > 0) ? ' +' . intval($e['upg']) : '' ?></span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <?php if (count($gbag)): ?>
+            <h6 class="fw-bold"><i class="fa-solid fa-bag-shopping text-success"></i> Túi đồ</h6>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+                <?php foreach ($gbag as $b): ?>
+                    <div class="border rounded p-1 text-center" style="width:100px;background:#fff">
+                        <?= botItemImg(intval($b['id'] ?? 0), 44) ?>
+                        <div class="small" style="font-size:10px"><?= htmlspecialchars(strval($b['name'] ?? ('#' . intval($b['id'] ?? 0)))) ?></div>
+                        <span class="badge bg-primary" style="font-size:9px">x<?= intval($b['qty'] ?? 1) ?></span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+            <?php endif; ?>
             <h6 class="fw-bold mt-2">Thao tác nhanh (mẫu NRO)</h6>
             <div class="d-flex flex-wrap gap-2 mb-2">
                 <form method="POST" class="d-flex gap-2">
