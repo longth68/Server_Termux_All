@@ -900,9 +900,35 @@ if ($pdetail) {
                     </div>
                 </div>
                 <p class="text-muted mt-3 mb-0"><small>Tab <b>Thông tin</b> sửa chỉ số offline được. <b>Trang bị/Túi/Nhiệm vụ/Dịch chuyển</b> cần online. <b>Mật khẩu/Xu-Lượng</b> áp dụng kể cả offline.</small></p>
-            <?php endif; ?>
+<?php endif; ?>
         </div>
     </div>
 </div>
 <?php endif; ?>
+
+<div class="mt-3 text-center">
+    <div class="form-check form-switch d-inline-block">
+        <input class="form-check-input" type="checkbox" id="autoRefresh">
+        <label class="form-check-label small text-muted" for="autoRefresh">Tự động làm mới (10 giây)</label>
+    </div>
+    <span class="small text-muted ms-2">Lần cập nhật: <span id="lastRefresh">-</span></span>
+</div>
+<script>
+    (function () {
+        var box = document.getElementById('autoRefresh');
+        var timer = null;
+        function tick() {
+            var el = document.getElementById('lastRefresh');
+            if (el) el.innerText = new Date().toLocaleTimeString('en-GB');
+            if (box && box.checked) location.reload();
+        }
+        function apply() {
+            if (timer) { clearInterval(timer); timer = null; }
+            if (box && box.checked) timer = setInterval(tick, 10000);
+        }
+        if (box) { box.addEventListener('change', apply); apply(); }
+        var el = document.getElementById('lastRefresh');
+        if (el) el.innerText = new Date().toLocaleTimeString('en-GB');
+    })();
+</script>
 </div>
