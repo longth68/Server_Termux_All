@@ -133,12 +133,7 @@ public class BotManager implements Runnable {
         if (!hasReal || anyReal == null) {
             return;
         }
-        int bots = 0;
-        for (AutoFarmBot b : snapshotBots()) {
-            if (b != null && !b.isCleaned && b.zone == z) {
-                bots++;
-            }
-        }
+        int bots = AutoFarmBot.countInZone(z);
         if (bots >= target) {
             return;
         }
@@ -174,7 +169,7 @@ public class BotManager implements Runnable {
 
     public void saveNow() {
         try {
-            BotPersistence.saveAll(new ArrayList<>());
+            BotPersistence.saveAll(AutoFarmBot.snapshotInfo(200));
         } catch (Exception ignored) {
         }
     }

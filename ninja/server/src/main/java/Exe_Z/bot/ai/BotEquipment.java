@@ -105,5 +105,10 @@ public class BotEquipment {
             return;
         }
         setupStarterGear(bot, Math.max(1, bot.level), bot.classId);
+        // Tính lại ngoại hình sau khi đổi đồ để client hiển thị đúng
+        try {
+            bot.setFashion();
+        } catch (Exception ignored) {
+        }
     }
 }

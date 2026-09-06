@@ -1082,7 +1082,16 @@ public class AutoFarmBot extends Bot {
                 return new int[]{minX + 30, maxX - 30, minY + 30, maxY - 30};
             }
         }
-        return new int[]{0, 60000, 0, 60000};
+        // Fallback theo kích thước tilemap thật, kẹp trong short để không tràn tọa độ
+        try {
+            int pxw = z.tilemap.pxw;
+            int pxh = z.tilemap.pxh;
+            if (pxw > 100 && pxh > 100) {
+                return new int[]{0, Math.min(pxw - 24, 30000), 0, Math.min(pxh - 24, 30000)};
+            }
+        } catch (Exception ignored) {
+        }
+        return new int[]{0, 3000, 0, 3000};
     }
 
     private void despawn() {
@@ -1286,6 +1295,7 @@ public class AutoFarmBot extends Bot {
                 .miss(10)
                 .exactly(200)
                 .fatal(150)
+                .speed((byte) Math.max(1, speed))
                 .build());
         bot.setAbility();
         bot.setFashion();
@@ -1383,6 +1393,22 @@ public class AutoFarmBot extends Bot {
         synchronized (BOTS) {
             return BOTS.size();
         }
+    }
+
+    /** Đếm bot còn sống trong 1 zone (BotManager dùng để giữ đúng mật độ). */
+    public static int countInZone(Zone z) {
+        if (z == null) {
+            return 0;
+        }
+        int n = 0;
+        synchronized (BOTS) {
+            for (AutoFarmBot b : BOTS) {
+                if (b != null && !b.isCleaned && b.zone == z) {
+                    n++;
+                }
+            }
+        }
+        return n;
     }
 
     /** Xóa 1 bot theo tên (Web Admin quản lý thông tin chi tiết). */
