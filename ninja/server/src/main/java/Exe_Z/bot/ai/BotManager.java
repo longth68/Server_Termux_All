@@ -77,8 +77,9 @@ public class BotManager implements Runnable {
         int need = Math.min(BotConfig.POPULATION - cur, 5);
         for (int i = 0; i < need; i++) {
             int lv = AutoFarmBot.capLevel(50 + NinjaUtils.nextInt(0, 60));
-            Zone z = BotMovement.pickZoneByLevel(lv);
+            Zone z = BotMovement.pickAnyZone();
             if (z == null) {
+                System.out.println("[BOT][MANAGER] Khong tim duoc zone de spawn bot (maps chua load?).");
                 return;
             }
             int[] st = AutoFarmBot.scaledStats(lv);

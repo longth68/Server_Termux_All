@@ -75,6 +75,39 @@ public class BotMovement {
      * Ưu tiên: 1) zone đang có người chơi thật (presence như NRO),
      * 2) map farm có quái sống, tránh làng/map đặc biệt.
      */
+    /**
+     * Chọn zone CHẮC CHẮN có (mẫu NRO spawn độc lập): ưu tiên map farm,
+     * fallback làng/map bất kỳ để BOT luôn sinh được kể cả khi không có người chơi.
+     */
+    public static Zone pickAnyZone() {
+        try {
+            java.util.List<Exe_Z.map.Map> maps = Exe_Z.map.MapManager.getInstance().getMaps();
+            if (maps == null || maps.isEmpty()) {
+                return null;
+            }
+            for (Exe_Z.map.Map m : maps) {
+                if (m == null || isVillageMap(m.id)) {
+                    continue;
+                }
+                java.util.List<Zone> zones = m.getZones();
+                if (zones != null && !zones.isEmpty() && zones.get(0) != null) {
+                    return zones.get(0);
+                }
+            }
+            for (Exe_Z.map.Map m : maps) {
+                if (m == null) {
+                    continue;
+                }
+                java.util.List<Zone> zones = m.getZones();
+                if (zones != null && !zones.isEmpty() && zones.get(0) != null) {
+                    return zones.get(0);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
     public static Zone pickZoneByLevel(int level) {
         try {
             java.util.List<Exe_Z.map.Map> maps = Exe_Z.map.MapManager.getInstance().getMaps();

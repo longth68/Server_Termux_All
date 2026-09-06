@@ -202,29 +202,70 @@ public class WebAdminCommandPoller extends Thread {
 
     private void updateServerStatus() {
         Connection conn = null;
+        Statement create = null;
         PreparedStatement st = null;
         try {
             int online = ServerManager.getNumberOnline();
             int bots = AutoFarmBot.count();
             long mem = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024 * 1024);
             conn = DbManager.getInstance().getConnection(DbManager.GAME);
+            create = conn.createStatement();
+            create.executeUpdate("CREATE TABLE IF NOT EXISTS `server_status` ("
+                    + "`id` int(11) NOT NULL, `online` int(11) NOT NULL DEFAULT 0, "
+                    + "`bots` int(11) NOT NULL DEFAULT 0, `memory_mb` bigint(20) NOT NULL DEFAULT 0, "
+                    + "`bot_diag` varchar(500) DEFAULT '', "
+                    + "`updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP, "
+                    + "PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+            try {
+                create.executeUpdate("ALTER TABLE `server_status` ADD COLUMN `bot_diag` varchar(500) DEFAULT '';");
+            } catch (Exception ignored) {
+            }
+            String diag = buildBotDiag();
             st = conn.prepareStatement(
-                    "INSERT INTO `server_status` (`id`, `online`, `bots`, `memory_mb`, `updated_at`) VALUES (1, ?, ?, ?, NOW()) "
-                            + "ON DUPLICATE KEY UPDATE `online` = ?, `bots` = ?, `memory_mb` = ?, `updated_at` = NOW();");
+                    "INSERT INTO `server_status` (`id`, `online`, `bots`, `memory_mb`, `bot_diag`, `updated_at`) VALUES (1, ?, ?, ?, ?, NOW()) "
+                            + "ON DUPLICATE KEY UPDATE `online` = ?, `bots` = ?, `memory_mb` = ?, `bot_diag` = ?, `updated_at` = NOW();");
             st.setInt(1, online);
             st.setInt(2, bots);
             st.setLong(3, mem);
-            st.setInt(4, online);
-            st.setInt(5, bots);
-            st.setLong(6, mem);
+            st.setString(4, diag);
+            st.setInt(5, online);
+            st.setInt(6, bots);
+            st.setLong(7, mem);
+            st.setString(8, diag);
             st.executeUpdate();
         } catch (SQLException e) {
             Log.error("WebAdminCommandPoller status err: " + e.getMessage(), e);
         } finally {
             close(st);
+            close(create);
             close(conn);
         }
         updateBotStatus();
+    }
+
+    /** Chẩn đoán nhanh trạng thái BOT để hiển thị trên Web Admin (mẫu NRO api/bot_status). */
+    private String buildBotDiag() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("enabled=").append(Exe_Z.bot.ai.BotConfig.ENABLED);
+        sb.append(",pop=").append(Exe_Z.bot.ai.BotConfig.POPULATION);
+        sb.append(",count=").append(AutoFarmBot.count());
+        try {
+            java.util.List<Exe_Z.map.Map> maps = Exe_Z.map.MapManager.getInstance().getMaps();
+            int nMap = maps == null ? 0 : maps.size();
+            int nZone = 0;
+            if (maps != null) {
+                for (Exe_Z.map.Map m : maps) {
+                    if (m != null && m.getZones() != null) {
+                        nZone += m.getZones().size();
+                    }
+                }
+            }
+            sb.append(",maps=").append(nMap);
+            sb.append(",zones=").append(nZone);
+        } catch (Exception ignored) {
+            sb.append(",maps=?");
+        }
+        return sb.toString();
     }
 
     /** Ghi snapshot chi tiết từng bot vào bảng bot_status (tự tạo bảng nếu chưa có). */

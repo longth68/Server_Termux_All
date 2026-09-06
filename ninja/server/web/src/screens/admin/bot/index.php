@@ -304,6 +304,9 @@ $conn->close();
             Người online: <b><?= intval($status['online']) ?></b> &nbsp;|&nbsp;
             Cập nhật: <?= date('H:i:s d/m/Y', strtotime($status['updated_at'] ?: 'now')) ?>
         </small>
+        <?php if (!empty($status['bot_diag'])): ?>
+            <div class="mt-1"><small class="text-info">Chẩn đoán: <code><?= htmlspecialchars($status['bot_diag']) ?></code></small></div>
+        <?php endif; ?>
     </div>
 <?php endif; ?>
 
