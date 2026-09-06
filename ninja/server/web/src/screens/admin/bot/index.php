@@ -283,36 +283,85 @@ if ($result) {
 }
     // $conn->close(); // Đóng ở cuối file sau khi xong mọi truy vấn
 ?>
-<div class="bg-content" style="border-radius: 1rem; padding:10px">
-    <div style="text-align:center;">
-        <h4>Quản lý Bot AI</h4>
-    </div>
-    <div class="container mb-2">
-        <div class="row text-center justify-content-center g-2 mt-1">
-            <div class="col-12 col-md-4 col-lg-3">
-                <a class="btn btn-success w-100 fw-semibold" href="/admin/home">Quay lại</a>
+<div class="admin-panel">
+<style>
+    .admin-panel { background: #f4f6f9; color: #212529; padding: 14px; border-radius: 8px; }
+    .admin-panel .bg-content { background: #fff; color: #212529; border: 1px solid #ddd; border-radius: 8px; }
+    .admin-panel .card { background: #fff; color: #212529; border: 1px solid #ddd; box-shadow: 0 1px 3px rgba(0,0,0,.08); border-radius: 6px; }
+    .admin-panel .card-body { color: #212529; }
+    .admin-panel .text-white { color: #212529 !important; }
+    .admin-panel .table { color: #212529; }
+    .admin-panel .table th, .admin-panel .table td { color: #212529; border-color: #dee2e6; }
+    .admin-panel h4, .admin-panel h5, .admin-panel h6 { color: #212529; }
+    .admin-panel .stat-box { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 14px; }
+    .admin-panel .stat-box h6 { color: #666; font-size: 13px; margin-bottom: 5px; }
+    .admin-panel .stat-box h4 { font-weight: bold; font-size: 18px; margin: 0; }
+    .admin-panel .progress-bar-custom { height: 6px; border-radius: 3px; margin-top: 10px; background: #e9ecef; }
+    .admin-panel .progress-fill { height: 100%; border-radius: 3px; }
+    .admin-panel .form-control, .admin-panel .form-select { background: #fff; color: #212529; border: 1px solid #ced4da; }
+    .admin-panel .list-group-item { background: #fff; color: #212529; border-color: #dee2e6; }
+    .admin-panel .text-muted { color: #6c757d !important; }
+    .admin-panel .text-secondary { color: #6c757d !important; }
+</style>
+        <!-- THÔNG BÁO TỪ AJAX -->
+        <div id="ajaxAlert" class="alert alert-success d-none" role="alert"></div>
+
+        <!-- Stats Header -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="text-warning m-0 fw-bold">Quản Lý Bot AI</h4>
+            <div class="text-secondary fw-bold">Online: <span id="lbOnline">0</span></div>
+            <div class="text-secondary fw-bold" id="lbTime">00:00:00</div>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <h6>Bot Online</h6>
+                    <h4 id="lbBots">0</h4>
+                    <div class="progress-bar-custom"><div class="progress-fill bg-warning" id="barBots" style="width: 0%"></div></div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <h6>Người Online</h6>
+                    <h4 id="lbOnlineUsers">0</h4>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <h6>Map Loaded</h6>
+                    <h4 id="lbMaps">0</h4>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <h6>Zone Loaded</h6>
+                    <h4 id="lbZones">0</h4>
+                </div>
             </div>
         </div>
-    </div>
-</div>
-<?php if ($msg) echo $msg; ?>
 
-<?php if ($status): ?>
-    <div class="mt-3 text-center">
-        <small class="fw-semibold">
-            Bot đang hoạt động: <b><?= intval($status['bots']) ?></b> &nbsp;|&nbsp;
-            Người online: <b><?= intval($status['online']) ?></b> &nbsp;|&nbsp;
-            Cập nhật: <?= date('H:i:s d/m/Y', strtotime($status['updated_at'] ?: 'now')) ?>
-        </small>
-        <?php if (!empty($status['bot_diag'])): ?>
-            <div class="mt-1"><small class="text-info">Chẩn đoán: <code><?= htmlspecialchars($status['bot_diag']) ?></code></small></div>
+        <?php if ($msg) echo $msg; ?>
+
+        <?php if ($status): ?>
+        <div class="mt-3 text-center">
+            <small class="fw-semibold">
+                Bot đang hoạt động: <b><?= intval($status['bots']) ?></b> &nbsp;|&nbsp;
+                Người online: <b><?= intval($status['online']) ?></b> &nbsp;|&nbsp;
+                Cập nhật: <?= date('H:i:s d/m/Y', strtotime($status['updated_at'] ?: 'now')) ?>
+            </small>
+            <?php if (!empty($status['bot_diag'])): ?>
+                <div class="mt-1"><small class="text-info">Chẩn đoán: <code id="lbDiag"><?= htmlspecialchars($status['bot_diag']) ?></code></small></div>
+            <?php else: ?>
+                <div class="mt-1"><small class="text-info">Chẩn đoán: <code id="lbDiag"></code></small></div>
+            <?php endif; ?>
+        </div>
         <?php endif; ?>
-    </div>
-<?php endif; ?>
 
-<div class="alert alert-info mt-3" style="font-size: 0.9rem;">
-    <i class="fa fa-info-circle me-1"></i> <b>Lưu ý:</b> Server tự ghi danh sách bot chi tiết vào bảng <code>bot_status</code> mỗi ~3 giây (Tên/Lv/Map-Khu/HP/State/Personality/Need) nên trang này hiển thị được từng bot để quản lý. Bot vẫn tự sinh ra/biến mất theo người chơi và tự xóa sau 3 giờ nên RAM không bị phình.
-</div>
+        <div class="alert alert-info mt-3" style="font-size: 0.9rem;">
+            <i class="fa fa-info-circle me-1"></i> <b>Lưu ý:</b> Server tự ghi danh sách bot chi tiết vào bảng <code>bot_status</code> mỗi ~3 giây (Tên/Lv/Map-Khu/HP/State/Personality/Need) nên trang này hiển thị được từng bot để quản lý. Bot vẫn tự sinh ra/biến mất theo người chơi và tự xóa sau 3 giờ nên RAM không bị phình.
+        </div>
 
 <div class="mt-3">
     <div class="card">
@@ -529,57 +578,31 @@ if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
 <?php endif; ?>
 
 <div class="mt-4">
-    <h5 class="fw-bold">Quản lý thông tin BOT (<?= count($bots) ?> đang chạy)</h5>
-    <?php if (count($bots) > 0): ?>
-        <div class="table-responsive" style="border-radius: 1rem;">
-            <table class="table text-white fw-semibold mb-0" role="table">
-                <thead>
-                    <tr class="text-start fw-bold text-uppercase gs-0">
-                        <th>Tên</th>
-                        <th>Lv</th>
-                        <th>Phái/Class</th>
-                        <th>Map/Khu</th>
-                        <th>HP</th>
-                        <th>Vàng</th>
-                        <th>State</th>
-                        <th>Mục tiêu</th>
-                        <th>Need</th>
-                        <th>Bạn</th>
-                        <th>Online</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($bots as $b): ?>
-                        <tr title="<?= htmlspecialchars(strval($b['personality'])) ?>">
-                            <td><?= htmlspecialchars($b['name']) ?></td>
-                            <td><?= intval($b['level']) ?></td>
-                            <td><?= intval($b['gender']) == 1 ? 'Nam' : 'Nữ' ?>/<?= htmlspecialchars($classNames[intval($b['class_id'])] ?? ('C' . intval($b['class_id']))) ?></td>
-                            <td><?= intval($b['map_id']) ?>/<?= intval($b['zone_id']) ?></td>
-                            <td><?= number_format(intval($b['hp'])) ?>/<?= number_format(intval($b['max_hp'])) ?></td>
-                            <td><?= number_format(intval($b['gold'])) ?></td>
-                            <td><?= htmlspecialchars($b['state']) ?></td>
-                            <td><?= htmlspecialchars($b['goal']) ?></td>
-                            <td><?= htmlspecialchars($b['top_need']) ?></td>
-                            <td><?= intval($b['friends']) ?></td>
-                            <td><?= intval($b['online_min']) ?>p</td>
-                            <td>
-                                <a class="btn btn-sm btn-info" href="/admin/bot?detail=<?= urlencode($b['name']) ?>">Chi tiết</a>
-                            </td>
-                            <td>
-                                <form method="POST" onsubmit="return confirm('Xóa bot <?= htmlspecialchars($b['name']) ?>?')">
-                                    <input type="hidden" name="action" value="kill_one">
-                                    <input type="hidden" name="bot_name" value="<?= htmlspecialchars($b['name']) ?>">
-                                    <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
-                                </form>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    <?php else: ?>
-        <div class="text-center"><small class="fw-semibold">Chưa có bot nào (bảng cập nhật mỗi ~3 giây khi server chạy).</small></div>
+    <h5 class="fw-bold">Quản lý thông tin BOT (<span id="botCount">0</span> đang chạy)</h5>
+    <div class="table-responsive" style="border-radius: 1rem;">
+        <table class="table text-white fw-semibold mb-0" role="table">
+            <thead>
+                <tr class="text-start fw-bold text-uppercase gs-0">
+                    <th>Tên</th>
+                    <th>Lv</th>
+                    <th>Phái/Class</th>
+                    <th>Map/Khu</th>
+                    <th>HP</th>
+                    <th>Vàng</th>
+                    <th>State</th>
+                    <th>Mục tiêu</th>
+                    <th>Need</th>
+                    <th>Bạn</th>
+                    <th>Online</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="botTableBody">
+            </tbody>
+        </table>
+    </div>
+    <?php if (count($bots) == 0): ?>
+    <div class="text-center"><small class="fw-semibold">Chưa có bot nào (bảng cập nhật mỗi ~2 giây khi server chạy).</small></div>
     <?php endif; ?>
 </div>
 
@@ -633,12 +656,74 @@ if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
                         </tr>
                     <?php endforeach; ?>
 </tbody>
-    </table>
-</div>
+        </table>
+    </div>
 <?php else: ?>
     <div class="text-center"><small class="fw-semibold">Chưa có lệnh bot nào.</small></div>
 <?php endif; ?>
 </div>
+
+</div>
+
+<script>
+    function setText(id, v) { var el = document.getElementById(id); if (el) el.innerText = v; }
+    function fmt(n) { n = parseInt(n) || 0; return n.toLocaleString('vi-VN'); }
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+    // Đồng hồ thời gian thực
+    setInterval(function () { setText('lbTime', new Date().toLocaleTimeString('en-GB')); }, 1000);
+
+    // Theo dõi thời gian thực: gọi endpoint PHP đọc bot_status + server_status (Java ghi mỗi ~3s)
+    function refreshBot() {
+        fetch('/apixuli/bot-status', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d || d.status === 'error') return;
+                setText('lbOnline', d.online);
+                setText('lbOnlineUsers', d.online);
+                setText('lbBots', d.bots);
+                setText('lbMaps', d.maps);
+                setText('lbZones', d.zones);
+                setText('botCount', d.bots);
+                var bar = document.getElementById('barBots');
+                if (bar) bar.style.width = (d.pop > 0 ? Math.min(100, (d.bots / d.pop) * 100) : 0) + '%';
+                var diag = document.getElementById('lbDiag');
+                if (diag) diag.innerText = d.bot_diag || '';
+
+                var tbody = document.getElementById('botTableBody');
+                if (tbody) {
+                    var list = Array.isArray(d.list) ? d.list : [];
+                    var html = '';
+                    list.forEach(function (b) {
+                        html += '<tr title="' + esc(b.personality) + '">'
+                            + '<td>' + esc(b.name) + '</td>'
+                            + '<td>' + (b.level | 0) + '</td>'
+                            + '<td>' + (b.gender == 1 ? 'Nam' : 'Nữ') + '/C' + (b.class_id | 0) + '</td>'
+                            + '<td>' + (b.map_id | 0) + '/' + (b.zone_id | 0) + '</td>'
+                            + '<td>' + fmt(b.hp) + '/' + fmt(b.max_hp) + '</td>'
+                            + '<td>' + fmt(b.gold) + '</td>'
+                            + '<td>' + esc(b.state) + '</td>'
+                            + '<td>' + esc(b.goal) + '</td>'
+                            + '<td>' + esc(b.top_need) + '</td>'
+                            + '<td>' + (b.friends | 0) + '</td>'
+                            + '<td>' + (b.online_min | 0) + 'p</td>'
+                            + '<td><a class="btn btn-sm btn-info" href="/admin/bot?detail=' + encodeURIComponent(b.name) + '">Chi tiết</a></td>'
+                            + '<td><form method="POST" onsubmit="return confirm(\'Xóa bot ' + esc(b.name) + '?\')">'
+                            + '<input type="hidden" name="action" value="kill_one">'
+                            + '<input type="hidden" name="bot_name" value="' + esc(b.name) + '">'
+                            + '<button type="submit" class="btn btn-sm btn-danger">Xóa</button></form></td>'
+                            + '</tr>';
+                    });
+                    tbody.innerHTML = html || '<tr><td colspan="13" class="text-center text-muted">Chưa có bot nào.</td></tr>';
+                }
+            })
+            .catch(function () { /* server offline */ });
+    }
+
+    setInterval(refreshBot, 2000);
+    refreshBot();
+</script>
+
 <?php
 $conn->close();
 ?>

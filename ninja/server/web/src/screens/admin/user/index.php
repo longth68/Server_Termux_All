@@ -352,6 +352,22 @@ if ($result) {
 }
 $conn->close();
 ?>
+<div class="admin-panel">
+<style>
+    .admin-panel { background: #f4f6f9; color: #212529; padding: 14px; border-radius: 8px; }
+    .admin-panel .bg-content { background: #fff; color: #212529; border: 1px solid #ddd; border-radius: 8px; }
+    .admin-panel .card { background: #fff; color: #212529; border: 1px solid #ddd; box-shadow: 0 1px 3px rgba(0,0,0,.08); border-radius: 6px; }
+    .admin-panel .card-body { color: #212529; }
+    .admin-panel .text-white { color: #212529 !important; }
+    .admin-panel .table { color: #212529; }
+    .admin-panel .table th, .admin-panel .table td { color: #212529; border-color: #dee2e6; }
+    .admin-panel h4, .admin-panel h5, .admin-panel h6 { color: #212529; }
+    .admin-panel .form-control, .admin-panel .form-select { background: #fff; color: #212529; border: 1px solid #ced4da; }
+    .admin-panel .list-group-item { background: #fff; color: #212529; border-color: #dee2e6; }
+    .admin-panel .text-muted { color: #6c757d !important; }
+    .admin-panel .nav-tabs .nav-link { color: #0d6efd; }
+    .admin-panel .nav-tabs .nav-link.active { color: #212529; }
+</style>
 <div class="bg-content" style="border-radius: 1rem; padding:10px">
     <div style="text-align:center;">
         <h4>Quản lý người chơi</h4>
@@ -889,3 +905,4 @@ if ($pdetail) {
     </div>
 </div>
 <?php endif; ?>
+</div>

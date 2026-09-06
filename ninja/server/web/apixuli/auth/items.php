@@ -1,10 +1,12 @@
 <?php
 
+define('NP', true);
 require(__DIR__ . '/../../core/configs.php');
 
 header('Content-Type: application/json; charset=utf-8');
+session_start();
 
-if (!isset($_SESSION['user']) || $_SESSION['user']['admin_web'] != 1) {
+if (!isset($_SESSION['user']) || ($_SESSION['user']['admin_web'] ?? 0) != 1) {
     echo json_encode(["code" => "01", "text" => "Không có quyền truy cập"]);
     exit;
 }
