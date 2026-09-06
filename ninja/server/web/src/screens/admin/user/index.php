@@ -202,7 +202,7 @@ if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
     }
 }
 ?>
-
+<?php
 $history = [];
 $result = $conn->query("SELECT `id`, `command`, `target_user`, `status`, `created_at` FROM `web_admin_commands` WHERE `command` IN ('KICK','BAN','CHAR_RENAME','PLAYER_GIVE','PLAYER_GEAR_TAKE','PLAYER_GEAR_WEAR') ORDER BY `id` DESC LIMIT 30");
 if ($result) {
