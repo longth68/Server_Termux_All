@@ -242,6 +242,22 @@ public class WebAdminCommandPoller extends Thread {
         }
     }
 
+    private void botEdit(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("name");
+        if (name == null || name.isEmpty()) {
+            return;
+        }
+        int level = obj.get("level") != null ? ((Number) obj.get("level")).intValue() : 0;
+        int hp = obj.get("hp") != null ? ((Number) obj.get("hp")).intValue() : 0;
+        int damage = obj.get("damage") != null ? ((Number) obj.get("damage")).intValue() : 0;
+        boolean ok = AutoFarmBot.applyEdit(name, level, hp, damage);
+        Log.info("[WebAdmin] BOT_EDIT name=" + name + " lv=" + level + " hp=" + hp + " dmg=" + damage + " ok=" + ok);
+        if (ok) {
+            GlobalService.getInstance().chat("Hệ thống", "Web Admin đã chỉnh sửa BOT " + name + ".");
+        }
+    }
+
     private void killOneBot(String data) throws ParseException {
         JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
         String name = (String) obj.get("name");
@@ -275,6 +291,9 @@ public class WebAdminCommandPoller extends Thread {
                 break;
             case "KILL_ONE_BOT":
                 killOneBot(data);
+                break;
+            case "BOT_EDIT":
+                botEdit(data);
                 break;
             case "BOT_CONFIG":
                 botConfig(data);

@@ -363,7 +363,8 @@ public class AutoFarmBot extends Bot {
             if (isLeader && zoneBots < MAX_BOT_PER_ZONE) {
                 int target = Math.min(MAX_BOT_PER_ZONE, zoneBots + 1);
                 for (int i = zoneBots; i < target; i++) {
-                    AutoFarmBot nb = createBot(zone, Math.max(1, level), 50000, damage, classId);
+                    int[] st = scaledStats(level);
+                    AutoFarmBot nb = createBot(zone, Math.max(1, level), st[0], st[1], classId);
                     nb.setXY((short) Math.max(0, x + NinjaUtils.nextInt(-60, 60)), (short) Math.max(0, y + NinjaUtils.nextInt(-30, 30)));
                     nb.spawnX = nb.x;
                     nb.spawnY = nb.y;
@@ -1137,7 +1138,9 @@ public class AutoFarmBot extends Bot {
                 return;
             }
         }
-        AutoFarmBot bot = createBot(z, Math.max(1, owner.level), 20000, 1500, owner.classId);
+        int lv = capLevel(owner.level);
+        int[] st = scaledStats(lv);
+        AutoFarmBot bot = createBot(z, lv, st[0], st[1], owner.classId);
         int sx = owner.x + NinjaUtils.nextInt(-40, 40);
         if (sx < 0) {
             sx = 0;
@@ -1409,6 +1412,137 @@ public class AutoFarmBot extends Bot {
     }
 
     /** Đếm bot còn sống trong 1 zone (BotManager dùng để giữ đúng mật độ). */
+    /**
+     * Mẫu NRO simulateProgression/playerProtection: BOT không bao giờ vượt
+     * người chơi thật mạnh nhất. Trả về level online cao nhất (0 nếu không ai online).
+     */
+    public static int maxOnlineRealLevel() {
+        int max = 0;
+        try {
+            java.util.ArrayList<Exe_Z.map.Map> maps = Exe_Z.map.MapManager.getInstance().getMaps();
+            if (maps == null) {
+                return 0;
+            }
+            for (Exe_Z.map.Map m : maps) {
+                if (m == null) {
+                    continue;
+                }
+                java.util.List<Zone> zones = m.getZones();
+                if (zones == null) {
+                    continue;
+                }
+                for (Zone z : zones) {
+                    if (z == null) {
+                        continue;
+                    }
+                    synchronized (z.players) {
+                        for (Char p : z.players) {
+                            if (p != null && !(p instanceof Bot) && p.user != null
+                                    && p.user.session != null && !p.isDead && p.level > max) {
+                                max = p.level;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return max;
+    }
+
+    /** Cap level BOT theo người mạnh nhất (mẫu NRO cap = maxReal × catchup). */
+    public static int capLevel(int level) {
+        int m = maxOnlineRealLevel();
+        if (m > 0 && level > m) {
+            return m;
+        }
+        return Math.max(1, level);
+    }
+
+    /**
+     * Chỉ số theo level, bằng 80% mốc chuẩn để BOT ngang tầm nhưng không quá mạnh:
+     * lv100 -> HP 40000 / dame 2400 (bản cũ fix cứng 50000/3000 mọi level).
+     */
+    public static int[] scaledStats(int level) {
+        level = Math.max(1, level);
+        return new int[]{Math.max(100, level * 400), Math.max(10, level * 24)};
+    }
+
+    /** Xóa BOT vượt level người mạnh nhất (đồng bộ sức mạnh kiểu NRO). */
+    public static int removeOverleveled() {
+        int max = maxOnlineRealLevel();
+        if (max <= 0) {
+            return 0;
+        }
+        int n = 0;
+        synchronized (BOTS) {
+            java.util.Iterator<AutoFarmBot> it = BOTS.iterator();
+            while (it.hasNext()) {
+                AutoFarmBot b = it.next();
+                if (b != null && !b.isCleaned && b.level > max) {
+                    try {
+                        if (b.zone != null) {
+                            b.zone.out(b);
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        Exe_Z.server.ServerManager.removeChar(b);
+                    } catch (Throwable ignored) {
+                    }
+                    b.isCleaned = true;
+                    it.remove();
+                    n++;
+                }
+            }
+        }
+        return n;
+    }
+
+    /**
+     * Web Admin chỉnh sửa BOT đang chạy (level/HP/dame), tính lại chỉ số.
+     */
+    public static boolean applyEdit(String name, int level, int hp, int damage) {
+        if (name == null || name.isEmpty()) {
+            return false;
+        }
+        synchronized (BOTS) {
+            for (AutoFarmBot b : BOTS) {
+                if (b == null || b.isCleaned || !name.equals(b.name)) {
+                    continue;
+                }
+                try {
+                    if (level > 0) {
+                        b.level = Math.min(level, 200);
+                    }
+                    int newHp = hp > 0 ? hp : b.maxHP;
+                    int newDmg = damage > 0 ? damage : b.damage;
+                    byte spd = b.speed;
+                    b.setAbilityStrategy(AbilityCustom.builder()
+                            .hp(newHp)
+                            .mp(2000)
+                            .damage(newDmg)
+                            .damage2(Math.max(1, newDmg * 8 / 10))
+                            .miss(10)
+                            .exactly(200)
+                            .fatal(150)
+                            .speed(spd == 0 ? 1 : spd)
+                            .build());
+                    b.setAbility();
+                    b.setFashion();
+                    b.recovery();
+                    if (b.zone != null) {
+                        b.zone.getService().loadHP(b);
+                    }
+                    return true;
+                } catch (Exception ignored) {
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+
     public static int countInZone(Zone z) {
         if (z == null) {
             return 0;
@@ -1609,7 +1743,9 @@ public class AutoFarmBot extends Bot {
                     if (zoneBots >= MAX_BOT_PER_ZONE) {
                         continue;
                     }
-                    AutoFarmBot nb = createBot(z, Math.max(1, player.level), 50000, 3000, player.classId);
+                    int lv = capLevel(player.level);
+                    int[] st = scaledStats(lv);
+                    AutoFarmBot nb = createBot(z, lv, st[0], st[1], player.classId);
                     nb.setXY((short) Math.max(0, player.x + NinjaUtils.nextInt(-40, 40)), (short) Math.max(0, player.y + NinjaUtils.nextInt(-20, 20)));
                     nb.spawnX = nb.x;
                     nb.spawnY = nb.y;

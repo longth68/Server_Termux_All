@@ -76,12 +76,13 @@ public class BotManager implements Runnable {
         }
         int need = Math.min(BotConfig.POPULATION - cur, 5);
         for (int i = 0; i < need; i++) {
-            int lv = 50 + NinjaUtils.nextInt(0, 60);
+            int lv = AutoFarmBot.capLevel(50 + NinjaUtils.nextInt(0, 60));
             Zone z = BotMovement.pickZoneByLevel(lv);
             if (z == null) {
                 return;
             }
-            int spawned = AutoFarmBot.spawnByMap(z.map.id, 1, lv, 50000, 3000, 0);
+            int[] st = AutoFarmBot.scaledStats(lv);
+            int spawned = AutoFarmBot.spawnByMap(z.map.id, 1, lv, st[0], st[1], 0);
             if (spawned <= 0) {
                 return;
             }
@@ -142,7 +143,9 @@ public class BotManager implements Runnable {
         if (bots >= target) {
             return;
         }
-        AutoFarmBot.spawnByMap(z.map.id, 1, Math.max(1, anyReal.level), 50000, 3000, 0);
+        int lv = AutoFarmBot.capLevel(anyReal.level);
+        int[] st = AutoFarmBot.scaledStats(lv);
+        AutoFarmBot.spawnByMap(z.map.id, 1, lv, st[0], st[1], 0);
     }
 
     private List<AutoFarmBot> snapshotBots() {
@@ -150,11 +153,18 @@ public class BotManager implements Runnable {
         return new ArrayList<>();
     }
 
-    /** Đồng bộ level bot theo người chơi mạnh nhất như NRO syncBotsToPlayerLevel. */
+    /**
+     * Đồng bộ sức mạnh kiểu NRO: dọn BOT vượt level người mạnh nhất để
+     * BOT không bao giờ quá mạnh, fillToTarget sẽ spawn lại đúng tầm.
+     */
     private void syncBotsToPlayerLevel() {
-        // NSO bot đã spawn theo level người chơi trong ensureBotsInZone/Sweeper,
-        // ở đây chỉ roll lại LongTerm để đa dạng hành vi.
-        // (Không set level trực tiếp để tránh lệch Ability đã tính.)
+        try {
+            int removed = AutoFarmBot.removeOverleveled();
+            if (removed > 0) {
+                System.out.println("[BOT][MANAGER] Da don " + removed + " bot vuot level nguoi manh nhat.");
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     public void relocateBot(AutoFarmBot bot) {

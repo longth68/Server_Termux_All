@@ -105,6 +105,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
             }
         }
+    } elseif ($action == 'bot_edit') {
+        $botName = isset($_POST['bot_name']) ? trim(strval($_POST['bot_name'])) : '';
+        $data = json_encode([
+            'name' => $botName,
+            'level' => isset($_POST['level']) ? max(1, min(200, intval($_POST['level']))) : 0,
+            'hp' => isset($_POST['hp']) ? max(0, intval($_POST['hp'])) : 0,
+            'damage' => isset($_POST['damage']) ? max(0, intval($_POST['damage'])) : 0,
+        ], JSON_UNESCAPED_UNICODE);
+        if ($botName === '') {
+            $msg = '<div class="alert alert-danger">Thiếu tên bot.</div>';
+        } else {
+            $stmt = $conn->prepare("INSERT INTO `web_admin_commands` (`command`, `data`, `status`) VALUES ('BOT_EDIT', ?, 0)");
+            $stmt->bind_param("s", $data);
+            if ($stmt->execute()) {
+                $msg = '<div class="alert alert-success">Đã gửi lệnh chỉnh sửa bot <b>' . htmlspecialchars($botName) . '</b>.</div>';
+            } else {
+                $msg = '<div class="alert alert-danger">Có lỗi khi gửi lệnh.</div>';
+            }
+            $stmt->close();
+        }
     } elseif ($action == 'bot_config') {
         $cfg = [
             'enabled' => isset($_POST['enabled']) ? (intval($_POST['enabled']) === 1) : true,
@@ -205,7 +225,7 @@ if ($result) {
 }
 
 $history = [];
-$result = $conn->query("SELECT `id`, `command`, `target_user`, `data`, `status`, `created_at` FROM `web_admin_commands` WHERE `command` IN ('SPAWN_BOT','KILL_BOT','KILL_ONE_BOT','BOT_CONFIG') ORDER BY `id` DESC LIMIT 30");
+$result = $conn->query("SELECT `id`, `command`, `target_user`, `data`, `status`, `created_at` FROM `web_admin_commands` WHERE `command` IN ('SPAWN_BOT','KILL_BOT','KILL_ONE_BOT','BOT_CONFIG','BOT_EDIT') ORDER BY `id` DESC LIMIT 30");
 if ($result) {
     while ($row = $result->fetch_assoc()) {
         $history[] = $row;
@@ -362,6 +382,68 @@ $conn->close();
     </div>
 </div>
 
+<?php
+$classNames = [1 => 'Kiếm', 2 => 'Tiêu', 3 => 'Kunai', 4 => 'Cung', 5 => 'Đao', 6 => 'Quạt'];
+$detail = null;
+if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
+    $dn = trim(strval($_GET['detail']));
+    $stmt = $conn->prepare("SELECT `name`, `level`, `map_id`, `zone_id`, `x`, `y`, `hp`, `max_hp`, `state`, `personality`, `top_need`, `gold`, `gender`, `class_id`, `goal`, `damage`, `friends`, `online_min`, `updated_at` FROM `bot_status` WHERE `name` = ? LIMIT 1");
+    $stmt->bind_param("s", $dn);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($res) {
+        $detail = $res->fetch_assoc();
+    }
+    $stmt->close();
+}
+?>
+<?php if ($detail): ?>
+<div class="mt-4">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="fw-bold">Chi tiết BOT: <?= htmlspecialchars($detail['name']) ?></h5>
+            <div class="row g-2 mb-2">
+                <div class="col-6 col-md-3"><b>Level:</b> <?= intval($detail['level']) ?></div>
+                <div class="col-6 col-md-3"><b>Phái:</b> <?= intval($detail['gender']) == 1 ? 'Nam' : 'Nữ' ?></div>
+                <div class="col-6 col-md-3"><b>Class:</b> <?= htmlspecialchars($classNames[intval($detail['class_id'])] ?? ('C' . intval($detail['class_id']))) ?></div>
+                <div class="col-6 col-md-3"><b>Map/Khu:</b> <?= intval($detail['map_id']) ?>/<?= intval($detail['zone_id']) ?> (<?= intval($detail['x']) ?>,<?= intval($detail['y']) ?>)</div>
+                <div class="col-6 col-md-3"><b>HP:</b> <?= number_format(intval($detail['hp'])) ?>/<?= number_format(intval($detail['max_hp'])) ?></div>
+                <div class="col-6 col-md-3"><b>Dame:</b> <?= number_format(intval($detail['damage'])) ?></div>
+                <div class="col-6 col-md-3"><b>Vàng:</b> <?= number_format(intval($detail['gold'])) ?></div>
+                <div class="col-6 col-md-3"><b>State:</b> <?= htmlspecialchars($detail['state']) ?></div>
+                <div class="col-6 col-md-3"><b>Mục tiêu:</b> <?= htmlspecialchars($detail['goal']) ?></div>
+                <div class="col-6 col-md-3"><b>Need:</b> <?= htmlspecialchars($detail['top_need']) ?></div>
+                <div class="col-6 col-md-3"><b>Bạn:</b> <?= intval($detail['friends']) ?></div>
+                <div class="col-6 col-md-3"><b>Online:</b> <?= intval($detail['online_min']) ?> phút</div>
+                <div class="col-12"><b>Personality:</b> <small><?= htmlspecialchars(strval($detail['personality'])) ?></small></div>
+            </div>
+            <h6 class="fw-bold">Chỉnh sửa BOT đang chạy</h6>
+            <form method="POST">
+                <input type="hidden" name="action" value="bot_edit">
+                <input type="hidden" name="bot_name" value="<?= htmlspecialchars($detail['name']) ?>">
+                <div class="row g-2 mb-2">
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Level (1-200)</label>
+                        <input type="number" name="level" class="form-control" value="<?= intval($detail['level']) ?>" min="1" max="200">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">HP tối đa</label>
+                        <input type="number" name="hp" class="form-control" value="<?= intval($detail['max_hp']) ?>" min="100">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Sát thương</label>
+                        <input type="number" name="damage" class="form-control" value="<?= intval($detail['damage']) ?>" min="10">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Lưu chỉnh sửa</button>
+                <a class="btn btn-secondary" href="/admin/bot">Đóng</a>
+            </form>
+            <p class="text-muted mt-2 mb-0"><small>Gửi lệnh <code>BOT_EDIT</code>, server tính lại chỉ số ngay. Level vượt người mạnh nhất sẽ bị đồng bộ lại về đúng tầm.</small></p>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <div class="mt-4">
     <h5 class="fw-bold">Quản lý thông tin BOT (<?= count($bots) ?> đang chạy)</h5>
     <?php if (count($bots) > 0): ?>
@@ -384,9 +466,7 @@ $conn->close();
                     </tr>
                 </thead>
                 <tbody>
-                    <?php
-                    $classNames = [1 => 'Kiếm', 2 => 'Tiêu', 3 => 'Kunai', 4 => 'Cung', 5 => 'Đao', 6 => 'Quạt'];
-                    foreach ($bots as $b): ?>
+                    <?php foreach ($bots as $b): ?>
                         <tr title="<?= htmlspecialchars(strval($b['personality'])) ?>">
                             <td><?= htmlspecialchars($b['name']) ?></td>
                             <td><?= intval($b['level']) ?></td>
@@ -399,6 +479,9 @@ $conn->close();
                             <td><?= htmlspecialchars($b['top_need']) ?></td>
                             <td><?= intval($b['friends']) ?></td>
                             <td><?= intval($b['online_min']) ?>p</td>
+                            <td>
+                                <a class="btn btn-sm btn-info" href="/admin/bot?detail=<?= urlencode($b['name']) ?>">Chi tiết</a>
+                            </td>
                             <td>
                                 <form method="POST" onsubmit="return confirm('Xóa bot <?= htmlspecialchars($b['name']) ?>?')">
                                     <input type="hidden" name="action" value="kill_one">
