@@ -59,31 +59,83 @@ public class BotMovement {
         bot.aiMoveTo(nx, ny);
     }
 
+    private static final int[] VILLAGE_MAP_IDS = {10, 17, 22, 32, 38, 43, 48, 138, 162};
+
+    private static boolean isVillageMap(int mapId) {
+        for (int v : VILLAGE_MAP_IDS) {
+            if (v == mapId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Chọn zone từ map ĐÃ LOAD thật (không dùng ID cứng để khỏi lệch DB).
+     * Ưu tiên: 1) zone đang có người chơi thật (presence như NRO),
+     * 2) map farm có quái sống, tránh làng/map đặc biệt.
+     */
     public static Zone pickZoneByLevel(int level) {
         try {
             java.util.List<Exe_Z.map.Map> maps = Exe_Z.map.MapManager.getInstance().getMaps();
-            if (maps == null) {
+            if (maps == null || maps.isEmpty()) {
                 return null;
             }
-            // MAPS theo level như NRO MAPS_LOW/MID/HIGH (NSO map id farm phổ biến)
-            int[] pool;
-            if (level < 30) {
-                pool = new int[]{1, 2, 3, 4, 5, 6, 7};
-            } else if (level < 70) {
-                pool = new int[]{11, 12, 13, 14, 15, 16, 20, 21};
-            } else {
-                pool = new int[]{23, 24, 25, 26, 27, 28, 29, 30, 31};
-            }
-            for (int mid : pool) {
-                Exe_Z.map.Map m = Exe_Z.map.MapManager.getInstance().find(mid);
-                if (m != null) {
-                    try {
-                        Zone z = m.rand();
-                        if (z != null) {
-                            return z;
-                        }
-                    } catch (Exception ignored) {
+            // 1. Presence: zone có người chơi thật
+            java.util.List<Zone> withPlayers = new java.util.ArrayList<>();
+            for (Exe_Z.map.Map m : maps) {
+                if (m == null || isVillageMap(m.id)) {
+                    continue;
+                }
+                java.util.List<Zone> zones = m.getZones();
+                if (zones == null) {
+                    continue;
+                }
+                for (Zone z : zones) {
+                    if (z == null || z.players == null) {
+                        continue;
                     }
+                    synchronized (z.players) {
+                        for (Exe_Z.model.Char p : z.players) {
+                            if (BotPerception.isRealPlayer(p)) {
+                                withPlayers.add(z);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (!withPlayers.isEmpty()) {
+                return withPlayers.get(Exe_Z.util.NinjaUtils.nextInt(0, withPlayers.size() - 1));
+            }
+            // 2. Map farm có quái sống
+            java.util.List<Zone> farmZones = new java.util.ArrayList<>();
+            for (Exe_Z.map.Map m : maps) {
+                if (m == null || isVillageMap(m.id)) {
+                    continue;
+                }
+                java.util.List<Zone> zones = m.getZones();
+                if (zones == null || zones.isEmpty()) {
+                    continue;
+                }
+                for (Zone z : zones) {
+                    if (z == null || z.monsters == null || z.monsters.isEmpty()) {
+                        continue;
+                    }
+                    farmZones.add(z);
+                }
+            }
+            if (!farmZones.isEmpty()) {
+                return farmZones.get(Exe_Z.util.NinjaUtils.nextInt(0, farmZones.size() - 1));
+            }
+            // 3. Fallback: zone bất kỳ không phải làng
+            for (Exe_Z.map.Map m : maps) {
+                if (m == null || isVillageMap(m.id)) {
+                    continue;
+                }
+                java.util.List<Zone> zones = m.getZones();
+                if (zones != null && !zones.isEmpty() && zones.get(0) != null) {
+                    return zones.get(0);
                 }
             }
         } catch (Exception ignored) {

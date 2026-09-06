@@ -238,7 +238,7 @@ $conn->close();
 <?php endif; ?>
 
 <div class="alert alert-info mt-3" style="font-size: 0.9rem;">
-    <i class="fa fa-info-circle me-1"></i> <b>Lưu ý:</b> Hệ thống <b>không lưu danh sách bot chi tiết</b> để tối ưu hóa bộ nhớ RAM cho server (do bot tự động sinh ra và biến mất liên tục khi có/không có người chơi thật). Trang Admin chỉ hiển thị tổng số lượng bot đang chạy và lịch sử các lệnh đã gọi.
+    <i class="fa fa-info-circle me-1"></i> <b>Lưu ý:</b> Server tự ghi danh sách bot chi tiết vào bảng <code>bot_status</code> mỗi ~3 giây (Tên/Lv/Map-Khu/HP/State/Personality/Need) nên trang này hiển thị được từng bot để quản lý. Bot vẫn tự sinh ra/biến mất theo người chơi và tự xóa sau 3 giờ nên RAM không bị phình.
 </div>
 
 <div class="mt-3">

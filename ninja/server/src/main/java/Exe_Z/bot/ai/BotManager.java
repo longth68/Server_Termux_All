@@ -74,7 +74,7 @@ public class BotManager implements Runnable {
         if (cur >= BotConfig.POPULATION) {
             return;
         }
-        int need = Math.min(BotConfig.POPULATION - cur, 3);
+        int need = Math.min(BotConfig.POPULATION - cur, 5);
         for (int i = 0; i < need; i++) {
             int lv = 50 + NinjaUtils.nextInt(0, 60);
             Zone z = BotMovement.pickZoneByLevel(lv);
