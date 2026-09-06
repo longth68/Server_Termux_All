@@ -110,6 +110,94 @@ public class WebAdminCommandPoller extends Thread {
             }
         }
         updateServerStatus();
+        updatePlayerStatus();
+    }
+
+    /** Snapshot người chơi online vào bảng player_status (Web Admin xem live). */
+    private void updatePlayerStatus() {
+        Connection conn = null;
+        Statement create = null;
+        PreparedStatement del = null;
+        PreparedStatement ins = null;
+        try {
+            java.util.List<Char> chars;
+            try {
+                chars = ServerManager.getChars();
+            } catch (Exception e) {
+                return;
+            }
+            if (chars == null) {
+                return;
+            }
+            conn = DbManager.getInstance().getConnection(DbManager.GAME);
+            create = conn.createStatement();
+            create.executeUpdate("CREATE TABLE IF NOT EXISTS `player_status` ("
+                    + "`id` int(11) NOT NULL AUTO_INCREMENT, `name` varchar(15) NOT NULL, "
+                    + "`level` int(11) NOT NULL DEFAULT 1, `map_id` int(11) NOT NULL DEFAULT 0, "
+                    + "`zone_id` int(11) NOT NULL DEFAULT 0, `x` int(11) NOT NULL DEFAULT 0, "
+                    + "`y` int(11) NOT NULL DEFAULT 0, `hp` int(11) NOT NULL DEFAULT 0, "
+                    + "`max_hp` int(11) NOT NULL DEFAULT 0, `clan` varchar(30) DEFAULT '', "
+                    + "`gear` text, `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP, "
+                    + "PRIMARY KEY (`id`), UNIQUE KEY `name` (`name`)) "
+                    + "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+            del = conn.prepareStatement("DELETE FROM `player_status`;");
+            del.executeUpdate();
+            ins = conn.prepareStatement("INSERT INTO `player_status` "
+                    + "(`name`,`level`,`map_id`,`zone_id`,`x`,`y`,`hp`,`max_hp`,`clan`,`gear`,`updated_at`) "
+                    + "VALUES (?,?,?,?,?,?,?,?,?,?,NOW());");
+            int n = 0;
+            for (Char c : chars) {
+                if (c == null || c.isCleaned || c.isDead) {
+                    continue;
+                }
+                if (c instanceof Exe_Z.bot.Bot) {
+                    continue;
+                }
+                if (c.user == null || c.user.session == null) {
+                    continue;
+                }
+                try {
+                    ins.setString(1, c.name == null ? "" : c.name);
+                    ins.setInt(2, c.level);
+                    ins.setInt(3, c.mapId);
+                    ins.setInt(4, c.zone != null ? c.zone.id : -1);
+                    ins.setInt(5, c.x);
+                    ins.setInt(6, c.y);
+                    ins.setInt(7, c.hp);
+                    ins.setInt(8, c.maxHP);
+                    String clan = "";
+                    try {
+                        if (c.clan != null) {
+                            clan = String.valueOf(c.clan.getName());
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    ins.setString(9, clan);
+                    String gear = "{}";
+                    try {
+                        gear = AutoFarmBot.gearJson(c).toJSONString();
+                        if (gear.length() > 60000) {
+                            gear = "{}";
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    ins.setString(10, gear);
+                    ins.addBatch();
+                    if (++n >= 200) {
+                        break;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            ins.executeBatch();
+        } catch (Exception e) {
+            Log.error("WebAdminCommandPoller player_status err: " + e.getMessage(), e);
+        } finally {
+            close(ins);
+            close(del);
+            close(create);
+            close(conn);
+        }
     }
 
     private void updateServerStatus() {
@@ -401,6 +489,12 @@ public class WebAdminCommandPoller extends Thread {
             case "PLAYER_GIVE":
                 playerGive(data);
                 break;
+            case "PLAYER_GEAR_TAKE":
+                playerGearTake(data);
+                break;
+            case "PLAYER_GEAR_WEAR":
+                playerGearWear(data);
+                break;
             case "UPDATE_SERVER_CONFIG":
                 Config.getInstance().reload();
                 Config.getInstance().reloadnjtl();
@@ -661,6 +755,83 @@ public class WebAdminCommandPoller extends Thread {
         } catch (Exception e) {
             Log.error("PLAYER_GIVE err: " + e.getMessage(), e);
         }
+    }
+
+    // Gỡ đồ người chơi online (bag/equip theo slot)
+    private void playerGearTake(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("char");
+        if (name == null) {
+            name = (String) obj.get("name");
+        }
+        String place = (String) obj.get("place");
+        int slot = obj.get("slot") != null ? ((Number) obj.get("slot")).intValue() : -1;
+        Char c = name == null ? null : ServerManager.findCharByName(name);
+        boolean ok = false;
+        if (c != null) {
+            try {
+                if ("equip".equalsIgnoreCase(place)) {
+                    if (c.equipment != null && slot >= 0 && slot < c.equipment.length
+                            && slot <= 9 && c.equipment[slot] != null) {
+                        c.equipment[slot] = null;
+                        ok = true;
+                    }
+                } else if (c.bag != null && slot >= 0 && slot < c.bag.length && c.bag[slot] != null) {
+                    c.bag[slot] = null;
+                    ok = true;
+                }
+                if (ok) {
+                    c.setFashion();
+                    c.updateItemQuantity();
+                    try {
+                        c.getService().updateItem();
+                    } catch (Exception ignored) {
+                    }
+                }
+            } catch (Exception e) {
+                Log.error("PLAYER_GEAR_TAKE err: " + e.getMessage(), e);
+            }
+        }
+        Log.info("[WebAdmin] PLAYER_GEAR_TAKE " + name + " " + place + "[" + slot + "] ok=" + ok);
+    }
+
+    // Mặc đồ từ túi cho người chơi online
+    private void playerGearWear(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("char");
+        if (name == null) {
+            name = (String) obj.get("name");
+        }
+        int slot = obj.get("slot") != null ? ((Number) obj.get("slot")).intValue() : -1;
+        Char c = name == null ? null : ServerManager.findCharByName(name);
+        boolean ok = false;
+        if (c != null && c.bag != null && slot >= 0 && slot < c.bag.length) {
+            try {
+                Exe_Z.item.Item it = c.bag[slot];
+                if (it != null && it.template != null && it instanceof Exe_Z.item.Equip) {
+                    int type = it.template.type;
+                    if (type >= 0 && type <= 9 && c.equipment != null && type < c.equipment.length) {
+                        Exe_Z.item.Item old = null;
+                        try {
+                            old = c.equipment[type];
+                        } catch (Exception ignored) {
+                        }
+                        c.equipment[type] = (Exe_Z.item.Equip) it;
+                        c.bag[slot] = old;
+                        c.setFashion();
+                        c.updateItemQuantity();
+                        try {
+                            c.getService().updateItem();
+                        } catch (Exception ignored) {
+                        }
+                        ok = true;
+                    }
+                }
+            } catch (Exception e) {
+                Log.error("PLAYER_GEAR_WEAR err: " + e.getMessage(), e);
+            }
+        }
+        Log.info("[WebAdmin] PLAYER_GEAR_WEAR " + name + " bag[" + slot + "] ok=" + ok);
     }
 
     // Bỏ qua nhiệm vụ hiện tại của người chơi, nhảy sang nhiệm vụ tiếp theo

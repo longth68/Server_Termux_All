@@ -1,6 +1,9 @@
 <?php
 require_once(__DIR__ . '/../../../../core/configs.php');
 
+$slotNames = ['Nón', 'Vũ khí', 'Áo', 'Liên', 'Găng tay', 'Nhẫn', 'Quần', 'Ngọc bội', 'Giày', 'Phụ'];
+$classNames = [1 => 'Kiếm', 2 => 'Tiêu', 3 => 'Kunai', 4 => 'Cung', 5 => 'Đao', 6 => 'Quạt'];
+
 if (!isset($_SESSION['user'])) {
     header('Location: /home');
     exit;
@@ -75,6 +78,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $msg = '<div class="alert alert-danger">Có lỗi khi gửi lệnh.</div>';
             }
             $stmt->close();
+        } elseif ($action == 'PLAYER_GEAR_TAKE' || $action == 'PLAYER_GEAR_WEAR') {
+            $payload = ['char' => $char, 'slot' => isset($_POST['slot']) ? intval($_POST['slot']) : -1];
+            if ($action == 'PLAYER_GEAR_TAKE') {
+                $payload['place'] = isset($_POST['place']) ? strval($_POST['place']) : 'bag';
+            }
+            $data = json_encode($payload, JSON_UNESCAPED_UNICODE);
+            $stmt = $conn->prepare("INSERT INTO `web_admin_commands` (`command`, `target_user`, `data`, `status`) VALUES (?, ?, ?, 0)");
+            $stmt->bind_param("sss", $action, $char, $data);
+            if ($stmt->execute()) {
+                $msg = '<div class="alert alert-success">Đã gửi lệnh sửa đồ cho <b>' . htmlspecialchars($char) . '</b> (chỉ khi online).</div>';
+            } else {
+                $msg = '<div class="alert alert-danger">Có lỗi khi gửi lệnh.</div>';
+            }
+            $stmt->close();
         } else {
             $data = json_encode(['char' => $char], JSON_UNESCAPED_UNICODE);
             $stmt = $conn->prepare("INSERT INTO `web_admin_commands` (`command`, `target_user`, `data`, `status`) VALUES (?, ?, ?, 0)");
@@ -122,8 +139,72 @@ if ($result && $result !== true) {
     }
 }
 
+$slotNames = ['Nón', 'Vũ khí', 'Áo', 'Liên', 'Găng tay', 'Nhẫn', 'Quần', 'Ngọc bội', 'Giày', 'Phụ'];
+$classNames = [1 => 'Kiếm', 2 => 'Tiêu', 3 => 'Kunai', 4 => 'Cung', 5 => 'Đao', 6 => 'Quạt'];
+$pdetail = null;
+$plive = null;
+$peq = [];
+$pbag = [];
+$peqOffline = false;
+if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
+    $dn = trim(strval($_GET['detail']));
+    $stmt = $conn->prepare("SELECT p.*, u.`username`, u.`status` AS `ustatus`, u.`luong`, u.`coin`, u.`ban_until`, u.`tongnap`, u.`online` AS `uonline`, u.`created_at` AS `reg_at` FROM `players` p JOIN `users` u ON u.`id` = p.`user_id` WHERE p.`name` = ? LIMIT 1");
+    $stmt->bind_param("s", $dn);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($res) {
+        $pdetail = $res->fetch_assoc();
+    }
+    $stmt->close();
+    if ($pdetail) {
+        $stmt = $conn->prepare("SELECT * FROM `player_status` WHERE `name` = ? LIMIT 1");
+        $stmt->bind_param("s", $dn);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($res) {
+            $plive = $res->fetch_assoc();
+        }
+        $stmt->close();
+        if ($plive && !empty($plive['gear'])) {
+            $g = json_decode(strval($plive['gear']), true);
+            if (is_array($g)) {
+                $peq = isset($g['eq']) && is_array($g['eq']) ? $g['eq'] : [];
+                $pbag = isset($g['bag']) && is_array($g['bag']) ? $g['bag'] : [];
+            }
+        } else {
+            // Offline: đọc đồ đã lưu trong DB (chỉ xem, không sửa)
+            $peqOffline = true;
+            foreach (['equiped' => 'eq', 'bag' => 'bag'] as $col => $dst) {
+                $arr = json_decode(strval($pdetail[$col] ?? ''), true);
+                if (!is_array($arr)) {
+                    continue;
+                }
+                foreach ($arr as $it) {
+                    if (!is_array($it)) {
+                        continue;
+                    }
+                    $entry = [
+                        'slot' => isset($it['index']) ? intval($it['index']) : -1,
+                        'id' => isset($it['id']) ? intval($it['id']) : 0,
+                        'name' => '',
+                        'qty' => isset($it['quantity']) ? intval($it['quantity']) : 1,
+                        'upg' => isset($it['upgrade']) ? intval($it['upgrade']) : 0,
+                    ];
+                    if ($dst === 'eq') {
+                        $entry['slot_name'] = ($entry['slot'] >= 0 && $entry['slot'] < 10) ? $slotNames[$entry['slot']] : ('Ô ' . $entry['slot']);
+                        $peq[] = $entry;
+                    } else {
+                        $pbag[] = $entry;
+                    }
+                }
+            }
+        }
+    }
+}
+?>
+
 $history = [];
-$result = $conn->query("SELECT `id`, `command`, `target_user`, `status`, `created_at` FROM `web_admin_commands` WHERE `command` IN ('KICK','BAN','CHAR_RENAME','PLAYER_GIVE') ORDER BY `id` DESC LIMIT 30");
+$result = $conn->query("SELECT `id`, `command`, `target_user`, `status`, `created_at` FROM `web_admin_commands` WHERE `command` IN ('KICK','BAN','CHAR_RENAME','PLAYER_GIVE','PLAYER_GEAR_TAKE','PLAYER_GEAR_WEAR') ORDER BY `id` DESC LIMIT 30");
 if ($result) {
     while ($row = $result->fetch_assoc()) {
         $history[] = $row;
@@ -302,3 +383,54 @@ $conn->close();
         <div class="text-center"><small class="fw-semibold">Chưa có lệnh nào.</small></div>
     <?php endif; ?>
 </div>
+
+<?php if ($pdetail): ?>
+<div class="mt-4">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="fw-bold">Chi tiết nhân vật: <?= htmlspecialchars($pdetail['name']) ?></h5>
+            <div class="row g-2 mb-2">
+                <div class="col-6 col-md-3"><b>Level:</b> <?= intval($pdetail['level']) ?? 0 ?></div>
+                <div class="col-6 col-md-3"><b>Phái:</b> <?= intval($pdetail['gender']) == 1 ? 'Nam' : 'Nữ' ?></div>
+                <div class="col-6 col-md-3"><b>Class:</b> <?= htmlspecialchars($classNames[intval($pdetail['class'])] ?? ('C' . intval($pdetail['class']))) ?></div>
+                <div class="col-6 col-md-3"><b>Clan:</b> <?= htmlspecialchars($pdetail['clan'] ?? 0) ?></div>
+                <div class="col-6 col-md-3"><b>Map:</b> <?= intval($pdetail['map'] ?? 0) ?></div>
+                <div class="col-6 col-md-3"><b>Vàng:</b> <?= number_format(intval($pdetail['yen'] ?? 0)) ?></div>
+                <div class="col-6 col-md-3"><b>Xu:</b> <?= number_format(intval($pdetail['xu'] ?? 0)) ?></div>
+                <div class="col-6 col-md-3"><b>Xu箱:</b> <?= number_format(intval($pdetail['xuInBox'] ?? 0)) ?></div>
+                <div class="col-6 col-md-3"><b>Status:</b> <?= intval($pdetail['ustatus'] ?? 0) == 1 ? 'Active' : (intval($pdetail['ustatus'] ?? 0) === 2 ? 'Block' : 'Inactive') ?></div>
+                <div class="col-6 col-md-3"><b>Online:</b> <?= intval($pdetail['uonline'] ?? 0) == 1 ? 'Yes' : 'No' ?></div>
+            </div>
+            <h6 class="fw-bold mt-2">Trang bị (từ player_status live, offline chỉ xem)</h6>
+            <div class="row g-2 mb-2">
+                <div class="col-12">
+                    <table class="table table-sm text-white mb-0">
+                        <thead><tr class="fw-bold text-uppercase"><th>Ô</th><th>ID</th><th>Tên</th><th>Upg</th></tr></thead>
+                        <tbody>
+                        <?php foreach (range(0, 9) as $i): ?>
+                            <tr>
+                                <td><?= $slotNames[$i] ?? ('Ô ' . $i) ?></td>
+                                <td></td><td></td><td></td>
+                            </tr>
+                        <?php endfor; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <h6 class="fw-bold">Túi đồ</h6>
+            <div class="row g-2 mb-2">
+                <div class="col-12">
+                    <table class="table table-sm text-white mb-0">
+                        <thead><tr class="fw-bold text-uppercase"><th>Ô</th><th>ID</th><th>Tên</th><th>Qty</th></tr></thead>
+                        <tbody>
+                        <?php for ($i = 0; $i < 20; $i++): ?>
+                            <tr><td><?= $i ?></td><td></td><td></td><td></td></tr>
+                        <?php endfor; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>

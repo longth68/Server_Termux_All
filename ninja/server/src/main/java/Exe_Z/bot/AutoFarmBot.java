@@ -1671,22 +1671,24 @@ public class AutoFarmBot extends Bot {
         return "";
     }
 
-    /** Snapshot trang bị + túi đồ để Web Admin hiển thị. */
+    /** Snapshot trang bị + túi đồ để Web Admin hiển thị (dùng chung cho BOT và người chơi). */
     @SuppressWarnings("unchecked")
-    public static org.json.simple.JSONObject snapshotGear(String name) {
+    public static org.json.simple.JSONObject gearJson(Char c) {
         org.json.simple.JSONObject o = new org.json.simple.JSONObject();
         org.json.simple.JSONArray eq = new org.json.simple.JSONArray();
         org.json.simple.JSONArray bag = new org.json.simple.JSONArray();
         o.put("eq", eq);
         o.put("bag", bag);
-        AutoFarmBot b = findBot(name);
-        if (b == null) {
+        if (c == null) {
             return o;
         }
+        AutoFarmBot b = (c instanceof AutoFarmBot) ? (AutoFarmBot) c : null;
+        Exe_Z.item.Item[] equipment = c.equipment;
+        Exe_Z.item.Item[] bagArr = c.bag;
         try {
-            if (b.equipment != null) {
-                for (int i = 0; i < b.equipment.length && i < 10; i++) {
-                    Exe_Z.item.Item it = b.equipment[i];
+            if (equipment != null) {
+                for (int i = 0; i < equipment.length && i < 10; i++) {
+                    Exe_Z.item.Item it = equipment[i];
                     if (it == null) {
                         continue;
                     }
@@ -1704,9 +1706,9 @@ public class AutoFarmBot extends Bot {
                     eq.add(e);
                 }
             }
-            if (b.bag != null) {
-                for (int i = 0; i < b.bag.length; i++) {
-                    Exe_Z.item.Item it = b.bag[i];
+            if (bagArr != null) {
+                for (int i = 0; i < bagArr.length; i++) {
+                    Exe_Z.item.Item it = bagArr[i];
                     if (it == null) {
                         continue;
                     }
@@ -1726,6 +1728,12 @@ public class AutoFarmBot extends Bot {
         } catch (Exception ignored) {
         }
         return o;
+    }
+
+    /** Snapshot trang bị + túi đồ để Web Admin hiển thị. */
+    @SuppressWarnings("unchecked")
+    public static org.json.simple.JSONObject snapshotGear(String name) {
+        return gearJson(findBot(name));
     }
 
     /** Cho BOT món đồ theo template id (Web Admin). */
