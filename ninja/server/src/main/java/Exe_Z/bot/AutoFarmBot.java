@@ -156,8 +156,67 @@ public class AutoFarmBot extends Bot {
     private long nextPartyInviteTime;
     private long nextTradeTime;
 
+    // ===== NRO-style AI (port VirtualPlayer) =====
+    public Exe_Z.bot.ai.BotProfile botProfile = new Exe_Z.bot.ai.BotProfile();
+    public Exe_Z.bot.ai.BotNeeds botNeeds = new Exe_Z.bot.ai.BotNeeds();
+    public Exe_Z.bot.ai.BotMemory botMemory = new Exe_Z.bot.ai.BotMemory();
+    public Exe_Z.bot.ai.BotGoals botGoals = new Exe_Z.bot.ai.BotGoals();
+    public Exe_Z.bot.ai.BotState botState = Exe_Z.bot.ai.BotState.SPAWN;
+    public boolean aiEnabled = true;
+    public int botTick = 0;
+    public long nextAiChatTime = 0L;
+    public long nextAiSocialTime = 0L;
+    public long lastAiMapChange = 0L;
+
     private AutoFarmBot(int id, String name, int level, byte typePk, byte classId) {
         super(id, name, level, typePk, classId);
+        try {
+            botProfile.rollPersonality();
+            botGoals.rollLongTerm(botProfile);
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Public wrappers cho package ai (giữ logic di chuyển/đánh/nhặt cũ). */
+    public void aiMoveTo(int tx, int ty) {
+        moveTo(tx, ty);
+    }
+
+    public void aiAttackMob(Mob mob) {
+        attackMob(mob);
+    }
+
+    public int[] aiMapBounds() {
+        return getMapBounds();
+    }
+
+    public boolean aiIsVillage() {
+        return isVillage();
+    }
+
+    public void aiPickup(Exe_Z.map.item.ItemMap im) {
+        if (im == null || zone == null) {
+            return;
+        }
+        im.lock.lock();
+        try {
+            if (!im.isPickedUp()) {
+                im.setPickedUp(true);
+                zone.getService().pickItem(this, im);
+                zone.removeItem(im);
+                lootCount++;
+            }
+        } finally {
+            im.lock.unlock();
+        }
+    }
+
+    public boolean aiPickupNearest() {
+        return autoPickup();
+    }
+
+    public void aiTryParty(Char player) {
+        maybeJoinParty(player);
     }
 
     @Override
@@ -177,6 +236,7 @@ public class AutoFarmBot extends Bot {
                 return;
             }
             if (isDead) {
+                botState = Exe_Z.bot.ai.BotState.DEAD;
                 if (respawnAt == 0) {
                     respawnAt = System.currentTimeMillis() + 3000L;
                 }
@@ -185,6 +245,18 @@ public class AutoFarmBot extends Bot {
                     recovery();
                     setXY(spawnX, spawnY);
                     zone.getService().playerMove(this);
+                    botState = Exe_Z.bot.ai.BotState.RESPAWN;
+                }
+                return;
+            }
+            // ===== NRO-style Brain: điều phối theo Needs/State/Personality =====
+            if (aiEnabled) {
+                botTick = tick;
+                try {
+                    Exe_Z.bot.ai.BotBrain.update(this);
+                    Exe_Z.bot.ai.BotBrain.tickClanAndPvp(this);
+                } catch (Exception ex) {
+                    Log.error("AutoFarmBot AI err: " + ex.getMessage(), ex);
                 }
                 return;
             }
@@ -1313,6 +1385,82 @@ public class AutoFarmBot extends Bot {
         }
     }
 
+    /** Xóa 1 bot theo tên (Web Admin quản lý thông tin chi tiết). */
+    public static boolean removeByName(String name) {
+        if (name == null || name.isEmpty()) {
+            return false;
+        }
+        synchronized (BOTS) {
+            java.util.Iterator<AutoFarmBot> it = BOTS.iterator();
+            while (it.hasNext()) {
+                AutoFarmBot b = it.next();
+                if (b != null && name.equals(b.name)) {
+                    try {
+                        if (b.zone != null) {
+                            b.zone.out(b);
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        Exe_Z.server.ServerManager.removeChar(b);
+                    } catch (Throwable ignored) {
+                    }
+                    b.isCleaned = true;
+                    it.remove();
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Snapshot thông tin chi tiết từng bot cho bảng bot_status (Web Admin). */
+    public static java.util.List<org.json.simple.JSONObject> snapshotInfo(int limit) {
+        java.util.List<org.json.simple.JSONObject> out = new java.util.ArrayList<>();
+        synchronized (BOTS) {
+            for (AutoFarmBot b : BOTS) {
+                if (b == null || b.isCleaned) {
+                    continue;
+                }
+                try {
+                    org.json.simple.JSONObject o = new org.json.simple.JSONObject();
+                    o.put("name", b.name == null ? "" : b.name);
+                    o.put("level", b.level);
+                    o.put("map_id", b.mapId);
+                    o.put("zone_id", b.zone != null ? b.zone.id : -1);
+                    o.put("x", b.x);
+                    o.put("y", b.y);
+                    o.put("hp", (long) b.hp);
+                    o.put("max_hp", (long) b.maxHP);
+                    o.put("state", b.botState == null ? "UNKNOWN" : b.botState.name());
+                    StringBuilder pers = new StringBuilder();
+                    try {
+                        for (Object p : b.botProfile.personalities) {
+                            if (pers.length() > 0) {
+                                pers.append(',');
+                            }
+                            pers.append(String.valueOf(p));
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    o.put("personality", pers.toString());
+                    String top = "UNKNOWN";
+                    try {
+                        top = b.botNeeds.topNeed();
+                    } catch (Exception ignored) {
+                    }
+                    o.put("top_need", top);
+                    out.add(o);
+                    if (out.size() >= limit) {
+                        break;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return out;
+    }
+
     // ---------------- THREAD QUÉT BOT THEO NGƯỜI CHƠI ----------------
     // Cứ mỗi 2 giây, quét toàn server: map/zone nào có người chơi thật nhưng
     // chưa có bot thì tự sinh bot trụ ngay gần người chơi để bot xuất hiện nhanh.
@@ -1339,6 +1487,11 @@ public class AutoFarmBot extends Bot {
             sweeper.setDaemon(true);
             sweeper.start();
             System.out.println("[BOT][SWEEPER] Auto bot sweeper started.");
+            try {
+                Exe_Z.bot.ai.BotConfig.load();
+                Exe_Z.bot.ai.BotManager.gI().start();
+            } catch (Exception ignored) {
+            }
         }
     }
 

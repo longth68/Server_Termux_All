@@ -136,6 +136,96 @@ public class WebAdminCommandPoller extends Thread {
             close(st);
             close(conn);
         }
+        updateBotStatus();
+    }
+
+    /** Ghi snapshot chi tiết từng bot vào bảng bot_status (tự tạo bảng nếu chưa có). */
+    private void updateBotStatus() {
+        Connection conn = null;
+        Statement create = null;
+        PreparedStatement del = null;
+        PreparedStatement ins = null;
+        try {
+            conn = DbManager.getInstance().getConnection(DbManager.GAME);
+            create = conn.createStatement();
+            create.executeUpdate("CREATE TABLE IF NOT EXISTS `bot_status` ("
+                    + "`id` int(11) NOT NULL AUTO_INCREMENT, `name` varchar(50) NOT NULL, "
+                    + "`level` int(11) NOT NULL DEFAULT 1, `map_id` int(11) NOT NULL DEFAULT 0, "
+                    + "`zone_id` int(11) NOT NULL DEFAULT 0, `x` int(11) NOT NULL DEFAULT 0, "
+                    + "`y` int(11) NOT NULL DEFAULT 0, `hp` bigint(20) NOT NULL DEFAULT 0, "
+                    + "`max_hp` bigint(20) NOT NULL DEFAULT 0, `state` varchar(30) DEFAULT '', "
+                    + "`personality` varchar(255) DEFAULT '', `top_need` varchar(30) DEFAULT '', "
+                    + "`updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP, "
+                    + "PRIMARY KEY (`id`), UNIQUE KEY `name` (`name`)) "
+                    + "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+            java.util.List<JSONObject> bots = AutoFarmBot.snapshotInfo(200);
+            del = conn.prepareStatement("DELETE FROM `bot_status`;");
+            del.executeUpdate();
+            if (bots.isEmpty()) {
+                return;
+            }
+            ins = conn.prepareStatement("INSERT INTO `bot_status` "
+                    + "(`name`,`level`,`map_id`,`zone_id`,`x`,`y`,`hp`,`max_hp`,`state`,`personality`,`top_need`,`updated_at`) "
+                    + "VALUES (?,?,?,?,?,?,?,?,?,?,?,NOW());");
+            for (JSONObject b : bots) {
+                ins.setString(1, str(b.get("name")));
+                ins.setInt(2, num(b.get("level")));
+                ins.setInt(3, num(b.get("map_id")));
+                ins.setInt(4, num(b.get("zone_id")));
+                ins.setInt(5, num(b.get("x")));
+                ins.setInt(6, num(b.get("y")));
+                ins.setLong(7, lng(b.get("hp")));
+                ins.setLong(8, lng(b.get("max_hp")));
+                ins.setString(9, str(b.get("state")));
+                ins.setString(10, str(b.get("personality")));
+                ins.setString(11, str(b.get("top_need")));
+                ins.addBatch();
+            }
+            ins.executeBatch();
+        } catch (Exception e) {
+            Log.error("WebAdminCommandPoller bot_status err: " + e.getMessage(), e);
+        } finally {
+            close(ins);
+            close(del);
+            close(create);
+            close(conn);
+        }
+    }
+
+    private String str(Object v) {
+        return v == null ? "" : String.valueOf(v);
+    }
+
+    private int num(Object v) {
+        if (v instanceof Number) {
+            return ((Number) v).intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(v));
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private long lng(Object v) {
+        if (v instanceof Number) {
+            return ((Number) v).longValue();
+        }
+        try {
+            return Long.parseLong(String.valueOf(v));
+        } catch (Exception e) {
+            return 0L;
+        }
+    }
+
+    private void killOneBot(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("name");
+        if (name == null || name.isEmpty()) {
+            return;
+        }
+        boolean ok = AutoFarmBot.removeByName(name);
+        Log.info("[WebAdmin] KILL_ONE_BOT name=" + name + " ok=" + ok);
     }
 
     private void executeCommand(String command, String targetUser, String data) throws Exception {
@@ -158,6 +248,12 @@ public class WebAdminCommandPoller extends Thread {
             case "KILL_BOT":
                 AutoFarmBot.removeAll();
                 Log.info("[WebAdmin] KILL_BOT: đã xóa toàn bộ bot.");
+                break;
+            case "KILL_ONE_BOT":
+                killOneBot(data);
+                break;
+            case "BOT_CONFIG":
+                botConfig(data);
                 break;
             case "RELOAD_DROP":
                 reloadDrop(data);
@@ -264,6 +360,53 @@ public class WebAdminCommandPoller extends Thread {
             GlobalService.getInstance().chat("Hệ thống", "Web Admin đã triệu hồi " + spawned + " bot tại map " + map + ".");
         }
         Log.info("[WebAdmin] SPAWN_BOT map=" + map + " count=" + count + " spawned=" + spawned);
+    }
+
+    // Cập nhật cấu hình BOT AI (port NRO VirtualConfig): enabled/population/rates/protection
+    private void botConfig(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        Exe_Z.bot.ai.BotConfig.load();
+        if (obj.get("enabled") != null) {
+            Object v = obj.get("enabled");
+            Exe_Z.bot.ai.BotConfig.ENABLED = v instanceof Boolean ? (Boolean) v
+                    : !"false".equalsIgnoreCase(String.valueOf(v));
+        }
+        if (obj.get("population") != null) {
+            Exe_Z.bot.ai.BotConfig.POPULATION = clamp(((Number) obj.get("population")).intValue(), 0, 200);
+        }
+        if (obj.get("bots_per_map") != null) {
+            Exe_Z.bot.ai.BotConfig.BOTS_PER_MAP = clamp(((Number) obj.get("bots_per_map")).intValue(), 1, 8);
+        }
+        if (obj.get("player_protection") != null) {
+            Exe_Z.bot.ai.BotConfig.PLAYER_PROTECTION_PX = clamp(((Number) obj.get("player_protection")).intValue(), 0, 500);
+        }
+        if (obj.get("chat_rate") != null) {
+            Exe_Z.bot.ai.BotConfig.CHAT_RATE = ((Number) obj.get("chat_rate")).floatValue();
+        }
+        if (obj.get("map_change_rate") != null) {
+            Exe_Z.bot.ai.BotConfig.MAP_CHANGE_RATE = ((Number) obj.get("map_change_rate")).floatValue();
+        }
+        if (obj.get("gift_rate") != null) {
+            Exe_Z.bot.ai.BotConfig.GIFT_RATE = ((Number) obj.get("gift_rate")).floatValue();
+        }
+        if (obj.get("afk_rate") != null) {
+            Exe_Z.bot.ai.BotConfig.AFK_RATE = ((Number) obj.get("afk_rate")).floatValue();
+        }
+        if (obj.get("gold_rate") != null) {
+            Exe_Z.bot.ai.BotConfig.GOLD_RATE = ((Number) obj.get("gold_rate")).floatValue();
+        }
+        Exe_Z.bot.ai.BotConfig.save();
+        GlobalService.getInstance().chat("Hệ thống",
+                "Web Admin đã cập nhật cấu hình BOT AI (pop=" + Exe_Z.bot.ai.BotConfig.POPULATION
+                        + ", per_map=" + Exe_Z.bot.ai.BotConfig.BOTS_PER_MAP + ").");
+        Log.info("[WebAdmin] BOT_CONFIG done: " + obj.toJSONString());
+    }
+
+    private int clamp(int v, int min, int max) {
+        if (v < min) {
+            return min;
+        }
+        return Math.min(v, max);
     }
 
     // Bỏ qua nhiệm vụ hiện tại của người chơi, nhảy sang nhiệm vụ tiếp theo

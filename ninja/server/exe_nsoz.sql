@@ -17408,3 +17408,21 @@ CREATE TABLE IF NOT EXISTS `server_status` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `bot_status` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(50) NOT NULL,
+  `level` int(11) NOT NULL DEFAULT 1,
+  `map_id` int(11) NOT NULL DEFAULT 0,
+  `zone_id` int(11) NOT NULL DEFAULT 0,
+  `x` int(11) NOT NULL DEFAULT 0,
+  `y` int(11) NOT NULL DEFAULT 0,
+  `hp` bigint(20) NOT NULL DEFAULT 0,
+  `max_hp` bigint(20) NOT NULL DEFAULT 0,
+  `state` varchar(30) DEFAULT '',
+  `personality` varchar(255) DEFAULT '',
+  `top_need` varchar(30) DEFAULT '',
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

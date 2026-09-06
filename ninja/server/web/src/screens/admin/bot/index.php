@@ -43,6 +43,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $msg = '<div class="alert alert-danger">Có lỗi khi gửi lệnh.</div>';
         }
         $stmt->close();
+    } elseif ($action == 'kill_one') {
+        $botName = isset($_POST['bot_name']) ? trim(strval($_POST['bot_name'])) : '';
+        if ($botName !== '') {
+            $data = json_encode(['name' => $botName], JSON_UNESCAPED_UNICODE);
+            $stmt = $conn->prepare("INSERT INTO `web_admin_commands` (`command`, `data`, `status`) VALUES ('KILL_ONE_BOT', ?, 0)");
+            $stmt->bind_param("s", $data);
+            if ($stmt->execute()) {
+                $msg = '<div class="alert alert-success">Đã gửi lệnh xóa bot <b>' . htmlspecialchars($botName) . '</b>.</div>';
+            } else {
+                $msg = '<div class="alert alert-danger">Có lỗi khi gửi lệnh.</div>';
+            }
+            $stmt->close();
+        } else {
+            $msg = '<div class="alert alert-danger">Thiếu tên bot.</div>';
+        }
+    } elseif ($action == 'bot_config') {
+        $cfg = [
+            'enabled' => isset($_POST['enabled']) ? (intval($_POST['enabled']) === 1) : true,
+            'population' => isset($_POST['population']) ? max(0, min(200, intval($_POST['population']))) : 20,
+            'bots_per_map' => isset($_POST['bots_per_map']) ? max(1, min(8, intval($_POST['bots_per_map']))) : 3,
+            'player_protection' => isset($_POST['player_protection']) ? max(0, min(500, intval($_POST['player_protection']))) : 80,
+            'chat_rate' => isset($_POST['chat_rate']) ? max(0, min(10, floatval($_POST['chat_rate']))) : 1.0,
+            'map_change_rate' => isset($_POST['map_change_rate']) ? max(0, min(10, floatval($_POST['map_change_rate']))) : 1.0,
+            'gift_rate' => isset($_POST['gift_rate']) ? max(0, min(10, floatval($_POST['gift_rate']))) : 1.0,
+            'afk_rate' => isset($_POST['afk_rate']) ? max(0, min(10, floatval($_POST['afk_rate']))) : 1.0,
+            'gold_rate' => isset($_POST['gold_rate']) ? max(0, min(10, floatval($_POST['gold_rate']))) : 1.0,
+        ];
+        $data = json_encode($cfg, JSON_UNESCAPED_UNICODE);
+        $stmt = $conn->prepare("INSERT INTO `web_admin_commands` (`command`, `data`, `status`) VALUES ('BOT_CONFIG', ?, 0)");
+        $stmt->bind_param("s", $data);
+        if ($stmt->execute()) {
+            $msg = '<div class="alert alert-success">Đã gửi cấu hình BOT AI (pop ' . $cfg['population'] . ', per_map ' . $cfg['bots_per_map'] . '). Server sẽ áp dụng trong vài giây.</div>';
+        } else {
+            $msg = '<div class="alert alert-danger">Có lỗi khi gửi cấu hình.</div>';
+        }
+        $stmt->close();
     }
 }
 
@@ -60,8 +96,32 @@ if ($result) {
     $status = $result->fetch_assoc();
 }
 
+// Đọc cấu hình BOT AI hiện tại từ file (cùng máy Termux), fallback giá trị mặc định
+$botCfg = ['enabled' => true, 'population' => 20, 'bots_per_map' => 3, 'player_protection' => 80, 'chat_rate' => 1.0, 'map_change_rate' => 1.0, 'gift_rate' => 1.0, 'afk_rate' => 1.0, 'gold_rate' => 1.0];
+foreach ([__DIR__ . '/../../../../../bot_config.txt', __DIR__ . '/../../../../bot_config.txt'] as $cfgPath) {
+    if (is_file($cfgPath)) {
+        $parsed = parse_ini_file($cfgPath, false, INI_SCANNER_RAW);
+        if (is_array($parsed)) {
+            foreach ($botCfg as $k => $v) {
+                if (isset($parsed[$k])) {
+                    $botCfg[$k] = is_bool($v) ? ($parsed[$k] !== 'false') : (is_int($v) ? intval($parsed[$k]) : floatval($parsed[$k]));
+                }
+            }
+        }
+        break;
+    }
+}
+
+$bots = [];
+$result = $conn->query("SELECT `name`, `level`, `map_id`, `zone_id`, `x`, `y`, `hp`, `max_hp`, `state`, `personality`, `top_need`, `updated_at` FROM `bot_status` ORDER BY `level` DESC, `name` ASC LIMIT 200");
+if ($result) {
+    while ($row = $result->fetch_assoc()) {
+        $bots[] = $row;
+    }
+}
+
 $history = [];
-$result = $conn->query("SELECT `id`, `command`, `target_user`, `data`, `status`, `created_at` FROM `web_admin_commands` WHERE `command` IN ('SPAWN_BOT','KILL_BOT') ORDER BY `id` DESC LIMIT 30");
+$result = $conn->query("SELECT `id`, `command`, `target_user`, `data`, `status`, `created_at` FROM `web_admin_commands` WHERE `command` IN ('SPAWN_BOT','KILL_BOT','KILL_ONE_BOT','BOT_CONFIG') ORDER BY `id` DESC LIMIT 30");
 if ($result) {
     while ($row = $result->fetch_assoc()) {
         $history[] = $row;
@@ -150,6 +210,104 @@ $conn->close();
             <p class="text-muted mt-2 mb-0"><small>Giới hạn tối đa 3 bot / khu vực. Bot tự đánh quái, nhặt đồ, hồi phục và hồi sinh; tự biến mất sau 3 giờ.</small></p>
         </div>
     </div>
+</div>
+
+<div class="mt-3">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="fw-bold">Cấu hình BOT AI (NRO-style)</h5>
+            <form method="POST">
+                <input type="hidden" name="action" value="bot_config">
+                <div class="row g-2 mb-2">
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Bật BOT</label>
+                        <select name="enabled" class="form-select">
+                            <option value="1" <?= !empty($botCfg['enabled']) ? 'selected' : '' ?>>Bật</option>
+                            <option value="0" <?= empty($botCfg['enabled']) ? 'selected' : '' ?>>Tắt</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Tổng số (population)</label>
+                        <input type="number" name="population" class="form-control" value="<?= intval($botCfg['population']) ?>" min="0" max="200">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Bot / khu (1-8)</label>
+                        <input type="number" name="bots_per_map" class="form-control" value="<?= intval($botCfg['bots_per_map']) ?>" min="1" max="8">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Nhường quái (px)</label>
+                        <input type="number" name="player_protection" class="form-control" value="<?= intval($botCfg['player_protection']) ?>" min="0" max="500">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="fw-semibold">Chat rate</label>
+                        <input type="number" step="0.1" name="chat_rate" class="form-control" value="<?= floatval($botCfg['chat_rate']) ?>" min="0" max="10">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="fw-semibold">Đổi map rate</label>
+                        <input type="number" step="0.1" name="map_change_rate" class="form-control" value="<?= floatval($botCfg['map_change_rate']) ?>" min="0" max="10">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="fw-semibold">Tặng đồ rate</label>
+                        <input type="number" step="0.1" name="gift_rate" class="form-control" value="<?= floatval($botCfg['gift_rate']) ?>" min="0" max="10">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">AFK rate</label>
+                        <input type="number" step="0.1" name="afk_rate" class="form-control" value="<?= floatval($botCfg['afk_rate']) ?>" min="0" max="10">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Vàng rate</label>
+                        <input type="number" step="0.1" name="gold_rate" class="form-control" value="<?= floatval($botCfg['gold_rate']) ?>" min="0" max="10">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Lưu cấu hình BOT AI</button>
+            </form>
+            <p class="text-muted mt-2 mb-0"><small>Gửi lệnh <code>BOT_CONFIG</code> qua <code>web_admin_commands</code>, server áp dụng trong vài giây và lưu <code>bot_config.txt</code>. Tắt BOT để chỉ giữ logic farm cũ.</small></p>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <h5 class="fw-bold">Quản lý thông tin BOT (<?= count($bots) ?> đang chạy)</h5>
+    <?php if (count($bots) > 0): ?>
+        <div class="table-responsive" style="border-radius: 1rem;">
+            <table class="table text-white fw-semibold mb-0" role="table">
+                <thead>
+                    <tr class="text-start fw-bold text-uppercase gs-0">
+                        <th>Tên</th>
+                        <th>Lv</th>
+                        <th>Map/Khu</th>
+                        <th>HP</th>
+                        <th>State</th>
+                        <th>Personality</th>
+                        <th>Need</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($bots as $b): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($b['name']) ?></td>
+                            <td><?= intval($b['level']) ?></td>
+                            <td><?= intval($b['map_id']) ?>/<?= intval($b['zone_id']) ?></td>
+                            <td><?= number_format(intval($b['hp'])) ?>/<?= number_format(intval($b['max_hp'])) ?></td>
+                            <td><?= htmlspecialchars($b['state']) ?></td>
+                            <td><small><?= htmlspecialchars(mb_strimwidth(strval($b['personality']), 0, 40, '...')) ?></small></td>
+                            <td><?= htmlspecialchars($b['top_need']) ?></td>
+                            <td>
+                                <form method="POST" onsubmit="return confirm('Xóa bot <?= htmlspecialchars($b['name']) ?>?')">
+                                    <input type="hidden" name="action" value="kill_one">
+                                    <input type="hidden" name="bot_name" value="<?= htmlspecialchars($b['name']) ?>">
+                                    <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php else: ?>
+        <div class="text-center"><small class="fw-semibold">Chưa có bot nào (bảng cập nhật mỗi ~3 giây khi server chạy).</small></div>
+    <?php endif; ?>
 </div>
 
 <div class="mt-4">
