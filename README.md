@@ -50,7 +50,7 @@ bash update_nro.sh
 
 ---
 
-## 🤖 BOT AI Ninja School (kiến trúc NRO)
+## 🤖 BOT AI Ninja School (kiến trúc NRO — đã kiểm chứng với game)
 
 Ninja School đã được nâng cấp BOT AI theo kiến trúc `VirtualPlayer` của Ngọc Rồng:
 `Personality` (20 tính cách) + `Needs` (EXP/GOLD/ITEM/QUEST/SOCIAL/REST/EXPLORE) +
@@ -58,11 +58,26 @@ Ninja School đã được nâng cấp BOT AI theo kiến trúc `VirtualPlayer` 
 bot tự farm, nhặt đồ, hồi phục, chat, lập tổ đội, nhường quái cho người chơi thật
 (`player_protection`), tự đi theo map có người chơi.
 
+Đã rà soát khớp với game NSO (`Char`/`Zone`/`Mob`/`ItemMap`/`MapService`):
+* **Trang bị hiển thị đúng**: `equipment[type]` map đúng slot `NON=0..PHU=9`,
+  `FashionFromEquip` dựng `weapon/body/leg/head` từ đồ, `setFashion()` chạy
+  trước `zone.join()` nên client khác thấy ngoại hình chuẩn; `speed` đã fix
+  (trước đây bị ghi đè về 0).
+* **Di chuyển đúng tọa độ map**: bước 55 trong `waypoints`, snap đất bằng
+  `collisionY`, kẹp `short` theo `tilemap.pxw/pxh`, qua `zone.move`
+  (bot được miễn check anti-cheat tốc độ như người chơi).
+* **Combat đúng map**: khóa `mob.lock`, trừ HP thật, broadcast `attackMonster`,
+  `mob.die()` hồi sinh chuẩn; bot nhường quái trong vòng `player_protection`
+  quanh người chơi thật.
+
 * Web Admin `/admin/bot` (web Ninja `http://localhost:8000`): **Cấu hình BOT AI**
-  (`population`, `bots_per_map`, `player_protection`, các `*_rate`) +
-  **Quản lý thông tin BOT** (xem từng bot: Lv/Map/State/Personality/Need, xóa lẻ).
+  (`enabled`, `population`, `bots_per_map` 1-8, `player_protection`, các
+  `*_rate`) + **Quản lý thông tin BOT** (xem từng bot: Tên/Lv/Map-Khu/HP/State/
+  Personality/Need, nút xóa lẻ `KILL_ONE_BOT`, xóa tất cả `KILL_BOT`).
 * File cấu hình: `ninja/server/bot_config.txt`. Bảng `bot_status` tự tạo khi
   server chạy (máy mới cài đã có sẵn trong `exe_nsoz.sql`), không cần import tay.
+* Cập nhật trên Termux: `git pull origin main` rồi
+  `bash ninja_stop.sh; bash ninja_start.sh` (không mất dữ liệu `schoolzz`).
 * Chi tiết: xem [`HUONG_DAN_BOT_AI.md`](HUONG_DAN_BOT_AI.md).
 
 ---
