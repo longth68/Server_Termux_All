@@ -199,7 +199,7 @@ if ($accId > 0) {
         $stmt->close();
     }
     if ($accDetail) {
-        $stmt = $conn->prepare("SELECT `id`, `name`, `class`, `gender`, `level`, `yen`, `xu`, `xuInBox`, `online` FROM `players` WHERE `user_id` = ? ORDER BY `id`");
+        $stmt = $conn->prepare("SELECT `id`, `name`, `class`, `gender`, CAST(JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.exp')) AS UNSIGNED) AS `exp`, `yen`, `xu`, `xuInBox`, `online` FROM `players` WHERE `user_id` = ? ORDER BY `id`");
         $stmt->bind_param("i", $accId);
         $stmt->execute();
         $res = $stmt->get_result();
@@ -320,7 +320,7 @@ $conn->close();
     <h6 class="fw-bold mt-3">Nhân vật của tài khoản (<?= count($accChars) ?>)</h6>
     <div class="table-responsive">
         <table class="table table-sm mb-0 align-middle">
-            <thead><tr class="fw-bold text-uppercase"><th>ID</th><th>Tên</th><th>Class</th><th>Phái</th><th>Cấp</th><th>Yên</th><th>Xu</th><th>Xu khóa</th><th>Online</th></tr></thead>
+            <thead><tr class="fw-bold text-uppercase"><th>ID</th><th>Tên</th><th>Class</th><th>Phái</th><th>Exp</th><th>Yên</th><th>Xu</th><th>Xu khóa</th><th>Online</th></tr></thead>
             <tbody>
             <?php foreach ($accChars as $ch): ?>
                 <tr>
@@ -328,7 +328,7 @@ $conn->close();
                     <td class="fw-semibold"><?= htmlspecialchars($ch['name']) ?></td>
                     <td><?= htmlspecialchars($classNames[(int)$ch['class']] ?? ('C' . (int)$ch['class'])) ?></td>
                     <td><?= (int)$ch['gender'] == 1 ? 'Nam' : 'Nữ' ?></td>
-                    <td><?= (int)$ch['level'] ?></td>
+                    <td><?= number_format((int)$ch['exp']) ?></td>
                     <td><?= number_format((int)$ch['yen']) ?></td>
                     <td><?= number_format((int)$ch['xu']) ?></td>
                     <td><?= number_format((int)$ch['xuInBox']) ?></td>

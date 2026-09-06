@@ -166,6 +166,7 @@ public class AutoFarmBot extends Bot {
     public int botTick = 0;
     public long nextAiChatTime = 0L;
     public long nextAiSocialTime = 0L;
+    public long nextAiPrivateTime = 0L;
     public long lastAiMapChange = 0L;
 
     private AutoFarmBot(int id, String name, int level, byte typePk, byte classId) {
@@ -720,7 +721,10 @@ public class AutoFarmBot extends Bot {
         }
         nextTradeTime = now + NinjaUtils.nextInt(90000, 180000);
         try {
-            Item rare = createItemForLevel(player.level);
+            // 60% tặng đồ hiếm/cao cấp theo cấp, 40% đồ thường đúng cấp
+            Item rare = NinjaUtils.nextInt(0, 99) < 60
+                    ? createRareGiftForLevel(player.level)
+                    : createItemForLevel(player.level);
             if (rare == null) {
                 return;
             }
@@ -842,6 +846,63 @@ public class AutoFarmBot extends Bot {
             return createRareItem();
         } catch (Exception ex) {
             Log.error("AutoFarmBot createItemForLevel err: " + ex.getMessage(), ex);
+        }
+        return createRareItem();
+    }
+
+    /**
+     * Sinh VẬT PHẨM HIẾM / CAO CẤP tùy theo cấp người chơi (mẫu NRO quà hiếm):
+     * - 55%: trang bị đúng cấp, nâng cấp +10..+14, thêm option ngẫu nhiên
+     * - 30%: trang bị CAO CẤP đúng cấp, nâng cấp +13..+16 (mức tối đa)
+     * - 15%: vật phẩm hiếm đặc biệt (RARE_ITEM_IDS: đá cường hóa, phúc nang...)
+     * Đồ luôn mặc được ngay (level ≤ người chơi + vài cấp).
+     */
+    private Item createRareGiftForLevel(int playerLevel) {
+        try {
+            int roll = NinjaUtils.nextInt(0, 99);
+            if (roll < 15) {
+                // Vật phẩm hiếm đặc biệt
+                Item it = createRareItem();
+                if (it != null) {
+                    return it;
+                }
+            }
+            int target = Math.max(1, playerLevel);
+            int min = Math.max(1, target - 2);
+            int max = target + 3;
+            boolean topTier = roll >= 15 && roll < 45; // 30% cao cấp nhất
+            int bestUp = topTier ? NinjaUtils.nextInt(13, 16) : NinjaUtils.nextInt(10, 14);
+            java.util.List<Integer> ids = new ArrayList<>();
+            Exe_Z.item.ItemManager mgr = Exe_Z.item.ItemManager.getInstance();
+            for (int id = 0; id < 650; id++) {
+                Exe_Z.item.ItemTemplate tpl;
+                try {
+                    tpl = mgr.getItemTemplate(id);
+                } catch (Exception e) {
+                    break;
+                }
+                if (tpl == null || tpl.type < 0 || tpl.type > 9) {
+                    continue;
+                }
+                if (tpl.level >= min && tpl.level <= max) {
+                    ids.add(id);
+                }
+            }
+            if (ids.isEmpty()) {
+                return createRareItem();
+            }
+            int chosen = ids.get(NinjaUtils.nextInt(0, ids.size() - 1));
+            Exe_Z.item.Item it = ItemFactory.getInstance().newItemMax(chosen);
+            try {
+                // Nâng cấp cao + option hỗ trợ (HP, dame) như đồ người chơi rèn
+                it.upgrade = (byte) bestUp;
+                it.options.add(new Exe_Z.option.ItemOption(6, 1000 + bestUp * 100)); // HP
+                it.options.add(new Exe_Z.option.ItemOption(7, 1000 + bestUp * 100)); // MP
+            } catch (Exception ignored) {
+            }
+            return it;
+        } catch (Exception ex) {
+            Log.error("AutoFarmBot createRareGiftForLevel err: " + ex.getMessage(), ex);
         }
         return createRareItem();
     }
@@ -1201,7 +1262,8 @@ public class AutoFarmBot extends Bot {
                     break;
                 }
             }
-            AutoFarmBot bot = createBot(z, Math.max(1, level), Math.max(100, hp), Math.max(10, damage), speed, (byte) 1);
+            // Class ngẫu nhiên 1-6 (Kiếm/Tiêu/Kunai/Cung/Đao/Quạt) như người chơi thật
+            AutoFarmBot bot = createBot(z, Math.max(1, level), Math.max(100, hp), Math.max(10, damage), speed, (byte) NinjaUtils.nextInt(1, 6));
             bot.setXY((short) sx, (short) sy);
             bot.spawnX = bot.x;
             bot.spawnY = bot.y;
@@ -1450,11 +1512,18 @@ public class AutoFarmBot extends Bot {
         return max;
     }
 
-    /** Cap level BOT theo người mạnh nhất (mẫu NRO cap = maxReal × catchup). */
+    /**
+     * Cap level BOT: LUÔN THẤP HƠN người chơi mạnh nhất online (mẫu NRO
+     * playerProtection — bot giả vờ cày cuốc bám đuổi nhưng không bao giờ vượt).
+     * Nếu có người online: cap = maxReal - 1. Không ai online: không đổi.
+     */
     public static int capLevel(int level) {
         int m = maxOnlineRealLevel();
-        if (m > 0 && level > m) {
-            return m;
+        if (m > 1) {
+            int cap = Math.max(1, m - 1);
+            if (level > cap) {
+                return cap;
+            }
         }
         return Math.max(1, level);
     }
@@ -1989,8 +2058,10 @@ public class AutoFarmBot extends Bot {
             sweeper = new Thread(() -> {
                 while (true) {
                     try {
-                        Thread.sleep(2000L);
-                        ensureBotNearPlayers();
+                        Thread.sleep(5000L);
+                        // BOT sống độc lập trong map (không bám người chơi):
+                        // chỉ dọn bot vượt level theo mẫu NRO playerProtection.
+                        removeOverleveled();
                     } catch (InterruptedException e) {
                         break;
                     } catch (Exception e) {

@@ -45,7 +45,6 @@ public class BotManager implements Runnable {
                     continue;
                 }
                 fillToTarget();
-                accompanyRealPlayers();
                 long now = System.currentTimeMillis();
                 if (now - lastSync > 60000L) {
                     lastSync = now;

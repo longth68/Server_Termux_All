@@ -39,6 +39,8 @@ public class BotBrain {
                 return;
             }
             Mob target = BotCombat.findTarget(bot);
+            // Nhắn tin riêng cho người chơi quen (tự cooldown nội bộ)
+            BotChat.tickPrivate(bot);
             BotGoals.ShortTerm want = BotDecision.choose(bot, target);
             bot.botGoals.shortTerm = want;
             switch (want) {
