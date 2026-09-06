@@ -475,7 +475,7 @@ if ($result) {
                         <input type="number" step="0.1" name="afk_rate" class="form-control" value="<?= floatval($botCfg['afk_rate']) ?>" min="0" max="10">
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="fw-semibold">Vàng rate</label>
+                        <label class="fw-semibold">Lượng rate</label>
                         <input type="number" step="0.1" name="gold_rate" class="form-control" value="<?= floatval($botCfg['gold_rate']) ?>" min="0" max="10">
                     </div>
                     <div class="col-6 col-md-3">
@@ -525,7 +525,7 @@ if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
                 <div class="col-6 col-md-3"><b>Map/Khu:</b> <?= intval($detail['map_id']) ?>/<?= intval($detail['zone_id']) ?> (<?= intval($detail['x']) ?>,<?= intval($detail['y']) ?>)</div>
                 <div class="col-6 col-md-3"><b>HP:</b> <?= number_format(intval($detail['hp'])) ?>/<?= number_format(intval($detail['max_hp'])) ?></div>
                 <div class="col-6 col-md-3"><b>Dame:</b> <?= number_format(intval($detail['damage'])) ?></div>
-                <div class="col-6 col-md-3"><b>Vàng:</b> <?= number_format(intval($detail['gold'])) ?></div>
+                <div class="col-6 col-md-3"><b>Lượng:</b> <?= number_format(intval($detail['gold'])) ?></div>
                 <div class="col-6 col-md-3"><b>State:</b> <?= htmlspecialchars($detail['state']) ?></div>
                 <div class="col-6 col-md-3"><b>Mục tiêu:</b> <?= htmlspecialchars($detail['goal']) ?></div>
                 <div class="col-6 col-md-3"><b>Need:</b> <?= htmlspecialchars($detail['top_need']) ?></div>
@@ -584,7 +584,7 @@ if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
                 <form method="POST" class="d-flex gap-2">
                     <input type="hidden" name="action" value="bot_gold">
                     <input type="hidden" name="bot_name" value="<?= htmlspecialchars($detail['name']) ?>">
-                    <input type="number" name="amount" class="form-control" placeholder="Vàng..." required>
+                    <input type="number" name="amount" class="form-control" placeholder="Lượng..." required>
                     <button type="submit" class="btn btn-warning">Cộng vàng</button>
                 </form>
                 <form method="POST">
@@ -631,7 +631,7 @@ if (isset($_GET['detail']) && trim(strval($_GET['detail'])) !== '') {
                     <th>Phái/Class</th>
                     <th>Map/Khu</th>
                     <th>HP</th>
-                    <th>Vàng</th>
+                    <th>Lượng</th>
                     <th>State</th>
                     <th>Mục tiêu</th>
                     <th>Need</th>

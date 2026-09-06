@@ -629,9 +629,9 @@ if ($pdetail) {
                     <div class="col-6 col-md-3"><b>Class:</b> <?= htmlspecialchars($classNames[intval($pdetail['class'] ?? 0)] ?? ('C' . intval($pdetail['class'] ?? 0))) ?></div>
                     <div class="col-6 col-md-3"><b>Username:</b> <?= htmlspecialchars($pdetail['username'] ?? '-') ?></div>
                     <div class="col-6 col-md-3"><b>Map:</b> <?= intval($pdetail['map'] ?? 0) ?></div>
-                    <div class="col-6 col-md-3"><b>Vàng:</b> <?= number_format(intval($pdetail['yen'] ?? 0)) ?></div>
+                    <div class="col-6 col-md-3"><b>Yên:</b> <?= number_format(intval($pdetail['yen'] ?? 0)) ?></div>
                     <div class="col-6 col-md-3"><b>Xu:</b> <?= number_format(intval($pdetail['xu'] ?? 0)) ?></div>
-                    <div class="col-6 col-md-3"><b>Xu hòm:</b> <?= number_format(intval($pdetail['xuInBox'] ?? 0)) ?></div>
+                    <div class="col-6 col-md-3"><b>Xu khóa:</b> <?= number_format(intval($pdetail['xuInBox'] ?? 0)) ?></div>
                     <div class="col-6 col-md-3"><b>HP:</b> <?= $plive ? intval($plive['hp'] ?? 0) . '/' . intval($plive['max_hp'] ?? 0) : '-' ?></div>
                     <div class="col-6 col-md-3"><b>Clan:</b> <?= htmlspecialchars(strval($plive['clan'] ?? '-')) ?></div>
                     <div class="col-6 col-md-3"><b>Status:</b> <?= intval($pdetail['ustatus'] ?? 0) == 1 ? '<span class="text-success">Active</span>' : (intval($pdetail['ustatus'] ?? 0) === 2 ? '<span class="text-danger">Block</span>' : '<span class="text-muted">Inactive</span>') ?></div>
@@ -643,9 +643,9 @@ if ($pdetail) {
                     <input type="hidden" name="char_name" value="<?= htmlspecialchars($pdetail['name']) ?>">
                     <div class="col-6 col-md-2"><label class="form-label small">Level</label><input type="number" name="level" class="form-control form-control-sm" min="1" max="200" placeholder="<?= intval($pdetail['level'] ?? 0) ?>"></div>
                     <div class="col-6 col-md-2"><label class="form-label small">Exp</label><input type="number" name="exp" class="form-control form-control-sm" placeholder="<?= intval($pdetail['exp'] ?? 0) ?>"></div>
-                    <div class="col-6 col-md-2"><label class="form-label small">Vàng</label><input type="number" name="yen" class="form-control form-control-sm" placeholder="<?= intval($pdetail['yen'] ?? 0) ?>"></div>
+                    <div class="col-6 col-md-2"><label class="form-label small">Yên</label><input type="number" name="yen" class="form-control form-control-sm" placeholder="<?= intval($pdetail['yen'] ?? 0) ?>"></div>
                     <div class="col-6 col-md-2"><label class="form-label small">Xu</label><input type="number" name="xu" class="form-control form-control-sm" placeholder="<?= intval($pdetail['xu'] ?? 0) ?>"></div>
-                    <div class="col-6 col-md-2"><label class="form-label small">Xu hòm</label><input type="number" name="xuInBox" class="form-control form-control-sm" placeholder="<?= intval($pdetail['xuInBox'] ?? 0) ?>"></div>
+                    <div class="col-6 col-md-2"><label class="form-label small">Xu khóa</label><input type="number" name="xuInBox" class="form-control form-control-sm" placeholder="<?= intval($pdetail['xuInBox'] ?? 0) ?>"></div>
                     <div class="col-6 col-md-2"><label class="form-label small">Điểm kỹ năng (spoint)</label><input type="number" name="spoint" class="form-control form-control-sm" placeholder="<?= intval($pdetail['spoint'] ?? 0) ?>"></div>
                     <div class="col-6 col-md-2"><label class="form-label small">Phái (1=Nam)</label><input type="number" name="gender" class="form-control form-control-sm" min="0" max="1" placeholder="<?= intval($pdetail['gender'] ?? 0) ?>"></div>
                     <div class="col-6 col-md-2"><label class="form-label small">Class (0-6)</label><input type="number" name="class" class="form-control form-control-sm" min="0" max="6" placeholder="<?= intval($pdetail['class'] ?? 0) ?>"></div>

@@ -31,8 +31,8 @@ $luongCount = $conn->query("SELECT `id` FROM `users` WHERE `luong` > 0;")->num_r
             </div>
             <div class="container mb-2">
                 <div class="row text-center justify-content-center g-2 mt-1">
-				    <div class="col-12 col-md-4 col-lg-3">
-                        <a class="btn btn-success fw-semibold" href="/admin/member">Chỉnh Sửa Thành Viên</a>
+                    <div class="col-12 col-md-4 col-lg-3">
+                        <a class="btn btn-success fw-semibold" href="/admin/member">Quản Lý Tài Khoản</a>
                     </div>
                     <div class="col-12 col-md-4 col-lg-3">
                         <a class="btn btn-success fw-semibold" href="/admin/code">Chỉnh Sửa giftcode</a>
@@ -66,9 +66,6 @@ $luongCount = $conn->query("SELECT `id` FROM `users` WHERE `luong` > 0;")->num_r
                     </div>
                     <div class="col-12 col-md-4 col-lg-3">
                         <a class="btn btn-success fw-semibold" href="/admin/clan">Quản Lý Bang Hội</a>
-                    </div>
-                    <div class="col-12 col-md-4 col-lg-3">
-                        <a class="btn btn-success fw-semibold" href="/admin/top">Bảng Xếp Hạng</a>
                     </div>
                 </div>
                 <canvas style="margin-top:10px;" class="bar-chart" id="barChart" width="400" height="200"></canvas>
