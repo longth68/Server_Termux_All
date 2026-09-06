@@ -17766,23 +17766,27 @@ public class Char {
     }
 
     public void viewDiamond(Char p) {
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        ResultSet result = null;
         try {
-            Connection conn = DbManager.getInstance().getConnection(DbManager.GAME);
-            PreparedStatement stmt = conn.prepareStatement("SELECT `balance` FROM `users` WHERE `id` = ? LIMIT 1;");
+            conn = DbManager.getInstance().getConnection(DbManager.GAME);
+            stmt = conn.prepareStatement("SELECT `balance` FROM `users` WHERE `id` = ? LIMIT 1;");
             stmt.setInt(1, p.user.id);
-            ResultSet result = stmt.executeQuery();
+            result = stmt.executeQuery();
             if (result.next()) {
                 int diamond = result.getInt("balance");
                 String formattedDiamond = formatNumberWithCommas(diamond);
-                p.serverDialog("Bạn đang có " + formattedDiamond + " VND");
+                p.serverDialog("Ban dang co " + formattedDiamond + " VND");
             } else {
-                p.serverDialog("Không tìm thấy thông tin người dùng.");
+                p.serverDialog("Khong tim thay thong tin nguoi dung.");
             }
-            result.close();
-            stmt.close();
-            conn.close();
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            try { if (result != null) { result.close(); } } catch (Exception ignored) {}
+            try { if (stmt != null) { stmt.close(); } } catch (Exception ignored) {}
+            try { if (conn != null) { conn.close(); } } catch (Exception ignored) {}
         }
     }
 
@@ -17792,10 +17796,13 @@ public class Char {
     }
 
     public void viewAllExchangeRates(Char p) {
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        ResultSet result = null;
         try {
-            Connection conn = DbManager.getInstance().getConnection(DbManager.GAME);
-            PreparedStatement stmt = conn.prepareStatement("SELECT `id`, `balance_to_subtract`, `luong_to_add`, `exchange_multiplier` FROM `exchange_rates` ORDER BY `id` ASC;");
-            ResultSet result = stmt.executeQuery();
+            conn = DbManager.getInstance().getConnection(DbManager.GAME);
+            stmt = conn.prepareStatement("SELECT `id`, `balance_to_subtract`, `luong_to_add`, `exchange_multiplier` FROM `exchange_rates` ORDER BY `id` ASC;");
+            result = stmt.executeQuery();
 
             StringBuilder message = new StringBuilder("Thông tin tỉ lệ đổi:\n");
             NumberFormat formatter = NumberFormat.getInstance(Locale.US);
@@ -17824,12 +17831,12 @@ public class Char {
             } else {
                 p.serverDialog("Không có thông tin tỉ lệ đổi.");
             }
-
-            result.close();
-            stmt.close();
-            conn.close();
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            try { if (result != null) { result.close(); } } catch (Exception ignored) {}
+            try { if (stmt != null) { stmt.close(); } } catch (Exception ignored) {}
+            try { if (conn != null) { conn.close(); } } catch (Exception ignored) {}
         }
     }
 
@@ -23850,6 +23857,7 @@ public class Char {
                     stmt.executeUpdate();
                 } finally {
                     stmt.close();
+                    try { conn.close(); } catch (Exception ignored) {}
                 }
                 if (Event.getEvent() != null) {
                     updateEventPoint();
@@ -25231,6 +25239,9 @@ public class Char {
     }
 
     public int getTongNaps(Char p) {
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        ResultSet result = null;
         try {
             if (p == null) {
                 return -1;
@@ -25238,18 +25249,19 @@ public class Char {
             if (p.user == null) {
                 return -1;
             }
-            Connection conn = DbManager.getInstance().getConnection(DbManager.GAME);
-            PreparedStatement stmt = conn.prepareStatement("SELECT `tongnap` FROM `players` WHERE `id` = ? LIMIT 1;");
+            conn = DbManager.getInstance().getConnection(DbManager.GAME);
+            stmt = conn.prepareStatement("SELECT `tongnap` FROM `players` WHERE `id` = ? LIMIT 1;");
             stmt.setInt(1, p.user.id);
-            ResultSet result = stmt.executeQuery();
+            result = stmt.executeQuery();
             if (result.next()) {
                 return result.getInt("tongnap");
             }
-
-            result.close();
-            stmt.close();
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            try { if (result != null) { result.close(); } } catch (Exception ignored) {}
+            try { if (stmt != null) { stmt.close(); } } catch (Exception ignored) {}
+            try { if (conn != null) { conn.close(); } } catch (Exception ignored) {}
         }
         return -1;
     }

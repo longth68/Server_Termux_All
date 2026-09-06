@@ -42,7 +42,8 @@ public class GiftCode {
                 return;
             }
 
-            PreparedStatement stmt = DbManager.getInstance().getConnection(DbManager.GIFT_CODE).prepareStatement(
+            Connection connGC = DbManager.getInstance().getConnection(DbManager.GIFT_CODE);
+            PreparedStatement stmt = connGC.prepareStatement(
                     SQLStatement.GET_GIFT_CODE, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
             stmt.setString(1, code);
             stmt.setInt(2, Config.getInstance().getServerID());
@@ -127,45 +128,54 @@ public class GiftCode {
             } finally {
                 res.close();
                 stmt.close();
+                try { connGC.close(); } catch (Exception ignored) {}
             }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
-
     public boolean isUsedGiftCode(Char player, String giftCode) {
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        ResultSet res = null;
         try {
-            PreparedStatement stmt = DbManager.getInstance().getConnection(DbManager.GIFT_CODE).prepareStatement(
+            conn = DbManager.getInstance().getConnection(DbManager.GIFT_CODE);
+            stmt = conn.prepareStatement(
                     SQLStatement.CHECK_EXIST_USED_GIFT_CODE, ResultSet.TYPE_SCROLL_SENSITIVE,
                     ResultSet.CONCUR_READ_ONLY);
             stmt.setString(1, giftCode);
             stmt.setInt(2, player.id);
             stmt.setInt(3, player.user.id);
-            ResultSet res = stmt.executeQuery();
+            res = stmt.executeQuery();
             try {
                 if (res.first()) {
                     return true;
                 }
             } finally {
                 res.close();
-                stmt.close();
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            try { if (res != null) { res.close(); } } catch (Exception ignored) {}
+            try { if (stmt != null) { stmt.close(); } } catch (Exception ignored) {}
+            try { if (conn != null) { conn.close(); } } catch (Exception ignored) {}
         }
         return false;
     }
 
     public void addUsedGiftCode(Char player, String giftCode) {
+        Connection conn = null;
+        PreparedStatement stmt = null;
         try {
             Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-            PreparedStatement stmt = DbManager.getInstance().getConnection(DbManager.GIFT_CODE).prepareStatement(SQLStatement.INSERT_USED_GIFT_CODE);
+            conn = DbManager.getInstance().getConnection(DbManager.GIFT_CODE);
+            stmt = conn.prepareStatement(SQLStatement.INSERT_USED_GIFT_CODE);
             stmt.setInt(1, player.id);
             stmt.setInt(2, player.user.id);
             stmt.setString(3, giftCode);
             stmt.setTimestamp(4, timestamp);
             stmt.executeUpdate();
-            stmt.close();
         } catch (SQLException e) {
             e.printStackTrace();
         }
