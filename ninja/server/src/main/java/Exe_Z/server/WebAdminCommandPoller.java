@@ -495,6 +495,30 @@ public class WebAdminCommandPoller extends Thread {
             case "PLAYER_GEAR_WEAR":
                 playerGearWear(data);
                 break;
+            case "PLAYER_EDIT":
+                playerEdit(data);
+                break;
+            case "PLAYER_TASK_SET":
+                playerTaskSet(data);
+                break;
+            case "PLAYER_TASK_FINISH":
+                playerTaskFinish(data);
+                break;
+            case "PLAYER_TASK_RESET":
+                playerTaskReset(data);
+                break;
+            case "PLAYER_GEAR_UPGRADE":
+                playerGearUpgrade(data);
+                break;
+            case "PLAYER_RESET_PW":
+                playerResetPassword(data);
+                break;
+            case "USER_SET_CURRENCY":
+                userSetCurrency(data);
+                break;
+            case "PLAYER_TELEPORT":
+                playerTeleport(data);
+                break;
             case "UPDATE_SERVER_CONFIG":
                 Config.getInstance().reload();
                 Config.getInstance().reloadnjtl();
@@ -832,6 +856,305 @@ public class WebAdminCommandPoller extends Thread {
             }
         }
         Log.info("[WebAdmin] PLAYER_GEAR_WEAR " + name + " bag[" + slot + "] ok=" + ok);
+    }
+
+    // Chỉnh sửa trực tiếp chỉ số nhân vật (áp dụng cho cả online lẫn offline, cập nhật DB trực tiếp)
+    private void playerEdit(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("char");
+        if (name == null) {
+            name = (String) obj.get("name");
+        }
+        if (name == null || name.isEmpty()) {
+            Log.warn("[WebAdmin] PLAYER_EDIT thiếu tên nhân vật.");
+            return;
+        }
+        // map field JSON -> (cột DB). DB: level int, exp long, yen long, xu/xuInBox long (Char: coin/coinInBox), spoint int
+        String[] fields = {"level", "exp", "yen", "xu", "xuInBox", "spoint", "gender", "class"};
+        String[] dbCols  = {"level", "exp",  "yen", "xu", "xuInBox", "spoint", "gender", "class"};
+        List<String> sets = new ArrayList<>();
+        java.util.List<Object> vals = new ArrayList<>();
+        for (int fi = 0; fi < fields.length; fi++) {
+            String f = fields[fi];
+            if (obj.containsKey(f) && obj.get(f) != null) {
+                sets.add("`" + dbCols[fi] + "` = ?");
+                try {
+                    Number n = (Number) obj.get(f);
+                    if (dbCols[fi].equals("level") || dbCols[fi].equals("spoint") || dbCols[fi].equals("gender") || dbCols[fi].equals("class")) {
+                        vals.add(n.intValue());
+                    } else {
+                        vals.add(n.longValue());
+                    }
+                } catch (Exception e) {
+                    try { vals.add(Long.parseLong(strval(obj.get(f)))); } catch (Exception ex) { vals.add(0L); }
+                }
+            }
+        }
+        if (sets.isEmpty()) {
+            Log.warn("[WebAdmin] PLAYER_EDIT: không có trường nào để cập nhật.");
+            return;
+        }
+        vals.add(name);
+        String sql = "UPDATE `players` SET " + String.join(", ", sets) + " WHERE `name` = ?";
+        try (Connection con = DbManager.getInstance().getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            for (int i = 0; i < vals.size(); i++) {
+                ps.setObject(i + 1, vals.get(i));
+            }
+            int updated = ps.executeUpdate();
+            Char c = Exe_Z.server.ServerManager.findCharByName(name);
+            if (c != null) {
+                try {
+                    for (int fi = 0; fi < fields.length; fi++) {
+                        String f = fields[fi];
+                        if (!obj.containsKey(f) || obj.get(f) == null) continue;
+                        long v;
+                        try { v = ((Number) obj.get(f)).longValue(); } catch (Exception e) { continue; }
+                        switch (f) {
+                            case "level": c.level = (int) v; break;
+                            case "exp": c.exp = v; break;
+                            case "yen": c.yen = v; break;
+                            case "xu": c.coin = v; break;
+                            case "xuInBox": c.coinInBox = v; break;
+                            case "spoint": c.skillPoint = (short) v; break;
+                            case "class": c.classId = (byte) v; break;
+                            case "gender": c.gender = (byte) v; break;
+                        }
+                    }
+                    try { c.getService().updateInfoMe(); } catch (Exception ignored) {}
+                    try { c.getService().serverMessage("Web Admin vừa cập nhật chỉ số của bạn."); } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    Log.error("PLAYER_EDIT live sync err: " + e.getMessage(), e);
+                }
+            }
+            Log.info("[WebAdmin] PLAYER_EDIT " + name + " " + sets.size() + " fields, rows=" + updated);
+        } catch (SQLException e) {
+            Log.error("PLAYER_EDIT err: " + e.getMessage(), e);
+        }
+    }
+
+    private static String strval(Object o) {
+        return o == null ? "" : o.toString();
+    }
+
+    // Đặt ID nhiệm vụ chính cho người chơi online
+    private void playerTaskSet(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("char");
+        if (name == null) {
+            name = (String) obj.get("name");
+        }
+        int taskId = obj.get("taskId") != null ? ((Number) obj.get("taskId")).intValue() : -1;
+        if (taskId < 1) {
+            taskId = obj.get("id") != null ? ((Number) obj.get("id")).intValue() : -1;
+        }
+        Char c = name == null ? null : ServerManager.findCharByName(name);
+        if (c == null) {
+            Log.warn("[WebAdmin] PLAYER_TASK_SET: không tìm thấy online: " + name);
+            return;
+        }
+        if (taskId < 1) {
+            Log.warn("[WebAdmin] PLAYER_TASK_SET: taskId không hợp lệ: " + taskId);
+            return;
+        }
+        try {
+            c.taskId = (short) taskId;
+            try { c.taskMain = null; } catch (Exception ignored) {}
+            try { c.getService().sendTaskInfo(); } catch (Exception ignored) {}
+            Log.info("[WebAdmin] PLAYER_TASK_SET " + name + " -> taskId=" + taskId);
+        } catch (Exception e) {
+            Log.error("PLAYER_TASK_SET err: " + e.getMessage(), e);
+        }
+    }
+
+    // Hoàn thành ngay nhiệm vụ hiện tại của người chơi online
+    private void playerTaskFinish(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("char");
+        if (name == null) {
+            name = (String) obj.get("name");
+        }
+        Char c = name == null ? null : ServerManager.findCharByName(name);
+        if (c == null) {
+            Log.warn("[WebAdmin] PLAYER_TASK_FINISH: không tìm thấy online: " + name);
+            return;
+        }
+        try {
+            c.skipTask();
+            try { c.getService().sendTaskInfo(); } catch (Exception ignored) {}
+            Log.info("[WebAdmin] PLAYER_TASK_FINISH " + name);
+        } catch (Exception e) {
+            Log.error("PLAYER_TASK_FINISH err: " + e.getMessage(), e);
+        }
+    }
+
+    // Reset toàn bộ tiến trình nhiệm vụ (xoá vật phẩm nhiệm vụ + main task về 0)
+    private void playerTaskReset(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("char");
+        if (name == null) {
+            name = (String) obj.get("name");
+        }
+        Char c = name == null ? null : ServerManager.findCharByName(name);
+        if (c == null) {
+            Log.warn("[WebAdmin] PLAYER_TASK_RESET: không tìm thấy online: " + name);
+            return;
+        }
+        try {
+            c.taskId = 1;
+            try { c.taskMain = null; } catch (Exception ignored) {}
+            try { c.removeAllItemTask(); } catch (Exception e) {
+                Log.warn("removeAllItemTask err: " + e.getMessage());
+            }
+            try { c.getService().sendTaskInfo(); } catch (Exception ignored) {}
+            Log.info("[WebAdmin] PLAYER_TASK_RESET " + name);
+        } catch (Exception e) {
+            Log.error("PLAYER_TASK_RESET err: " + e.getMessage(), e);
+        }
+    }
+
+    // Nâng cấp đồ (đặt upgrade) cho item trong trang bị hoặc túi của người chơi online
+    private void playerGearUpgrade(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("char");
+        if (name == null) {
+            name = (String) obj.get("name");
+        }
+        int slot = obj.get("slot") != null ? ((Number) obj.get("slot")).intValue() : -1;
+        int up = obj.get("upgrade") != null ? ((Number) obj.get("upgrade")).intValue() : -1;
+        String place = (String) obj.get("place");
+        Char c = name == null ? null : ServerManager.findCharByName(name);
+        if (c == null) {
+            Log.warn("[WebAdmin] PLAYER_GEAR_UPGRADE: không tìm thấy online: " + name);
+            return;
+        }
+        if (up < 0 || up > 16) {
+            Log.warn("[WebAdmin] PLAYER_GEAR_UPGRADE: upgrade không hợp lệ: " + up);
+            return;
+        }
+        boolean ok = false;
+        try {
+            if ("equip".equalsIgnoreCase(place)) {
+                if (c.equipment != null && slot >= 0 && slot < c.equipment.length && c.equipment[slot] != null) {
+                    c.equipment[slot].upgrade = (byte) up;
+                    ok = true;
+                }
+            } else if (c.bag != null && slot >= 0 && slot < c.bag.length && c.bag[slot] != null) {
+                c.bag[slot].upgrade = (byte) up;
+                ok = true;
+            }
+            if (ok) {
+                c.setFashion();
+                c.updateItemQuantity();
+                try { c.getService().updateItem(); } catch (Exception ignored) {}
+            }
+        } catch (Exception e) {
+            Log.error("PLAYER_GEAR_UPGRADE err: " + e.getMessage(), e);
+        }
+        Log.info("[WebAdmin] PLAYER_GEAR_UPGRADE " + name + " " + place + "[" + slot + "] -> +" + up + " ok=" + ok);
+    }
+
+    // Reset mật khẩu tài khoản (users.password, BCrypt)
+    private void playerResetPassword(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String username = (String) obj.get("username");
+        if (username == null) {
+            username = (String) obj.get("char");
+        }
+        String newPw = (String) obj.get("password");
+        if (username == null || username.isEmpty() || newPw == null || newPw.length() < 6) {
+            Log.warn("[WebAdmin] PLAYER_RESET_PW thiếu username/password (>=6 ký tự).");
+            return;
+        }
+        try (Connection con = DbManager.getInstance().getConnection(DbManager.GAME);
+             PreparedStatement ps = con.prepareStatement("UPDATE `users` SET `password` = ? WHERE `username` = ?")) {
+            ps.setString(1, Exe_Z.model.Char.passwordHash(newPw));
+            ps.setString(2, username);
+            int updated = ps.executeUpdate();
+            Log.info("[WebAdmin] PLAYER_RESET_PW " + username + " rows=" + updated);
+        } catch (SQLException e) {
+            Log.error("PLAYER_RESET_PW err: " + e.getMessage(), e);
+        }
+    }
+
+    // Đặt luong / coin (xu web) cho tài khoản users
+    private void userSetCurrency(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String username = (String) obj.get("username");
+        if (username == null) {
+            username = (String) obj.get("char");
+        }
+        if (username == null || username.isEmpty()) {
+            Log.warn("[WebAdmin] USER_SET_CURRENCY thiếu username.");
+            return;
+        }
+        List<String> sets = new ArrayList<>();
+        java.util.List<Object> vals = new ArrayList<>();
+        String[] fields = {"luong", "coin", "tongnap"};
+        for (String f : fields) {
+            if (obj.containsKey(f) && obj.get(f) != null) {
+                sets.add("`" + f + "` = ?");
+                try { vals.add(((Number) obj.get(f)).longValue()); }
+                catch (Exception e) { try { vals.add(Long.parseLong(strval(obj.get(f)))); } catch (Exception ex) { vals.add(0L); } }
+            }
+        }
+        if (sets.isEmpty()) {
+            Log.warn("[WebAdmin] USER_SET_CURRENCY không có trường.");
+            return;
+        }
+        vals.add(username);
+        String sql = "UPDATE `users` SET " + String.join(", ", sets) + " WHERE `username` = ?";
+        try (Connection con = DbManager.getInstance().getConnection(DbManager.GAME);
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            for (int i = 0; i < vals.size(); i++) {
+                ps.setObject(i + 1, vals.get(i));
+            }
+            int updated = ps.executeUpdate();
+            // Đồng bộ Char đang online nếu tài khoản tương ứng đang chơi
+            try {
+                User u = Exe_Z.server.ServerManager.findUserByUsername(username);
+                if (u != null && u.sltChar != null) {
+                    if (obj.containsKey("luong")) { try { u.gold = ((Number) obj.get("luong")).intValue(); } catch (Exception ignored) {} }
+                    if (obj.containsKey("coin")) { try { u.coin = ((Number) obj.get("coin")).intValue(); } catch (Exception ignored) {} }
+                    if (obj.containsKey("tongnap")) { try { u.tongnap = ((Number) obj.get("tongnap")).intValue(); } catch (Exception ignored) {} }
+                    try { u.service.updateInfoMe(); } catch (Exception ignored) {}
+                }
+            } catch (Exception ignored) {}
+            Log.info("[WebAdmin] USER_SET_CURRENCY " + username + " rows=" + updated);
+        } catch (SQLException e) {
+            Log.error("USER_SET_CURRENCY err: " + e.getMessage(), e);
+        }
+    }
+
+    // Dịch chuyển người chơi online tới map/khu
+    private void playerTeleport(String data) throws ParseException {
+        JSONObject obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        String name = (String) obj.get("char");
+        if (name == null) {
+            name = (String) obj.get("name");
+        }
+        int mapId = obj.get("mapId") != null ? ((Number) obj.get("mapId")).intValue() : -1;
+        int zoneId = obj.get("zoneId") != null ? ((Number) obj.get("zoneId")).intValue() : 0;
+        Char c = name == null ? null : ServerManager.findCharByName(name);
+        if (c == null) {
+            Log.warn("[WebAdmin] PLAYER_TELEPORT: không tìm thấy online: " + name);
+            return;
+        }
+        if (mapId < 0) {
+            Log.warn("[WebAdmin] PLAYER_TELEPORT: mapId không hợp lệ.");
+            return;
+        }
+        try {
+            c.outZone();
+            c.joinZone(mapId, zoneId, -1);
+            if (c.zone != null) {
+                c.setXY((short) 100, (short) 100);
+                c.zone.getService().playerMove(c);
+            }
+            Log.info("[WebAdmin] PLAYER_TELEPORT " + name + " -> map " + mapId + " khu " + zoneId);
+        } catch (Exception e) {
+            Log.error("PLAYER_TELEPORT err: " + e.getMessage(), e);
+        }
     }
 
     // Bỏ qua nhiệm vụ hiện tại của người chơi, nhảy sang nhiệm vụ tiếp theo
