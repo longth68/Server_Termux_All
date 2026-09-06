@@ -24,12 +24,52 @@ bash update_nro.sh
 
 ### Cách 3: Cập nhật thủ công (Nếu tải file nén .zip / .tar.gz trước đó)
 1. Tải bản cập nhật mới nhất từ GitHub.
-2. Sao chép thư mục `nro/` và các file `nro_start.sh`, `nro_stop.sh`, `update_nro.sh`, `menu.sh`, `start_db.sh`, `stop.sh` vào thư mục `~/Server_Termux_All` (ghi đè).
+2. Sao chép thư mục `nro/` và các file `nro_start.sh`, `nro_stop.sh`, `update_nro.sh`, `menu.sh`, `start_db.sh`, `stop.sh` vào thư mục `~/Server_Termux_All`.
 3. Mở Termux và chạy lệnh:
    ```bash
    cd ~/Server_Termux_All
    bash update_nro.sh
    ```
+
+---
+
+## 🔄 HƯỚNG DẪN CẬP NHẬT BỘ CÀI (KHÔNG MẤT DỮ LIỆU)
+
+Khi có bản mới trên GitHub (BOT AI, Web Admin, fix...), chỉ cần kéo code mới —
+**dữ liệu cả 3 game (DB + file runtime) được giữ nguyên**.
+
+### Bước 1: Kéo code mới
+```bash
+cd ~/Server_Termux_All
+git pull origin main
+```
+* Nếu báo lỗi `local changes` ở file runtime (VD `virtualplayer_save.json`):
+  ```bash
+  git stash push -m backup -- <file-bị-báo>
+  git pull origin main
+  git stash pop
+  ```
+
+### Bước 2: Cập nhật tài nguyên NRO (nếu có)
+```bash
+bash update_nro.sh
+```
+* Script tự nạp DB `hashirama` nếu chưa có, giải nén tài nguyên nếu chưa có,
+  không đụng tới DB `schoolzz` / `htth` cũ.
+
+### Bước 3: Khởi động lại game
+```bash
+bash menu.sh
+```
+* `3` → chạy Ninja (nhận BOT AI + `app.jar` mới) | `4` → HTTH | `5` → NRO
+* `6` → chạy cả 3 | `10` → dừng tất cả game (giữ MariaDB)
+* Hoặc nhanh: `bash stop.sh` rồi `bash ninja_start.sh` (chỉ Ninja).
+
+### Lưu ý
+* `start_db.sh` chỉ **tạo + nạp DB khi chưa có**, không xóa DB cũ.
+* `bot_config.txt` / `bot_save.json` là file text riêng, `git pull` không xóa.
+* Muốn về bản cũ: `git log --oneline -5` rồi
+  `git checkout <commit> -- <đường-dẫn-file>` (VD `ninja/server/app.jar`).
 
 ---
 
