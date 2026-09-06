@@ -76,13 +76,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['eventClass'])) {
     }
 }
 
-// Thống kê điểm sự kiện người chơi (event_points)
+// Thống kê điểm sự kiện người chơi (event_points: point là JSON text [{"key","point","rewarded"}])
 $epRows = [];
-$r = $conn->query("SELECT `player_id`, `point`, `updated_at` FROM `event_points` ORDER BY `point` DESC LIMIT 20");
+$r = $conn->query("SELECT `player_id`, `event_id`, `point` FROM `event_points` ORDER BY `id` DESC LIMIT 40");
 if ($r) {
     while ($row = $r->fetch_assoc()) {
+        $row['total'] = 0;
+        $arr = json_decode(strval($row['point']), true);
+        if (is_array($arr)) {
+            foreach ($arr as $kp) {
+                if (is_array($kp) && isset($kp['point'])) {
+                    $row['total'] += intval($kp['point']);
+                }
+            }
+        }
         $epRows[] = $row;
     }
+    // Gộp theo player, lấy tổng điểm cao nhất
+    $merged = [];
+    foreach ($epRows as $row) {
+        $pid = (int)$row['player_id'];
+        if (!isset($merged[$pid]) || $merged[$pid]['total'] < $row['total']) {
+            $merged[$pid] = $row;
+        }
+    }
+    usort($merged, fn($a, $b) => $b['total'] <=> $a['total']);
+    $epRows = array_slice(array_values($merged), 0, 20);
 }
 $playerNames = [];
 if (count($epRows)) {
@@ -160,14 +179,14 @@ $conn->close();
     <h6 class="fw-bold"><i class="fa-solid fa-star text-warning"></i> Điểm sự kiện người chơi (Top 20 — bảng <code>event_points</code>)</h6>
     <div class="table-responsive">
         <table class="table table-sm mb-0 align-middle">
-            <thead><tr class="fw-bold text-uppercase"><th>#</th><th>Nhân vật</th><th>Điểm sự kiện</th><th>Cập nhật</th></tr></thead>
+            <thead><tr class="fw-bold text-uppercase"><th>#</th><th>Nhân vật</th><th>Event ID</th><th>Tổng điểm</th></tr></thead>
             <tbody>
             <?php foreach ($epRows as $i => $ep): ?>
                 <tr>
                     <td class="<?= $i < 3 ? 'fw-bold text-warning' : '' ?>"><?= $i + 1 ?></td>
                     <td class="fw-semibold"><?= htmlspecialchars($playerNames[(int)$ep['player_id']] ?? ('#' . (int)$ep['player_id'])) ?></td>
-                    <td><?= number_format((int)$ep['point']) ?></td>
-                    <td><?= htmlspecialchars(strval($ep['updated_at'] ?? '-')) ?></td>
+                    <td><?= (int)$ep['event_id'] ?></td>
+                    <td><?= number_format((int)$ep['total']) ?></td>
                 </tr>
             <?php endforeach; ?>
             <?php if (!count($epRows)): ?><tr><td colspan="4" class="text-center text-muted">Chưa có điểm sự kiện nào.</td></tr><?php endif; ?>

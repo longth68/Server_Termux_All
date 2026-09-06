@@ -1568,12 +1568,14 @@ public class AutoFarmBot extends Bot {
         if (max <= 0) {
             return 0;
         }
+        // LUÔN THẤP HƠN: bot phải <= max - minGap (bot bằng cấp player cũng bị dọn)
+        int ceiling = Math.max(1, max - Exe_Z.bot.ai.BotConfig.PROG_MIN_GAP);
         int n = 0;
         synchronized (BOTS) {
             java.util.Iterator<AutoFarmBot> it = BOTS.iterator();
             while (it.hasNext()) {
                 AutoFarmBot b = it.next();
-                if (b != null && !b.isCleaned && b.level > max) {
+                if (b != null && !b.isCleaned && b.level > ceiling) {
                     try {
                         if (b.zone != null) {
                             b.zone.out(b);

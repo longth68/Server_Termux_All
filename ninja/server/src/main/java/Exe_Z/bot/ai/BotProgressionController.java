@@ -13,9 +13,28 @@ import Exe_Z.util.NinjaUtils;
  */
 public class BotProgressionController {
 
+    /** Level người chơi cao nhất từng thấy online (giữ khi server vắng người). */
+    private static volatile int lastKnownMaxReal = 0;
+
     /** Level người chơi thật mạnh nhất đang online (tái dùng AutoFarmBot). */
     public static int playerRefLevel() {
-        return AutoFarmBot.maxOnlineRealLevel();
+        int cur = AutoFarmBot.maxOnlineRealLevel();
+        if (cur > lastKnownMaxReal) {
+            lastKnownMaxReal = cur;
+        }
+        return cur;
+    }
+
+    /** Level tham chiếu cho SPAWN: ưu tiên người đang online, fallback người từng online. */
+    public static int spawnRefLevel() {
+        int cur = AutoFarmBot.maxOnlineRealLevel();
+        if (cur > 0) {
+            if (cur > lastKnownMaxReal) {
+                lastKnownMaxReal = cur;
+            }
+            return cur;
+        }
+        return lastKnownMaxReal;
     }
 
     /** Gap riêng của bot này so với player (ngẫu nhiên min..max gap lúc spawn). */
@@ -38,15 +57,15 @@ public class BotProgressionController {
         return Math.max(1, maxReal - gapFor(bot));
     }
 
-    /** Spawn level: nằm trong khoảng (maxReal - maxGap) .. (maxReal - minGap). */
+    /** Spawn level: LUÔN thấp hơn người chơi — (ref - maxGap) .. (ref - minGap). */
     public static int spawnLevel() {
-        int maxReal = playerRefLevel();
-        if (maxReal <= 0) {
-            // Pre-existing world: level phân bố rộng như người chơi thật
-            return 10 + NinjaUtils.nextInt(0, 90);
+        int ref = spawnRefLevel();
+        if (ref <= 0) {
+            // Chưa từng có ai online: chỉ sinh bot cấp thấp (môi trường mới)
+            return 1 + NinjaUtils.nextInt(0, 9);
         }
-        int hi = Math.max(1, maxReal - BotConfig.PROG_MIN_GAP);
-        int lo = Math.max(1, maxReal - BotConfig.PROG_MAX_GAP);
+        int hi = Math.max(1, ref - BotConfig.PROG_MIN_GAP);
+        int lo = Math.max(1, ref - BotConfig.PROG_MAX_GAP);
         return NinjaUtils.nextInt(Math.min(lo, hi), Math.max(lo, hi));
     }
 
