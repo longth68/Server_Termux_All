@@ -133,6 +133,11 @@ public class BotManager implements Runnable {
         if (!hasReal || anyReal == null) {
             return;
         }
+        // Mẫu Anwin presencePerPlayer: giới hạn bot bám quanh mỗi người chơi
+        int presence = BotConfig.PRESENCE_PER_PLAYER;
+        if (presence > 0) {
+            target = Math.min(target, presence);
+        }
         int bots = AutoFarmBot.countInZone(z);
         if (bots >= target) {
             return;

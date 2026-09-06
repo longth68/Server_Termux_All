@@ -691,6 +691,19 @@ public class AutoFarmBot extends Bot {
         if (player == null || player.level < 30) {
             return;
         }
+        // Mẫu Anwin checkGiftOpportunity: gift_rate + quan hệ + helpfulness
+        try {
+            float giftRate = Exe_Z.bot.ai.BotConfig.GIFT_RATE;
+            if (giftRate <= 0) {
+                return;
+            }
+            int rel = botMemory.relation(player.name);
+            float pass = botProfile.helpfulness * Math.min(1.0f, giftRate) * (rel >= 30 ? 1.0f : 0.3f);
+            if (NinjaUtils.nextInt(0, 100) >= pass * 100) {
+                return;
+            }
+        } catch (Exception ignored) {
+        }
         if (player == null || player.trade != null || trade != null) {
             System.out.println("[BOT][TRADE-DEBUG] " + name + " skip: player=" + (player != null) + " player.trade=" + (player != null && player.trade != null) + " my.trade=" + (trade != null));
             return;

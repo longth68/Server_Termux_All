@@ -43,6 +43,20 @@ public class BotChat {
             return;
         }
         bot.nextAiChatTime = now + (long) (NinjaUtils.nextInt(5000, 12000) / Math.max(0.2, rate));
+        // Ưu tiên câu tùy chỉnh từ bot_chat.txt (mẫu Anwin VirtualChatConfig)
+        try {
+            BotChatConfig cfg = BotChatConfig.gI();
+            cfg.reloadIfStale();
+            String custom = cfg.randomLine();
+            if (custom != null && !bot.botMemory.saidRecently(custom)
+                    && NinjaUtils.nextInt(0, 100) < 60 * Math.min(1.0, rate)) {
+                bot.zone.getService().chat(bot.id, custom);
+                bot.botMemory.rememberChat(custom);
+                bot.botNeeds.satisfy(BotNeeds.SOCIAL, 0.4);
+                return;
+            }
+        } catch (Exception ignored) {
+        }
         String line;
         Char near = BotPerception.nearestRealPlayer(bot, 400);
         if (near != null) {

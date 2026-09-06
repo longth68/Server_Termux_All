@@ -1,5 +1,7 @@
+; NSO Bot AI config - BOT luon bat nhu NRO khi enabled=true
 enabled=true
 population=20
+exp_rate=0.6
 gold_rate=1.0
 chat_rate=1.0
 map_change_rate=1.0
@@ -7,3 +9,5 @@ gift_rate=1.0
 afk_rate=1.0
 player_protection=80
 bots_per_map=3
+presence_per_player=5
+presence_visit_seconds=300

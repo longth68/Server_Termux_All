@@ -1,0 +1,10 @@
+; Cau chat tuy chinh cua BOT NSO (1 cau/dong, # hoac ; = ghi chu)
+; Them/xoa tren Web Admin /admin/bot, server tu nap lai moi 60 giay
+Ai train chung khong?
+Map nay exp ngon ne
+Khu nay con trong, qua day train chung di
+Ai can party thi noi nhe
+Quai map nay drop on lam
+Minh moi len cap, vui qua
+Co ai lam nhiem vu map nay khong?
+Train mot minh hoi buon

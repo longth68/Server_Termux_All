@@ -14,18 +14,35 @@ import Exe_Z.util.NinjaUtils;
  */
 public class BotEquipment {
 
+    private static long lastUpgradeCheck = 0L;
+
+    /** Kiểm tra nâng đồ định kỳ 2 phút/lần (mẫu Anwin, có xác suất bỏ qua cho giống người thật). */
+    public static void tickUpgrade(AutoFarmBot bot) {
+        if (bot == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastUpgradeCheck < 120000L) {
+            return;
+        }
+        lastUpgradeCheck = now;
+        if (NinjaUtils.nextInt(0, 100) >= 45) {
+            return;
+        }
+        maybeUpgradeGear(bot);
+    }
+
     public static void setupStarterGear(AutoFarmBot bot, int level, byte classId) {
         if (bot == null) {
             return;
         }
         try {
-            int[] bestId = new int[10];
-            int[] bestLv = new int[10];
+            // Chọn ngẫu nhiên trong top ứng viên mỗi slot để bot khác nhau có đồ khác nhau
+            // (mẫu Anwin pickTemplateForType: top 40% mạnh nhất, tối đa 8 món).
+            java.util.List<ItemTemplate>[] cands = new java.util.ArrayList[10];
             for (int i = 0; i < 10; i++) {
-                bestId[i] = -1;
-                bestLv[i] = -1;
+                cands[i] = new java.util.ArrayList<>();
             }
-            int body = -1, leg = -1, wp = 15;
             for (ItemTemplate t : ItemManager.getInstance().getItemTemplates()) {
                 if (t.id >= 650 || t.level > level) {
                     continue;
@@ -39,18 +56,31 @@ public class BotEquipment {
                 if (t.type == ItemTemplate.TYPE_VUKHI && !matchWeapon(t, classId)) {
                     continue;
                 }
-                if (t.level > bestLv[t.type]) {
-                    bestLv[t.type] = t.level;
-                    bestId[t.type] = t.id;
-                    if (t.type == ItemTemplate.TYPE_AO) {
-                        body = t.part;
-                    }
-                    if (t.type == ItemTemplate.TYPE_QUAN) {
-                        leg = t.part;
-                    }
-                    if (t.type == ItemTemplate.TYPE_VUKHI) {
-                        wp = t.part;
-                    }
+                cands[t.type].add(t);
+            }
+            int[] bestId = new int[10];
+            for (int i = 0; i < 10; i++) {
+                bestId[i] = -1;
+            }
+            int body = -1, leg = -1, wp = 15;
+            for (int i = 0; i < 10; i++) {
+                if (cands[i].isEmpty()) {
+                    continue;
+                }
+                final int slot = i;
+                cands[i].sort((a, b) -> Integer.compare(b.level, a.level));
+                int topN = Math.max(1, cands[i].size() * 4 / 10);
+                topN = Math.min(topN, 8);
+                ItemTemplate pick = cands[i].get(NinjaUtils.nextInt(0, topN - 1));
+                bestId[slot] = pick.id;
+                if (slot == ItemTemplate.TYPE_AO) {
+                    body = pick.part;
+                }
+                if (slot == ItemTemplate.TYPE_QUAN) {
+                    leg = pick.part;
+                }
+                if (slot == ItemTemplate.TYPE_VUKHI) {
+                    wp = pick.part;
                 }
             }
             bot.body = (short) body;

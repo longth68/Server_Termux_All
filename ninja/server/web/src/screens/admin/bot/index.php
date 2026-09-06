@@ -58,6 +58,53 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } else {
             $msg = '<div class="alert alert-danger">Thiếu tên bot.</div>';
         }
+    } elseif ($action == 'chat_add' || $action == 'chat_del') {
+        // Quản lý câu chat tùy chỉnh (mẫu Anwin VirtualChatConfig): sửa file trực tiếp,
+        // server Java tự nạp lại mỗi 60 giây.
+        $chatFile = null;
+        foreach ([dirname(__DIR__, 5) . '/bot_chat.txt', __DIR__ . '/../../../../../../bot_chat.txt'] as $p) {
+            if (is_file($p) || is_dir(dirname($p))) {
+                $chatFile = $p;
+                break;
+            }
+        }
+        if ($chatFile === null) {
+            $msg = '<div class="alert alert-danger">Không tìm thấy file bot_chat.txt.</div>';
+        } elseif ($action == 'chat_add') {
+            $line = isset($_POST['chat_line']) ? trim(strval($_POST['chat_line'])) : '';
+            if ($line === '' || mb_strlen($line) > 120) {
+                $msg = '<div class="alert alert-danger">Câu chat trống hoặc quá 120 ký tự.</div>';
+            } else {
+                $cur = is_file($chatFile) ? file($chatFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
+                $exists = false;
+                foreach ((array)$cur as $c) {
+                    if (trim($c) === $line) {
+                        $exists = true;
+                        break;
+                    }
+                }
+                if ($exists) {
+                    $msg = '<div class="alert alert-warning">Câu này đã có rồi.</div>';
+                } elseif (@file_put_contents($chatFile, $line . PHP_EOL, FILE_APPEND | LOCK_EX) === false) {
+                    $msg = '<div class="alert alert-danger">Không ghi được file bot_chat.txt.</div>';
+                } else {
+                    $msg = '<div class="alert alert-success">Đã thêm câu chat, server áp dụng trong ~1 phút.</div>';
+                }
+            }
+        } else {
+            $idx = isset($_POST['chat_idx']) ? intval($_POST['chat_idx']) : -1;
+            $cur = is_file($chatFile) ? array_values(file($chatFile, FILE_IGNORE_NEW_LINES)) : [];
+            if (!isset($cur[$idx]) || trim($cur[$idx]) === '' || $cur[$idx][0] === '#' || $cur[$idx][0] === ';') {
+                $msg = '<div class="alert alert-danger">Dòng không hợp lệ.</div>';
+            } else {
+                unset($cur[$idx]);
+                if (@file_put_contents($chatFile, implode(PHP_EOL, array_values($cur)) . PHP_EOL, LOCK_EX) === false) {
+                    $msg = '<div class="alert alert-danger">Không ghi được file bot_chat.txt.</div>';
+                } else {
+                    $msg = '<div class="alert alert-success">Đã xóa câu chat.</div>';
+                }
+            }
+        }
     } elseif ($action == 'bot_config') {
         $cfg = [
             'enabled' => isset($_POST['enabled']) ? (intval($_POST['enabled']) === 1) : true,
@@ -69,6 +116,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             'gift_rate' => isset($_POST['gift_rate']) ? max(0, min(10, floatval($_POST['gift_rate']))) : 1.0,
             'afk_rate' => isset($_POST['afk_rate']) ? max(0, min(10, floatval($_POST['afk_rate']))) : 1.0,
             'gold_rate' => isset($_POST['gold_rate']) ? max(0, min(10, floatval($_POST['gold_rate']))) : 1.0,
+            'exp_rate' => isset($_POST['exp_rate']) ? max(0, min(1, floatval($_POST['exp_rate']))) : 0.6,
+            'presence_per_player' => isset($_POST['presence_per_player']) ? max(0, min(50, intval($_POST['presence_per_player']))) : 5,
+            'presence_visit_seconds' => isset($_POST['presence_visit_seconds']) ? max(30, min(3600, intval($_POST['presence_visit_seconds']))) : 300,
         ];
         $data = json_encode($cfg, JSON_UNESCAPED_UNICODE);
         $stmt = $conn->prepare("INSERT INTO `web_admin_commands` (`command`, `data`, `status`) VALUES ('BOT_CONFIG', ?, 0)");
@@ -99,7 +149,7 @@ if ($result) {
 // Đọc cấu hình BOT AI hiện tại từ file (cùng máy Termux), fallback giá trị mặc định.
 // Tự parse từng dòng key=value (không dùng parse_ini_file để tránh warning
 // với dòng comment '#' của Java Properties).
-$botCfg = ['enabled' => true, 'population' => 20, 'bots_per_map' => 3, 'player_protection' => 80, 'chat_rate' => 1.0, 'map_change_rate' => 1.0, 'gift_rate' => 1.0, 'afk_rate' => 1.0, 'gold_rate' => 1.0];
+$botCfg = ['enabled' => true, 'population' => 20, 'bots_per_map' => 3, 'player_protection' => 80, 'chat_rate' => 1.0, 'map_change_rate' => 1.0, 'gift_rate' => 1.0, 'afk_rate' => 1.0, 'gold_rate' => 1.0, 'exp_rate' => 0.6, 'presence_per_player' => 5, 'presence_visit_seconds' => 300];
 $cfgCandidates = [
     dirname(__DIR__, 5) . '/bot_config.txt', // ninja/server/bot_config.txt
     __DIR__ . '/../../../../../../bot_config.txt',
@@ -123,6 +173,22 @@ foreach ($cfgCandidates as $cfgPath) {
                 if (array_key_exists($k, $botCfg)) {
                     $d = $botCfg[$k];
                     $botCfg[$k] = is_bool($d) ? ($v !== 'false' && $v !== '0') : (is_int($d) ? intval($v) : floatval($v));
+                }
+            }
+        }
+        break;
+    }
+}
+
+$chatLines = []; // [so_dong_trong_file => cau_chat]
+foreach ([dirname(__DIR__, 5) . '/bot_chat.txt', __DIR__ . '/../../../../../../bot_chat.txt'] as $p) {
+    if (is_readable($p)) {
+        $raw = @file($p, FILE_IGNORE_NEW_LINES);
+        if (is_array($raw)) {
+            foreach ($raw as $ri => $ln) {
+                $t = trim($ln);
+                if ($t !== '' && $t[0] !== '#' && $t[0] !== ';') {
+                    $chatLines[$ri] = $t;
                 }
             }
         }
@@ -276,6 +342,18 @@ $conn->close();
                         <label class="fw-semibold">Vàng rate</label>
                         <input type="number" step="0.1" name="gold_rate" class="form-control" value="<?= floatval($botCfg['gold_rate']) ?>" min="0" max="10">
                     </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">EXP rate (0-1)</label>
+                        <input type="number" step="0.1" name="exp_rate" class="form-control" value="<?= floatval($botCfg['exp_rate']) ?>" min="0" max="1">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Bot quanh mỗi người (0-50)</label>
+                        <input type="number" name="presence_per_player" class="form-control" value="<?= intval($botCfg['presence_per_player']) ?>" min="0" max="50">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="fw-semibold">Thời gian bám theo (giây)</label>
+                        <input type="number" name="presence_visit_seconds" class="form-control" value="<?= intval($botCfg['presence_visit_seconds']) ?>" min="30" max="3600">
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Lưu cấu hình BOT AI</button>
             </form>
@@ -325,6 +403,31 @@ $conn->close();
         </div>
     <?php else: ?>
         <div class="text-center"><small class="fw-semibold">Chưa có bot nào (bảng cập nhật mỗi ~3 giây khi server chạy).</small></div>
+    <?php endif; ?>
+</div>
+
+<div class="mt-4">
+    <h5 class="fw-bold">Câu chat tùy chỉnh (<?= count($chatLines) ?> câu)</h5>
+    <form method="POST" class="d-flex gap-2 mb-2">
+        <input type="hidden" name="action" value="chat_add">
+        <input type="text" name="chat_line" class="form-control" maxlength="120" placeholder="Nhập câu chat mới cho BOT..." required>
+        <button type="submit" class="btn btn-success">Thêm</button>
+    </form>
+    <?php if (count($chatLines) > 0): ?>
+        <ul class="list-group">
+            <?php foreach ($chatLines as $ri => $ln): ?>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span><?= htmlspecialchars($ln) ?></span>
+                    <form method="POST" onsubmit="return confirm('Xóa câu này?')">
+                        <input type="hidden" name="action" value="chat_del">
+                        <input type="hidden" name="chat_idx" value="<?= intval($ri) ?>">
+                        <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
+                    </form>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    <?php else: ?>
+        <div class="text-center"><small class="fw-semibold">Chưa có câu tùy chỉnh (BOT dùng câu mặc định).</small></div>
     <?php endif; ?>
 </div>
 

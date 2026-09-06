@@ -99,6 +99,11 @@ public class BotBrain {
             }
             // EXPLORE dài hạn: thỉnh thoảng đổi map
             exploreTick(bot);
+            // Nâng đồ định kỳ như Anwin (2 phút/lần, có xác suất bỏ qua)
+            try {
+                BotEquipment.tickUpgrade(bot);
+            } catch (Exception ignored) {
+            }
         } catch (Exception ex) {
             Log.error("BotBrain err: " + ex.getMessage(), ex);
         }

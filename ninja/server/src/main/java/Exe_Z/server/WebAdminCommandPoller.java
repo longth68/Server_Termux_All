@@ -395,6 +395,18 @@ public class WebAdminCommandPoller extends Thread {
         if (obj.get("gold_rate") != null) {
             Exe_Z.bot.ai.BotConfig.GOLD_RATE = ((Number) obj.get("gold_rate")).floatValue();
         }
+        if (obj.get("exp_rate") != null) {
+            float v = ((Number) obj.get("exp_rate")).floatValue();
+            Exe_Z.bot.ai.BotConfig.EXP_RATE = Math.max(0f, Math.min(1f, v));
+        }
+        if (obj.get("presence_per_player") != null) {
+            int v = ((Number) obj.get("presence_per_player")).intValue();
+            Exe_Z.bot.ai.BotConfig.PRESENCE_PER_PLAYER = Math.max(0, Math.min(50, v));
+        }
+        if (obj.get("presence_visit_seconds") != null) {
+            int v = ((Number) obj.get("presence_visit_seconds")).intValue();
+            Exe_Z.bot.ai.BotConfig.PRESENCE_VISIT_SECONDS = Math.max(30, Math.min(3600, v));
+        }
         Exe_Z.bot.ai.BotConfig.save();
         GlobalService.getInstance().chat("Hệ thống",
                 "Web Admin đã cập nhật cấu hình BOT AI (pop=" + Exe_Z.bot.ai.BotConfig.POPULATION
