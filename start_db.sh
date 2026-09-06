@@ -254,6 +254,22 @@ if [ "$NINJA_OK" -eq 1 ]; then
             status TINYINT DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS bot_status (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            name VARCHAR(50) NOT NULL UNIQUE,
+            level INT DEFAULT 1,
+            map_id INT DEFAULT 0,
+            zone_id INT DEFAULT 0,
+            x INT DEFAULT 0,
+            y INT DEFAULT 0,
+            hp BIGINT DEFAULT 0,
+            max_hp BIGINT DEFAULT 0,
+            state VARCHAR(30) DEFAULT '',
+            personality VARCHAR(255) DEFAULT '',
+            top_need VARCHAR(30) DEFAULT '',
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     " >/dev/null 2>&1; then
         warn "Không tạo được bảng phụ Ninja."
     fi
