@@ -581,7 +581,7 @@ $conn->close();
 <?php if ($pdetail): ?>
 <?php
 $activeTab = isset($_GET['dtab']) ? preg_replace('/[^a-z]/', '', strtolower($_GET['dtab'])) : 'info';
-$tabs = ['info' => 'Thông tin', 'gear' => 'Trang bị', 'bag' => 'Túi đồ', 'task' => 'Nhiệm vụ', 'skill' => 'Kỹ năng', 'social' => 'Bạn bè', 'actions' => 'Thao tác'];
+$tabs = ['info' => 'Thông tin', 'gear' => 'Trang bị', 'bag' => 'Túi đồ', 'task' => 'Nhiệm vụ', 'skill' => 'Kỹ năng', 'bijuu' => 'Bijuu', 'social' => 'Bạn bè', 'actions' => 'Thao tác'];
 if (!isset($tabs[$activeTab])) {
     $activeTab = 'info';
 }
@@ -596,6 +596,11 @@ if ($pdetail) {
     if (is_array($frArr)) { $pFriends = $frArr; }
     $enArr = json_decode(strval($pdetail['enemies'] ?? '[]'), true);
     if (is_array($enArr)) { $pEnemies = $enArr; }
+}
+$pBijuu = [];
+if ($pdetail) {
+    $bjArr = json_decode(strval($pdetail['bijuu'] ?? '[]'), true);
+    if (is_array($bjArr)) { $pBijuu = $bjArr; }
 }
 ?>
 <div class="mt-4">
@@ -830,6 +835,33 @@ if ($pdetail) {
                     </table>
                 </div>
                 <p class="text-muted mt-2 mb-0"><small>Kỹ năng chỉ hiển thị (đọc DB). Muốn tăng điểm kỹ năng dùng ô <b>spoint</b> ở tab Thông tin.</small></p>
+
+            <?php elseif ($activeTab == 'bijuu'): ?>
+                <h6 class="fw-bold mt-2">Bijuu / Đuôi thú (cột <code>bijuu</code> DB — 6 ô)</h6>
+                <div class="row g-2">
+                    <?php for ($i = 0; $i < 6; $i++):
+                        $bj = null;
+                        foreach ($pBijuu as $b) {
+                            if (is_array($b) && intval($b['index'] ?? -1) === $i) { $bj = $b; break; }
+                        }
+                        $bid = $bj ? intval($bj['id']) : 0;
+                        $bmeta = isset($itemMeta[$bid]) ? $itemMeta[$bid] : null;
+                    ?>
+                    <div class="col-6 col-md-2">
+                        <div class="border rounded p-2 text-center" style="background:#fff">
+                            <div class="small text-muted mb-1">Ô <?= $i ?></div>
+                            <?php if ($bj): ?>
+                                <?php if ($bmeta && $bmeta['icon'] > 0): ?><img src="/images/1/Small<?= $bmeta['icon'] ?>.png" width="48" height="48" style="image-rendering:pixelated" onerror="this.style.display='none'"><?php endif; ?>
+                                <div class="fw-semibold" style="font-size:12px"><?= htmlspecialchars(strval($bmeta['name'] ?? ('#' . $bid))) ?></div>
+                                <span class="badge bg-info" style="font-size:10px">+<?= intval($bj['upgrade'] ?? 0) ?></span>
+                            <?php else: ?>
+                                <div class="text-muted" style="padding:18px 0">trống</div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php endfor; ?>
+                </div>
+                <p class="text-muted mt-2 mb-0"><small>Chỉ hiển thị (đọc DB). Bijuu áp dụng khi nhân vật vào lại game.</small></p>
 
             <?php elseif ($activeTab == 'social'): ?>
                 <div class="row g-2">
