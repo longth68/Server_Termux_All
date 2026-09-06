@@ -535,6 +535,9 @@ public class WebAdminCommandPoller extends Thread {
             case "BOSS_LIST":
                 updateBossStatus();
                 break;
+            case "EVENT_SET":
+                eventSet(data);
+                break;
             case "SERVER_CONTROL":
                 serverControl(data);
                 break;
@@ -1278,6 +1281,73 @@ public class WebAdminCommandPoller extends Thread {
         }
         // Thông báo qua global chat
         GlobalService.getInstance().chat("Hệ thống", "Web Admin đã chạy kiểm chứng tính năng bot tại map " + map + ". Xem log server.");
+    }
+
+    // Đổi sự kiện server (mẫu NRO event_toggle): ghi config.properties + init Event live
+    private void eventSet(String data) {
+        JSONObject obj;
+        try {
+            obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        } catch (ParseException e) {
+            obj = new JSONObject();
+        }
+        String cls = (String) obj.get("eventClass");
+        if (cls == null || cls.isEmpty()) {
+            Log.warn("[WebAdmin] EVENT_SET thiếu eventClass.");
+            return;
+        }
+        // Chỉ chấp nhận class event hợp lệ
+        String[] allowed = {
+            "Exe_Z.event.OFF", "Exe_Z.event.TrungThu", "Exe_Z.event.Halloween",
+            "Exe_Z.event.Noel", "Exe_Z.event.LunarNewYear", "Exe_Z.event.SumMer",
+            "Exe_Z.event.KoroKing", "Exe_Z.event.NgayPhuNu",
+            "Exe_Z.event.VietnameseWomensDay", "Exe_Z.event.InternationalWomensDay"
+        };
+        boolean ok = false;
+        for (String a : allowed) {
+            if (a.equals(cls)) {
+                ok = true;
+                break;
+            }
+        }
+        if (!ok) {
+            Log.warn("[WebAdmin] EVENT_SET class không hợp lệ: " + cls);
+            return;
+        }
+        try {
+            // Ghi lại dòng game.event trong config.properties (giữ nguyên các dòng khác)
+            java.io.File f = new java.io.File("config.properties");
+            if (!f.exists()) {
+                f = new java.io.File("ninja/server/config.properties");
+            }
+            if (!f.exists()) {
+                Log.error("EVENT_SET: không tìm thấy config.properties");
+                return;
+            }
+            java.util.List<String> lines = java.nio.file.Files.readAllLines(f.toPath(), java.nio.charset.StandardCharsets.UTF_8);
+            java.util.List<String> out = new ArrayList<>();
+            boolean replaced = false;
+            for (String line : lines) {
+                if (line.trim().startsWith("game.event=")) {
+                    out.add("game.event=" + cls);
+                    replaced = true;
+                } else {
+                    out.add(line);
+                }
+            }
+            if (!replaced) {
+                out.add("game.event=" + cls);
+            }
+            java.nio.file.Files.write(f.toPath(), out, java.nio.charset.StandardCharsets.UTF_8);
+            // Nạp lại Event instance toàn server
+            Exe_Z.event.Event.init();
+            String name = cls.substring(cls.lastIndexOf('.') + 1);
+            String text = "OFF".equals(name) ? "Sự kiện đã được TẮT." : "Sự kiện " + name + " đã bắt đầu! Tham gia ngay nhé!";
+            GlobalService.getInstance().chat("Hệ thống", text);
+            Log.info("[WebAdmin] EVENT_SET -> " + cls + " (file=" + f.getPath() + ", replaced=" + replaced + ")");
+        } catch (Exception e) {
+            Log.error("EVENT_SET err: " + e.getMessage(), e);
+        }
     }
 
     private void spawnBoss(String data) throws ParseException {
