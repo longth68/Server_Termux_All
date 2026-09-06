@@ -14,11 +14,14 @@ public class RandomCollection<E> {
     private List<E> elements;
 
     public void add(E element) {//MỞ JSON
+        if (elements == null) {
+            elements = new java.util.ArrayList<>();
+        }
         elements.add(element);
     }
 
     public boolean isEmpty() {//MỞ JSON
-        return elements.isEmpty();
+        return elements == null || elements.isEmpty();
     }
 
     public E next() {//MỞ JSON

@@ -763,37 +763,55 @@ public class User {
     }
 
     public void lock(String message) {
+        Connection conn = null;
+        PreparedStatement stmt = null;
         try {
-            PreparedStatement stmt = DbManager.getInstance().getConnection(DbManager.SAVE_DATA)
-                    .prepareStatement("UPDATE `users` SET `status` = 0 WHERE `id` = ? LIMIT 1;");
-            stmt.setInt(2, this.id);
+            conn = DbManager.getInstance().getConnection(DbManager.SAVE_DATA);
+            stmt = conn.prepareStatement("UPDATE `users` SET `status` = 0 WHERE `id` = ? LIMIT 1;");
+            stmt.setInt(1, this.id);
             stmt.executeUpdate();
             session.disconnect();
         } catch (Exception e) {
+            Log.error("lock user err: " + e.getMessage(), e);
+        } finally {
+            try { if (stmt != null) { stmt.close(); } } catch (Exception ignored) {}
+            try { if (conn != null) { conn.close(); } } catch (Exception ignored) {}
         }
     }
 
     public void lock(int hours) {
+        Connection conn = null;
+        PreparedStatement stmt = null;
         try {
-            PreparedStatement stmt = DbManager.getInstance().getConnection(DbManager.SAVE_DATA)
-                    .prepareStatement("UPDATE `users` SET `ban_until` = ? WHERE `id` = ? LIMIT 1;");
+            conn = DbManager.getInstance().getConnection(DbManager.SAVE_DATA);
+            stmt = conn.prepareStatement("UPDATE `users` SET `ban_until` = ? WHERE `id` = ? LIMIT 1;");
             stmt.setTimestamp(1, new Timestamp(System.currentTimeMillis() + hours * 60 * 60 * 1000));
             stmt.setInt(2, this.id);
             stmt.executeUpdate();
             session.disconnect();
         } catch (Exception e) {
+            Log.error("lock user err: " + e.getMessage(), e);
+        } finally {
+            try { if (stmt != null) { stmt.close(); } } catch (Exception ignored) {}
+            try { if (conn != null) { conn.close(); } } catch (Exception ignored) {}
         }
     }
 
     public void lock_min(int minute) {
+        Connection conn = null;
+        PreparedStatement stmt = null;
         try {
-            PreparedStatement stmt = DbManager.getInstance().getConnection(DbManager.SAVE_DATA)
-                    .prepareStatement("UPDATE `users` SET `ban_until` = ? WHERE `id` = ? LIMIT 1;");
+            conn = DbManager.getInstance().getConnection(DbManager.SAVE_DATA);
+            stmt = conn.prepareStatement("UPDATE `users` SET `ban_until` = ? WHERE `id` = ? LIMIT 1;");
             stmt.setTimestamp(1, new Timestamp(System.currentTimeMillis() + minute * 60 * 1000L));
             stmt.setInt(2, this.id);
             stmt.executeUpdate();
             session.disconnect();
         } catch (Exception e) {
+            Log.error("lock user err: " + e.getMessage(), e);
+        } finally {
+            try { if (stmt != null) { stmt.close(); } } catch (Exception ignored) {}
+            try { if (conn != null) { conn.close(); } } catch (Exception ignored) {}
         }
     }
     

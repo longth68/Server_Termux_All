@@ -30,15 +30,30 @@ public class ServerManager {
     private static ReadWriteLock lockUser = new ReentrantReadWriteLock();
 
     public static List<Char> getChars() {
-        return (List<Char>) chars.clone();
+        lockChar.readLock().lock();
+        try {
+            return (List<Char>) chars.clone();
+        } finally {
+            lockChar.readLock().unlock();
+        }
     }
 
     public static List<User> getUsers() {
-        return (List<User>) users.clone();
+        lockUser.readLock().lock();
+        try {
+            return (List<User>) users.clone();
+        } finally {
+            lockUser.readLock().unlock();
+        }
     }
 
     public static int getNumberOnline() {
-        return chars.size();
+        lockChar.readLock().lock();
+        try {
+            return chars.size();
+        } finally {
+            lockChar.readLock().unlock();
+        }
     }
 
     public static int frequency(String ip) {

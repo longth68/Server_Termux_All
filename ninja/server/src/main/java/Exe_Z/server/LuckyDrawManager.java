@@ -44,7 +44,7 @@ public class LuckyDrawManager implements Runnable {
 
     public void remove(LuckyDraw luckyDraw) {
         synchronized (luckyDraws) {
-            luckyDraws.add(luckyDraw);
+            luckyDraws.remove(luckyDraw);
         }
     }
 
