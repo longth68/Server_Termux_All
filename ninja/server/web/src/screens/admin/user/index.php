@@ -42,6 +42,14 @@ if ($rm) {
         $itemMeta[(int)$row['id']] = ['name' => $row['name'], 'icon' => (int)$row['icon'], 'level' => (int)$row['level']];
     }
 }
+// Ánh xạ kỹ năng id -> [name, icon, max_point, class]
+$skillMeta = [];
+$rs = $conn->query("SELECT `id`, `name`, `icon`, `max_point`, `class` FROM `skill_template`");
+if ($rs) {
+    while ($row = $rs->fetch_assoc()) {
+        $skillMeta[(int)$row['id']] = ['name' => $row['name'], 'icon' => (int)$row['icon'], 'max' => (int)$row['max_point'], 'class' => (int)$row['class']];
+    }
+}
 function itemImg($meta, $size = 40) {
     if (!$meta || $meta['icon'] <= 0) {
         return '';
@@ -797,19 +805,26 @@ if ($pdetail) {
                 </form>
 
             <?php elseif ($activeTab == 'skill'): ?>
-                <h6 class="fw-bold mt-2">Kỹ năng đang học (từ cột <code>skill</code> DB)</h6>
+                <h6 class="fw-bold mt-2">Kỹ năng đã học (cột <code>skill</code> + <code>skill_template</code>)</h6>
                 <div class="table-responsive">
                     <table class="table table-sm text-white mb-0 align-middle">
-                        <thead><tr class="fw-bold text-uppercase"><th>#</th><th>ID kỹ năng</th><th>Điểm</th></tr></thead>
+                        <thead><tr class="fw-bold text-uppercase"><th>Icon</th><th>ID</th><th>Tên kỹ năng</th><th>Phái</th><th>Điểm</th><th>Tối đa</th></tr></thead>
                         <tbody>
-                        <?php if (count($pSkills) > 0): foreach ($pSkills as $sk): ?>
+                        <?php if (count($pSkills) > 0): foreach ($pSkills as $sk):
+                            $sid = isset($sk['id']) ? intval($sk['id']) : 0;
+                            $sm = $skillMeta[$sid] ?? null;
+                            $pt = isset($sk['point']) ? intval($sk['point']) : 0;
+                        ?>
                             <tr>
-                                <td><?= isset($sk['index']) ? intval($sk['index']) : '' ?></td>
-                                <td><?= isset($sk['id']) ? intval($sk['id']) : '' ?></td>
-                                <td><?= isset($sk['point']) ? intval($sk['point']) : '' ?></td>
+                                <td><?php if ($sm && $sm['icon'] > 0): ?><img src="/images/1/Small<?= $sm['icon'] ?>.png" width="40" height="40" style="image-rendering:pixelated" onerror="this.style.display='none'"><?php else: ?>-<?php endif; ?></td>
+                                <td><?= $sid ?></td>
+                                <td class="fw-semibold"><?= $sm ? htmlspecialchars($sm['name']) : '<span class="text-muted">Không rõ</span>' ?></td>
+                                <td><?= $sm ? htmlspecialchars($classNames[$sm['class']] ?? ('C' . $sm['class'])) : '-' ?></td>
+                                <td><span class="text-info fw-bold"><?= $pt ?></span></td>
+                                <td><?= $sm ? $sm['max'] : '-' ?></td>
                             </tr>
                         <?php endforeach; else: ?>
-                            <tr><td colspan="3" class="text-muted">Chưa có kỹ năng.</td></tr>
+                            <tr><td colspan="6" class="text-muted">Chưa có kỹ năng.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
