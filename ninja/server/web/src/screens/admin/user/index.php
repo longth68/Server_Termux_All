@@ -550,8 +550,11 @@ $conn->close();
 
 <?php if ($pdetail): ?>
 <?php
-$activeTab = isset($_GET['tab']) ? preg_replace('/[^a-z]/', '', strtolower($_GET['tab'])) : 'info';
+$activeTab = isset($_GET['dtab']) ? preg_replace('/[^a-z]/', '', strtolower($_GET['dtab'])) : 'info';
 $tabs = ['info' => 'Thông tin', 'gear' => 'Trang bị', 'bag' => 'Túi đồ', 'task' => 'Nhiệm vụ', 'skill' => 'Kỹ năng', 'social' => 'Bạn bè', 'actions' => 'Thao tác'];
+if (!isset($tabs[$activeTab])) {
+    $activeTab = 'info';
+}
 // Parse kỹ năng + bạn bè từ DB
 $pSkills = [];
 $pFriends = [];
@@ -579,7 +582,7 @@ if ($pdetail) {
             <ul class="nav nav-tabs mb-3" role="tablist">
                 <?php foreach ($tabs as $key => $label): ?>
                     <li class="nav-item">
-                        <a class="nav-link <?= $activeTab == $key ? 'active' : '' ?>" href="?detail=<?= urlencode($pdetail['name']) ?>&tab=<?= $key ?>"><?= $label ?></a>
+                        <a class="nav-link <?= $activeTab == $key ? 'active' : '' ?>" href="?detail=<?= urlencode($pdetail['name']) ?>&dtab=<?= $key ?>"><?= $label ?></a>
                     </li>
                 <?php endforeach; ?>
             </ul>
