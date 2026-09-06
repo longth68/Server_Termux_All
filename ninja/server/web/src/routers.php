@@ -58,6 +58,10 @@ switch ($page) {
             include("screens/admin/server/index.php");
         } elseif ($tab === 'boss') {
             include("screens/admin/boss/index.php");
+        } elseif ($tab === 'shop') {
+            include("screens/admin/shop/index.php");
+        } elseif ($tab === 'logs') {
+            include("screens/admin/logs/index.php");
         } else {
             include("screens/admin/index.php");
         }

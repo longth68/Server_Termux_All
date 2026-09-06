@@ -573,6 +573,15 @@ public class WebAdminCommandPoller extends Thread {
                 GlobalService.getInstance().chat("Hệ thống", "Cấu hình máy chủ đã được cập nhật từ Web Admin.");
                 Log.info("[WebAdmin] UPDATE_SERVER_CONFIG done.");
                 break;
+            case "SHOP_RELOAD":
+                try {
+                    boolean ok = Exe_Z.store.StoreManager.getInstance().Reload();
+                    GlobalService.getInstance().chat("Hệ thống", ok ? "Đã tải lại Cửa hàng từ Web Admin." : "Tải lại Cửa hàng lỗi (xem log).");
+                    Log.info("[WebAdmin] SHOP_RELOAD done ok=" + ok);
+                } catch (Exception e) {
+                    Log.error("SHOP_RELOAD err: " + e.getMessage(), e);
+                }
+                break;
             default:
                 Log.warn("[WebAdmin] Lệnh không hỗ trợ: " + command);
                 break;

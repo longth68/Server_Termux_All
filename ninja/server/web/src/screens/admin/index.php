@@ -58,6 +58,12 @@ $luongCount = $conn->query("SELECT `id` FROM `users` WHERE `luong` > 0;")->num_r
                     <div class="col-12 col-md-4 col-lg-3">
                         <a class="btn btn-success fw-semibold" href="/admin/server">Quản Lý Máy Chủ</a>
                     </div>
+                    <div class="col-12 col-md-4 col-lg-3">
+                        <a class="btn btn-success fw-semibold" href="/admin/shop">Shop Editor</a>
+                    </div>
+                    <div class="col-12 col-md-4 col-lg-3">
+                        <a class="btn btn-success fw-semibold" href="/admin/logs">Lịch Sử / Log</a>
+                    </div>
                 </div>
                 <canvas style="margin-top:10px;" class="bar-chart" id="barChart" width="400" height="200"></canvas>
             </div>
