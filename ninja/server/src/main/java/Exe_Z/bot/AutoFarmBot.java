@@ -289,6 +289,42 @@ public class AutoFarmBot extends Bot {
         return isVillage();
     }
 
+    /**
+     * Ép bot đứng ĐÚNG mặt đất trong map (tránh lơ lửng / nằm dưới map):
+     * - x clamp trong [0, pxw)
+     * - y dùng tilemap.collisionY(x, y) để tìm mặt đất (đáy pxh-1 nếu không có)
+     * Trả về true nếu zone/tilemap hợp lệ.
+     */
+    public boolean aiSnapToGround() {
+        Zone z = zone;
+        if (z == null || z.tilemap == null) {
+            return false;
+        }
+        try {
+            int pxw = z.tilemap.pxw;
+            int pxh = z.tilemap.pxh;
+            int nx = x;
+            int ny = y;
+            if (nx < 12) {
+                nx = 12;
+            }
+            if (nx > pxw - 12) {
+                nx = pxw - 12;
+            }
+            ny = z.tilemap.collisionY((short) nx, (short) y);
+            if (ny < 0) {
+                ny = 0;
+            }
+            if (ny > pxh - 12) {
+                ny = pxh - 12;
+            }
+            setXY((short) nx, (short) ny);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
     public void aiPickup(Exe_Z.map.item.ItemMap im) {
         if (im == null || zone == null) {
             return;
@@ -1463,6 +1499,7 @@ public class AutoFarmBot extends Bot {
             // Class ngẫu nhiên 1-6 (Kiếm/Tiêu/Kunai/Cung/Đao/Quạt) như người chơi thật
             AutoFarmBot bot = createBot(z, Math.max(1, level), Math.max(100, hp), Math.max(10, damage), speed, (byte) NinjaUtils.nextInt(1, 6));
             bot.setXY((short) sx, (short) sy);
+            bot.aiSnapToGround(); // ép đứng đúng mặt đất, tránh lơ lửng/dưới map
             bot.spawnX = bot.x;
             bot.spawnY = bot.y;
             bot.despawnAt = System.currentTimeMillis() + BOT_LIFETIME;
@@ -1889,6 +1926,9 @@ public class AutoFarmBot extends Bot {
             } else {
                 bot.setXY((short) 100, (short) 100);
             }
+            // Ép bot đứng đúng mặt đất (tránh spawn trong tường / lơ lửng / dưới map)
+            bot.aiSnapToGround();
+            // Lưu lại toạ độ chuẩn làm điểm hồi sinh
             bot.spawnX = bot.x;
             bot.spawnY = bot.y;
             bot.despawnAt = System.currentTimeMillis() + BOT_LIFETIME;

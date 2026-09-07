@@ -51,11 +51,26 @@ public class BotMovement {
     }
 
     public static void wanderVillage(AutoFarmBot bot) {
-        if (bot == null) {
+        if (bot == null || bot.zone == null) {
             return;
         }
+        int[] b = bot.aiMapBounds();
         int nx = bot.x + NinjaUtils.nextInt(-50, 50);
         int ny = bot.y + NinjaUtils.nextInt(-20, 20);
+        if (nx < b[0]) {
+            nx = b[0];
+        }
+        if (ny < b[2]) {
+            ny = b[2];
+        }
+        if (nx > b[1]) {
+            nx = b[1];
+        }
+        if (ny > b[3]) {
+            ny = b[3];
+        }
+        // ép đứng trên mặt đất trước khi đi
+        bot.aiSnapToGround();
         bot.aiMoveTo(nx, ny);
     }
 
