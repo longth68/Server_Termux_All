@@ -1654,6 +1654,61 @@ public class AutoFarmBot extends Bot {
         return n;
     }
 
+    /**
+     * Sinh bot vào ĐÚNG zone (cùng map cùng khu với người chơi — yêu cầu presence).
+     * Vị trí: quanh người chơi bán kính 150-350px (không đè lên người chơi — spawn không lộ).
+     * Level đã được caller cap theo progression. Trả về số bot sinh thành công.
+     */
+    public static int spawnIntoZone(Zone z, int count, int level, int hp, int damage, Char anchor) {
+        if (z == null || count <= 0) {
+            return 0;
+        }
+        int spawned = 0;
+        for (int i = 0; i < count; i++) {
+            synchronized (BOTS) {
+                int current = 0;
+                for (AutoFarmBot b : BOTS) {
+                    if (b != null && !b.isCleaned && b.zone == z) {
+                        current++;
+                    }
+                }
+                if (current >= MAX_BOT_PER_ZONE) {
+                    break;
+                }
+            }
+            AutoFarmBot bot = createBot(z, Math.max(1, level), Math.max(100, hp), Math.max(10, damage), 0,
+                    (byte) NinjaUtils.nextInt(1, 6));
+            if (anchor != null && anchor.zone == z) {
+                // Vị trí quanh anchor, bán kính 150-350px, góc ngẫu nhiên
+                int angle = NinjaUtils.nextInt(0, 359);
+                int radius = NinjaUtils.nextInt(150, 350);
+                int sx = anchor.x + (int) (Math.cos(Math.toRadians(angle)) * radius);
+                int sy = anchor.y + (int) (Math.sin(Math.toRadians(angle)) * radius);
+                if (z.tilemap != null) {
+                    sx = Math.max(24, Math.min(z.tilemap.pxw - 24, sx));
+                    sy = Math.max(24, Math.min(z.tilemap.pxh - 24, sy));
+                }
+                bot.setXY((short) sx, (short) sy);
+            } else if (z.tilemap != null && z.tilemap.waypoints != null && !z.tilemap.waypoints.isEmpty()) {
+                Exe_Z.map.Waypoint wp = z.tilemap.waypoints.get(0);
+                bot.setXY((short) ((wp.minX + wp.maxX) / 2), (short) ((wp.minY + wp.maxY) / 2));
+            } else {
+                bot.setXY((short) 100, (short) 100);
+            }
+            bot.spawnX = bot.x;
+            bot.spawnY = bot.y;
+            bot.despawnAt = System.currentTimeMillis() + BOT_LIFETIME;
+            BOTS.add(bot);
+            z.join(bot);
+            spawned++;
+        }
+        if (spawned > 0) {
+            System.out.println("[BOT-SPAWN] zone=" + z.map.id + "/" + z.id
+                    + " count=" + spawned + " lv=" + level + " reason=player_presence");
+        }
+        return spawned;
+    }
+
     private static final String[] EQUIP_SLOT_NAMES = {
         "Nón", "Vũ khí", "Áo", "Liên", "Găng tay", "Nhẫn", "Quần", "Ngọc bội", "Giày", "Phụ"
     };

@@ -49,6 +49,8 @@ public class BotManager implements Runnable {
                     continue;
                 }
                 fillToTarget();
+                // Đảm bảo tối thiểu 5 bot cùng map cùng khu quanh mỗi người chơi
+                ensurePresenceAroundPlayers();
                 long now = System.currentTimeMillis();
                 if (now - lastSync > 60000L) {
                     lastSync = now;
@@ -140,6 +142,11 @@ public class BotManager implements Runnable {
         }
     }
 
+    /**
+     * Đảm bảo CÙNG MAP CÙNG KHU với người chơi có tối thiểu 5 bot
+     * (cấu hình presence_per_player, trần MAX_BOT_PER_ZONE=8).
+     * Bot sinh vào ĐÚNG zone, level luôn thấp hơn player (progression ceiling).
+     */
     public void ensureBotsInZone(Zone z, int target) {
         if (z == null) {
             return;
@@ -158,18 +165,60 @@ public class BotManager implements Runnable {
         if (!hasReal || anyReal == null) {
             return;
         }
-        // Mẫu Anwin presencePerPlayer: giới hạn bot bám quanh mỗi người chơi
-        int presence = BotConfig.PRESENCE_PER_PLAYER;
-        if (presence > 0) {
-            target = Math.min(target, presence);
+        // Tối thiểu 5 bot/khu (yêu cầu cấu hình), giới hạn trần zone
+        int presence = Math.max(5, BotConfig.PRESENCE_PER_PLAYER);
+        int lv = AutoFarmBot.capLevel(anyReal.level);
+        if (lv < 1) {
+            lv = 1;
         }
+        int[] st = AutoFarmBot.scaledStats(lv);
         int bots = AutoFarmBot.countInZone(z);
-        if (bots >= target) {
+        if (bots >= presence) {
             return;
         }
-        int lv = AutoFarmBot.capLevel(anyReal.level);
-        int[] st = AutoFarmBot.scaledStats(lv);
-        AutoFarmBot.spawnByMap(z.map.id, 1, lv, st[0], st[1], 0);
+        int need = Math.min(presence - bots, 8 - bots);
+        if (need <= 0) {
+            return;
+        }
+        AutoFarmBot.spawnIntoZone(z, need, lv, st[0], st[1], anyReal);
+    }
+
+    /** Quét các khu có người chơi thật, đảm bảo mật độ bot quanh họ (presence). */
+    private void ensurePresenceAroundPlayers() {
+        try {
+            List<Exe_Z.map.Map> maps = Exe_Z.map.MapManager.getInstance().getMaps();
+            if (maps == null) {
+                return;
+            }
+            for (Exe_Z.map.Map m : maps) {
+                if (m == null) {
+                    continue;
+                }
+                List<Zone> zones = m.getZones();
+                if (zones == null) {
+                    continue;
+                }
+                for (Zone z : zones) {
+                    if (z == null) {
+                        continue;
+                    }
+                    boolean hasReal = false;
+                    synchronized (z.players) {
+                        for (Char p : z.players) {
+                            if (BotPerception.isRealPlayer(p)) {
+                                hasReal = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (hasReal) {
+                        ensureBotsInZone(z, BotConfig.PRESENCE_PER_PLAYER);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.error("presence err: " + e.getMessage(), e);
+        }
     }
 
     private List<AutoFarmBot> snapshotBots() {
