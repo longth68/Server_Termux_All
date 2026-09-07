@@ -76,6 +76,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['eventClass'])) {
     }
 }
 
+// Gửi lệnh đặt NGÀY GIỜ kết thúc sự kiện
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['event_time_submit'])) {
+    $p = [
+        'year' => isset($_POST['ey']) ? max(2000, min(2100, intval($_POST['ey']))) : (int)($ey ?? date('Y')),
+        'month' => isset($_POST['em']) ? max(1, min(12, intval($_POST['em']))) : (int)($emo ?? date('n')),
+        'day' => isset($_POST['ed']) ? max(1, min(31, intval($_POST['ed']))) : (int)($ed ?? date('j')),
+        'hour' => isset($_POST['eh']) ? max(0, min(23, intval($_POST['eh']))) : (int)($eh ?? 23),
+        'minute' => isset($_POST['emi']) ? max(0, min(59, intval($_POST['emi']))) : (int)($emi ?? 59),
+        'second' => isset($_POST['es']) ? max(0, min(59, intval($_POST['es']))) : 59,
+    ];
+    $data = json_encode($p, JSON_UNESCAPED_UNICODE);
+    $stmt = $conn->prepare("INSERT INTO `web_admin_commands` (`command`, `data`, `status`) VALUES ('EVENT_TIME', ?, 0)");
+    $stmt->bind_param("s", $data);
+    if ($stmt->execute()) {
+        $msg = '<div class="alert alert-success">Đã gửi lệnh đặt sự kiện kết thúc: <b>' . sprintf('%02d/%02d/%d %02d:%02d:%02d', $p['day'], $p['month'], $p['year'], $p['hour'], $p['minute'], $p['second']) . '</b>. Server áp dụng live (không cần restart).</div>';
+    } else {
+        $msg = '<div class="alert alert-danger">Có lỗi khi gửi lệnh.</div>';
+    }
+    $stmt->close();
+}
+
 // Thống kê điểm sự kiện người chơi (event_points: point là JSON text [{"key","point","rewarded"}])
 $epRows = [];
 $r = $conn->query("SELECT `player_id`, `event_id`, `point` FROM `event_points` ORDER BY `id` DESC LIMIT 40");
@@ -146,9 +167,23 @@ $conn->close();
                 <span class="badge bg-secondary fs-6"><?= $current ? htmlspecialchars($current) : 'Chưa cấu hình' ?></span>
             <?php endif; ?>
         </div>
-        <div class="col-md-4"><small class="text-muted">Kết thúc: <b><?= htmlspecialchars($endStr ?: '-') ?></b> (đổi trong <code>config.properties</code>)</small></div>
+        <div class="col-md-4"><small class="text-muted">Kết thúc: <b><?= htmlspecialchars($endStr ?: '-') ?></b></small></div>
         <div class="col-md-3 text-md-end"><small class="text-muted">Cấu hình: <code><?= htmlspecialchars(basename($current)) ?></code></small></div>
     </div>
+</div>
+
+<div class="card p-3 mb-3">
+    <h6 class="fw-bold"><i class="fa-solid fa-calendar-days text-primary"></i> Đặt ngày giờ kết thúc sự kiện (áp dụng live, không cần restart)</h6>
+    <form method="POST" class="row g-2 align-items-end">
+        <div class="col-6 col-md-2"><label class="form-label small mb-0">Năm</label><input type="number" name="ey" class="form-control form-control-sm" value="<?= intval($ey ?? date('Y')) ?>" min="2000" max="2100"></div>
+        <div class="col-6 col-md-2"><label class="form-label small mb-0">Tháng</label><input type="number" name="em" class="form-control form-control-sm" value="<?= intval($emo ?? date('n')) ?>" min="1" max="12"></div>
+        <div class="col-6 col-md-2"><label class="form-label small mb-0">Ngày</label><input type="number" name="ed" class="form-control form-control-sm" value="<?= intval($ed ?? date('j')) ?>" min="1" max="31"></div>
+        <div class="col-6 col-md-2"><label class="form-label small mb-0">Giờ</label><input type="number" name="eh" class="form-control form-control-sm" value="<?= intval($eh ?? 23) ?>" min="0" max="23"></div>
+        <div class="col-6 col-md-2"><label class="form-label small mb-0">Phút</label><input type="number" name="emi" class="form-control form-control-sm" value="<?= intval($emi ?? 59) ?>" min="0" max="59"></div>
+        <div class="col-6 col-md-2"><label class="form-label small mb-0">Giây</label><input type="number" name="es" class="form-control form-control-sm" value="59" min="0" max="59"></div>
+        <div class="col-12 col-md-3"><button type="submit" name="event_time_submit" value="1" class="btn btn-primary btn-sm w-100"><i class="fa-solid fa-floppy-disk"></i> Đặt ngày kết thúc</button></div>
+    </form>
+    <p class="text-muted mt-2 mb-0"><small>Lệnh <code>EVENT_TIME</code> ghi <code>event.year/month/day/hour/minute/second</code> vào <code>config.properties</code> + nạp lại Event live. Gợi ý đặt thời gian trong tương lai (VD: ngày mai 23:59:59) để sự kiện đang bật tiếp tục chạy.</small></p>
 </div>
 
 <div class="card p-3 mb-3">

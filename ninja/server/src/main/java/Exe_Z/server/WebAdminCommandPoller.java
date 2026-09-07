@@ -538,6 +538,9 @@ public class WebAdminCommandPoller extends Thread {
             case "EVENT_SET":
                 eventSet(data);
                 break;
+            case "EVENT_TIME":
+                eventTime(data);
+                break;
             case "SERVER_CONTROL":
                 serverControl(data);
                 break;
@@ -1387,6 +1390,52 @@ public class WebAdminCommandPoller extends Thread {
             Log.info("[WebAdmin] EVENT_SET -> " + cls + " (file=" + f.getPath() + ", replaced=" + replaced + ")");
         } catch (Exception e) {
             Log.error("EVENT_SET err: " + e.getMessage(), e);
+        }
+    }
+
+    // Đặt NGÀY GIỜ kết thúc sự kiện (mẫu NRO event_date): ghi config.properties + áp live
+    private void eventTime(String data) {
+        JSONObject obj;
+        try {
+            obj = (JSONObject) parser.parse(data == null ? "{}" : data);
+        } catch (ParseException e) {
+            obj = new JSONObject();
+        }
+        try {
+            Config cfg = Config.getInstance();
+            int year = num(obj.get("year"), cfg.getEventYear());
+            int month = num(obj.get("month"), cfg.getEventMonth());
+            int day = num(obj.get("day"), cfg.getEventDay());
+            int hour = num(obj.get("hour"), cfg.getEventHour());
+            int minute = num(obj.get("minute"), cfg.getEventMinute());
+            int second = num(obj.get("second"), cfg.getEventSecond());
+            cfg.setEventDate(year, Math.max(1, Math.min(12, month)), Math.max(1, Math.min(31, day)),
+                    Math.max(0, Math.min(23, hour)), Math.max(0, Math.min(59, minute)), Math.max(0, Math.min(59, second)));
+            cfg.saveEventDateToFile();
+            // Nạp lại Event instance (constructor đọc getEventYear()...) để cập nhật endTime
+            Exe_Z.event.Event.init();
+            String text = "Web Admin đặt sự kiện kết thúc: " + cfg.getEventDay() + "/" + cfg.getEventMonth()
+                    + "/" + cfg.getEventYear() + " " + cfg.getEventHour() + ":" + cfg.getEventMinute()
+                    + ":" + cfg.getEventSecond();
+            GlobalService.getInstance().chat("Hệ thống", text);
+            Log.info("[WebAdmin] EVENT_TIME " + text);
+        } catch (Exception e) {
+            Log.error("EVENT_TIME err: " + e.getMessage(), e);
+        }
+    }
+
+    private int num(Object o, int def) {
+        if (o == null) {
+            return def;
+        }
+        try {
+            return ((Number) o).intValue();
+        } catch (Exception e) {
+            try {
+                return Integer.parseInt(String.valueOf(o));
+            } catch (Exception ex) {
+                return def;
+            }
         }
     }
 

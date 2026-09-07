@@ -271,6 +271,56 @@ public class Config {
         return eventSecond;
     }
 
+    /** Cập nhật thời gian kết thúc sự kiện in-memory (Web Admin đổi ngày sự kiện). */
+    public void setEventDate(int year, int month, int day, int hour, int minute, int second) {
+        this.eventYear = year;
+        this.eventMonth = month;
+        this.eventDay = day;
+        this.eventHour = hour;
+        this.eventMinute = minute;
+        this.eventSecond = second;
+    }
+
+    /** Ghi dòng event.* vào config.properties (giữ nguyên các dòng khác). */
+    public void saveEventDateToFile() {
+        try {
+            java.io.File f = new java.io.File("config.properties");
+            if (!f.exists()) {
+                f = new java.io.File("ninja/server/config.properties");
+            }
+            if (!f.exists()) {
+                return;
+            }
+            java.util.List<String> lines = java.nio.file.Files.readAllLines(f.toPath(),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            java.util.List<String> out = new java.util.ArrayList<>();
+            boolean[] done = new boolean[6];
+            String[] keys = {"event.year=", "event.month=", "event.day=", "event.hour=", "event.minute=", "event.second="};
+            int[] vals = {eventYear, eventMonth, eventDay, eventHour, eventMinute, eventSecond};
+            for (String line : lines) {
+                boolean matched = false;
+                for (int i = 0; i < keys.length; i++) {
+                    if (line.trim().startsWith(keys[i])) {
+                        out.add(keys[i] + vals[i]);
+                        done[i] = true;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    out.add(line);
+                }
+            }
+            for (int i = 0; i < keys.length; i++) {
+                if (!done[i]) {
+                    out.add(keys[i] + vals[i]);
+                }
+            }
+            java.nio.file.Files.write(f.toPath(), out, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception ignored) {
+        }
+    }
+
 //    public String getMongodbUrl() {
 //        if (!StringUtils.isNullOrEmpty(mongodbUser) && !StringUtils.isNullOrEmpty(mongodbPassword)) {
 //            return String.format("mongodb://%s:%s@%s:%d/%s", mongodbUser, mongodbPassword, mongodbHost, mongodbPort, mongodbName);
