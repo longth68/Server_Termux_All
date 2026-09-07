@@ -127,12 +127,25 @@ public class ClanDAO implements Dao<Clan> {
                     if (!DateUtils.isSameDay(now, updated_at)) {
                         clan.openDun = 1;
                         clan.use_card = 1;
-                        PreparedStatement stmt3 = conn.prepareStatement(
-                                "UPDATE `clan` SET `open_dun` = 1,`use_card` = 1, `updated_at` = ? WHERE `id` = ? LIMIT 1;");
-                        stmt3.setString(1, NinjaUtils.dateToString(now, "yyyy-MM-dd"));
-                        stmt3.setInt(2, clan.id);
-                        stmt3.executeUpdate();
-                        stmt3.close();
+                        // Dùng connection RIÊNG cho UPDATE — không dùng chung conn đang SELECT
+                        // (executeUpdate trên cùng connection có ResultSet mở sẽ đóng ResultSet đó)
+                        Connection conn2 = null;
+                        PreparedStatement stmt3 = null;
+                        try {
+                            conn2 = DbManager.getInstance().getConnection(DbManager.GAME);
+                            stmt3 = conn2.prepareStatement(
+                                    "UPDATE `clan` SET `open_dun` = 1,`use_card` = 1, `updated_at` = ? WHERE `id` = ? LIMIT 1;");
+                            stmt3.setString(1, NinjaUtils.dateToString(now, "yyyy-MM-dd"));
+                            stmt3.setInt(2, clan.id);
+                            stmt3.executeUpdate();
+                        } finally {
+                            if (stmt3 != null) {
+                                try { stmt3.close(); } catch (Exception ignored) {}
+                            }
+                            if (conn2 != null) {
+                                try { conn2.close(); } catch (Exception ignored) {}
+                            }
+                        }
                     }
                     clan.memberDAO.load();
                     Clan.mapClan.put(clan.name, clan);
