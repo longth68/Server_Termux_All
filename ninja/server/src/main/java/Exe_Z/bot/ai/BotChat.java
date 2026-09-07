@@ -218,7 +218,126 @@ public class BotChat {
         try {
             Char c = Exe_Z.server.ServerManager.findCharByName(friendName);
             if (c != null && c.getService() != null) {
-                c.getService().chat(bot.name, "Cam on ban da ket ban! Khi nao ranh di train chung nha!");
+                c.getService().chat(bot.name, pick(bot, Arrays.asList(
+                        "Cam on ban da ket ban! Khi nao ranh di train chung nha!",
+                        "Da vao danh sach ban roi nhe, gap nhau trong game!",
+                        "Ket ban roi, co gi thieu cuoi minh nha!",
+                        "Ban that la de thuong, di chung tu nay nha!")));
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    // =========== NÂNG CẤP SỐNG ĐỘNG: PHẢN ỨNG NGỮ CẢNH ===========
+
+    private static final List<String> REACT_HIT = Arrays.asList(
+        "Oi danh minh the!", "Ayyy, ai do danh minh!", "Dau qua troi!",
+        "May dung danh minh nua!", "Minh chieu khong duoi dau!",
+        "Tu than! Quai qua mau doi di!", "Ui da, mau mau giup minh!",
+        "Sao quai nay manh vay ta?", "Can ho tro o day, ai giup di!"
+    );
+
+    private static final List<String> REACT_BOSS = Arrays.asList(
+        "BOSS roi! Dong nhan nhanh!", "Boss nay manh that, dung den gan!",
+        "Cung nhau danh boss nao!", "Danh boss di, exp nhieu lam!",
+        "Can them nguoi danh boss, xung di!", "Boss xuat hien roi ca nhom oi!"
+    );
+
+    private static final List<String> REACT_DUNGEON = Arrays.asList(
+        "Pho ban nay hay that!", "Tiep tuc di nua, sap thay boss roi!",
+        "Nhan do hay khong day?", "Pho ban nay thu do hiem day!",
+        "Can than qua! Quai manh lam!", "Di dung nhom nhe, khong tan duoc!"
+    );
+
+    private static final List<String> LEVEL_UP = Arrays.asList(
+        "Len cap roi! vui qua di!", "Sap toi cap moi roi, phat hien lam!",
+        "Level up! Thang tien chan that!", "Vua len cap, pha dac biet!",
+        "Oi len cap roi, minh cua ban do moi day!", "Level up nhanh that, minh hai long!"
+    );
+
+    private static final List<String> PLAYER_ASK_ITEM = Arrays.asList(
+        "Do nay du ban thi toi cho ban!",
+        "Ban can do gi, de toi coi thu trong tui!",
+        "Tien do nay co ban khong ta?",
+        "Toi co vai mon do hieu, ban xac nhan muon khong?",
+        "Ok de toi kiem tra xong se ban cho ban nhe!"
+    );
+
+    /** Bot phản ứng khi BỊ ĐÁNH (bởi quái hoặc người) — reaction delay ngẫu nhiên. */
+    public static void reactOnHit(AutoFarmBot bot, Char attacker) {
+        if (bot == null || bot.zone == null || bot.botProfile.talkativeness < 0.3f) {
+            return;
+        }
+        try {
+            String line = pick(bot, REACT_HIT);
+            if (line != null) {
+                bot.zone.getService().chat(bot.id, line);
+                bot.botMemory.rememberChat(line);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Bot phản ứng khi thấy BOSS xuất hiện trong khu. */
+    public static void reactOnBoss(AutoFarmBot bot) {
+        if (bot == null || bot.zone == null || bot.botProfile.talkativeness < 0.25f) {
+            return;
+        }
+        try {
+            String line = pick(bot, REACT_BOSS);
+            if (line != null) {
+                bot.zone.getService().chat(bot.id, line);
+                bot.botMemory.rememberChat(line);
+                bot.botNeeds.satisfy(BotNeeds.SOCIAL, 0.4);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Bot chat trong PHÓ BẢN (đi cùng nhóm). */
+    public static void chatInDungeon(AutoFarmBot bot) {
+        if (bot == null || bot.zone == null || bot.botProfile.talkativeness < 0.35f) {
+            return;
+        }
+        try {
+            String line = pick(bot, REACT_DUNGEON);
+            if (line != null && !bot.botMemory.saidRecently(line)) {
+                bot.zone.getService().chat(bot.id, line);
+                bot.botMemory.rememberChat(line);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Bot thông báo LÊN CẤP (xác suất thấp, chỉ khi chat rate cao). */
+    public static void chatLevelUp(AutoFarmBot bot, int newLevel) {
+        if (bot == null || bot.zone == null) {
+            return;
+        }
+        // Chỉ ~30% bot có "khoe" khi lên cấp, tùy personality
+        if (NinjaUtils.nextInt(0, 100) > 30 * bot.botProfile.talkativeness) {
+            return;
+        }
+        try {
+            String line = pick(bot, LEVEL_UP);
+            if (line != null) {
+                bot.zone.getService().chat(bot.id, "Lv" + newLevel + "! " + line);
+                bot.botMemory.rememberChat(line);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Bot trả lời người chơi hỏi đồ / tặng đồ (khi player chat gần đó). */
+    public static void replyItemAsk(AutoFarmBot bot, Char player) {
+        if (bot == null || player == null || bot.zone == null) {
+            return;
+        }
+        try {
+            String line = pick(bot, PLAYER_ASK_ITEM);
+            if (line != null) {
+                player.getService().chat(bot.name, line);
+                bot.botMemory.rememberChat(line);
             }
         } catch (Exception ignored) {
         }

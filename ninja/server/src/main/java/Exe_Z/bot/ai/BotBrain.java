@@ -63,10 +63,13 @@ public class BotBrain {
                     Mob boss = BotPerception.findBossTarget(bot, 500);
                     if (boss != null) {
                         target = boss;
+                        bot.onSeenBoss(boss);
                         if (bot.botTick % 20 == 0) {
                             System.out.println("[BOT-COMBAT] bot=" + bot.id + " huntBoss=" + boss.template.name
                                     + " zone=" + bot.zone.map.id + "/" + bot.zone.id);
                         }
+                    } else {
+                        bot.lastBossTargetId = 0;
                     }
                 } catch (Exception ignored) {
                 }

@@ -170,10 +170,85 @@ public class AutoFarmBot extends Bot {
     public long nextAiSocialTime = 0L;
     public long nextAiPrivateTime = 0L;
     public long lastAiMapChange = 0L;
+    public long nextReactHitTime = 0L;
+    public long nextReactBossTime = 0L;
+    public long nextReactDungeonTime = 0L;
     /** Khoảng cách progression so với player mạnh nhất (1..maxGap) — cố định lúc spawn. */
     public int progressionGap = 0;
     /** Lần cuối spawn scheduler sinh bot (chống log spam). */
     public long spawnReasonTime = 0L;
+    /** Level lần cuối bot chat lên cấp (chống lặp). */
+    public int lastChattedLevel = 0;
+    /** HP lần đọc cuối — phát hiện bị đánh để chat phản ứng. */
+    public int lastSeenHp = 0;
+    /** Boss ID đang nhắm (tránh chat lặp cùng 1 boss). */
+    public int lastBossTargetId = 0;
+
+    /** Phát hiện bot BỊ ĐÁNH (HP tụt) trong tick — chat phản ứng như người thật. */
+    private void detectHitReaction() {
+        try {
+            long now = System.currentTimeMillis();
+            if (lastSeenHp > 0 && hp < lastSeenHp - Math.max(50, maxHP / 100) && now > nextReactHitTime) {
+                nextReactHitTime = now + NinjaUtils.nextInt(8000, 20000);
+                // Chỉ ~25% lần trúng đòn mới chat (không spam)
+                if (NinjaUtils.nextInt(0, 100) <= 25) {
+                    Exe_Z.bot.ai.BotChat.reactOnHit(this, null);
+                }
+            }
+            lastSeenHp = hp;
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Phát hiện bot LÊN CẤP — thông báo trong khu như người chơi. */
+    private void detectLevelUp() {
+        try {
+            if (lastChattedLevel == 0) {
+                lastChattedLevel = level; // lần đầu chỉ lưu, không chat
+            }
+            if (level > lastChattedLevel) {
+                lastChattedLevel = level;
+                Exe_Z.bot.ai.BotChat.chatLevelUp(this, level);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Bot đang ở TRONG PHÓ BẢN — chat phản ứng (mỗi ~15-30s, tùy personality). */
+    private void detectDungeonChat() {
+        try {
+            if (!Exe_Z.bot.ai.BotConfig.DUNGEON_PARTY) {
+                return;
+            }
+            long now = System.currentTimeMillis();
+            if (now < nextReactDungeonTime) {
+                return;
+            }
+            if (findWorld(Exe_Z.map.world.World.DUNGEON) != null) {
+                nextReactDungeonTime = now + NinjaUtils.nextInt(15000, 30000);
+                Exe_Z.bot.ai.BotChat.chatInDungeon(this);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Gọi khi bot THẤY BOSS MỚI trong khu (chống lặp cùng boss). */
+    public void onSeenBoss(Mob boss) {
+        try {
+            if (boss == null) {
+                return;
+            }
+            if (lastBossTargetId != boss.id) {
+                lastBossTargetId = boss.id;
+                long now = System.currentTimeMillis();
+                if (now > nextReactBossTime) {
+                    nextReactBossTime = now + 30000L;
+                    Exe_Z.bot.ai.BotChat.reactOnBoss(this);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
 
     private AutoFarmBot(int id, String name, int level, byte typePk, byte classId) {
         super(id, name, level, typePk, classId);
@@ -327,7 +402,11 @@ public class AutoFarmBot extends Bot {
             }
             // ===== NRO-style Brain: điều phối theo Needs/State/Personality =====
             if (aiEnabled) {
-                botTick = tick;
+                botTick = botTick + 1;
+                // Phản ứng sống động: bị đánh / lên cấp / chat phó bản
+                detectHitReaction();
+                detectLevelUp();
+                detectDungeonChat();
                 try {
                     Exe_Z.bot.ai.BotBrain.update(this);
                     Exe_Z.bot.ai.BotBrain.tickClanAndPvp(this);
