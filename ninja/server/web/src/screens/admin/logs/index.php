@@ -13,12 +13,13 @@ if ($user['admin_web'] != 1) {
 
 $conn = SQL();
 
-$tab = isset($_GET['tab']) ? preg_replace('/[^a-z_]/', '', strtolower($_GET['tab'])) : 'login';
-if ($tab !== 'login' && $tab !== 'tx' && $tab !== 'gift') {
+// Dùng tham số ltab riêng — router ghi đè $_GET['tab'] = 'logs' từ URL /admin/logs
+$tab = isset($_GET['ltab']) ? preg_replace('/[^a-z_]/', '', strtolower($_GET['ltab'])) : 'login';
+if (!in_array($tab, ['login', 'tx', 'gift', 'server'])) {
     $tab = 'login';
 }
 
-$limit = 100;
+$limit = 150;
 $rows = [];
 $cols = [];
 
@@ -38,12 +39,41 @@ if ($tab === 'login') {
             $rows[] = [$row['id'], $row['player_id'], $row['type'], $row['type_name'], $row['luong_truoc'], $row['luong_sau'], $row['luong_ton'], $row['time']];
         }
     }
-} else { // gift
+} elseif ($tab === 'gift') {
     $res = $conn->query("SELECT g.`id`, g.`user_id`, g.`player_id`, g.`gift_code`, g.`created_at` FROM `gift_code_histories` g ORDER BY g.`id` DESC LIMIT $limit");
     if ($res) {
         $cols = ['ID', 'User', 'Nhân vật', 'Mã giftcode', 'Thời gian'];
         while ($row = $res->fetch_assoc()) {
             $rows[] = [$row['id'], $row['user_id'], $row['player_id'], $row['gift_code'], $row['created_at']];
+        }
+    }
+}
+// ---- Tab server: đọc file log của server (cùng máy Termux) ----
+$logFiles = [];
+$logDir = dirname(__DIR__, 5) . '/logs'; // ninja/server/logs
+if (is_dir($logDir)) {
+    foreach (glob($logDir . '/*.log') as $lf) {
+        $logFiles[basename($lf)] = $lf;
+    }
+}
+krsort($logFiles); // file mới nhất trước (theo tên)
+$logContent = '';
+$logName = isset($_GET['log']) ? basename(strval($_GET['log'])) : '';
+if ($tab === 'server') {
+    if ($logName !== '' && isset($logFiles[$logName])) {
+        $lines = @file($logFiles[$logName], FILE_IGNORE_NEW_LINES);
+        if (is_array($lines)) {
+            $logContent = implode("\n", array_slice($lines, -300)); // 300 dòng cuối
+        }
+    } else {
+        $logName = '';
+        $firstKey = array_key_first($logFiles);
+        if ($firstKey !== null) {
+            $logName = $firstKey;
+            $lines = @file($logFiles[$logName], FILE_IGNORE_NEW_LINES);
+            if (is_array($lines)) {
+                $logContent = implode("\n", array_slice($lines, -300));
+            }
         }
     }
 }
@@ -59,6 +89,9 @@ $conn->close();
     .admin-panel h4, .admin-panel h5, .admin-panel h6 { color: #212529; }
     .admin-panel .nav-pills .nav-link { color: #0d6efd; }
     .admin-panel .nav-pills .nav-link.active { background: #0d6efd; color: #fff; }
+    .admin-panel pre.logview { background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 6px; font-size: 12px; max-height: 70vh; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+    .admin-panel .log-err { color: #ff6b6b; }
+    .admin-panel .log-warn { color: #ffd93d; }
 </style>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="m-0 fw-bold"><i class="fa-solid fa-clock-rotate-left text-secondary"></i> Lịch Sử / Log</h4>
@@ -67,12 +100,33 @@ $conn->close();
 
 <div class="card p-2 mb-3">
     <ul class="nav nav-pills">
-        <li class="nav-item"><a class="nav-link <?= $tab == 'login' ? 'active' : '' ?>" href="/admin/logs?tab=login">Đăng nhập / Hoạt động</a></li>
-        <li class="nav-item"><a class="nav-link <?= $tab == 'tx' ? 'active' : '' ?>" href="/admin/logs?tab=tx">Giao dịch (Lượng)</a></li>
-        <li class="nav-item"><a class="nav-link <?= $tab == 'gift' ? 'active' : '' ?>" href="/admin/logs?tab=gift">Giftcode đã dùng</a></li>
+        <li class="nav-item"><a class="nav-link <?= $tab == 'login' ? 'active' : '' ?>" href="/admin/logs?ltab=login">Đăng nhập / Hoạt động</a></li>
+        <li class="nav-item"><a class="nav-link <?= $tab == 'tx' ? 'active' : '' ?>" href="/admin/logs?ltab=tx">Giao dịch (Lượng)</a></li>
+        <li class="nav-item"><a class="nav-link <?= $tab == 'gift' ? 'active' : '' ?>" href="/admin/logs?ltab=gift">Giftcode đã dùng</a></li>
+        <li class="nav-item"><a class="nav-link <?= $tab == 'server' ? 'active' : '' ?>" href="/admin/logs?ltab=server">Log server</a></li>
     </ul>
 </div>
 
+<?php if ($tab === 'server'): ?>
+<div class="card p-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="fw-bold mb-0"><i class="fa-solid fa-file-lines text-success"></i> Log server — 300 dòng cuối</h6>
+        <a class="btn btn-sm btn-outline-secondary" href="/admin/logs?ltab=server<?= $logName ? '&log=' . urlencode($logName) : '' ?>">Làm mới</a>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mb-2">
+        <?php foreach ($logFiles as $lfName => $lfPath): ?>
+            <a class="btn btn-sm <?= $lfName === $logName ? 'btn-primary' : 'btn-outline-secondary' ?>" href="/admin/logs?ltab=server&log=<?= urlencode($lfName) ?>"><?= htmlspecialchars($lfName) ?></a>
+        <?php endforeach; ?>
+        <?php if (empty($logFiles)): ?><span class="text-muted">Không tìm thấy file log trong <code><?= htmlspecialchars($logDir) ?></code></span><?php endif; ?>
+    </div>
+    <pre class="logview"><?php
+        $highlight = htmlspecialchars($logContent);
+        // tô màu dòng ERROR/WARN/Exception
+        $hl = preg_replace('/^(.*(?:ERROR|Exception|WARN|SEVERE).*)$/m', '<span class="log-err">$1</span>', $highlight);
+        echo $hl ?: 'Chưa có log.';
+    ?></pre>
+</div>
+<?php else: ?>
 <div class="card p-3">
     <h6 class="fw-bold"><?= count($rows) ?> bản ghi gần nhất</h6>
     <?php if (count($rows) > 0): ?>
@@ -90,4 +144,5 @@ $conn->close();
         <div class="text-center text-muted py-3">Chưa có dữ liệu.</div>
     <?php endif; ?>
 </div>
+<?php endif; ?>
 </div>
