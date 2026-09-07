@@ -316,6 +316,11 @@ public class Char {
     public long expire;
     @Getter
     private Group group;
+
+    /** Cho BOT AI tham gia nhóm (tái dùng cơ chế party). */
+    public void joinGroup(Group g) {
+        this.group = g;
+    }
     public boolean isCatchItem = false;
     public boolean isFailure = false;
     public Language language;

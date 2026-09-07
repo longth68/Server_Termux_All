@@ -120,6 +120,44 @@ public class BotPerception {
         return false;
     }
 
+    /**
+     * Tìm BOSS đang sống trong zone (bot săn boss — yêu cầu Hunt Boss).
+     * Ưu tiên boss đang bị người chơi đánh (cùng đội / hỗ trợ), trả về null nếu không có.
+     */
+    public static Mob findBossTarget(Char bot, int range) {
+        Zone z = bot == null ? null : bot.zone;
+        if (z == null) {
+            return null;
+        }
+        List<Mob> mobs;
+        try {
+            mobs = z.getLivingMonsters();
+        } catch (Exception e) {
+            mobs = z.monsters;
+        }
+        if (mobs == null) {
+            return null;
+        }
+        Mob best = null;
+        int bd = Integer.MAX_VALUE;
+        for (Mob m : mobs) {
+            if (m == null || m.isDead || !m.isBoss) {
+                continue;
+            }
+            int d = NinjaUtils.getDistance(bot.x, bot.y, m.x, m.y);
+            if (d <= range && d < bd) {
+                bd = d;
+                best = m;
+            }
+        }
+        return best;
+    }
+
+    /** Boss đang sống trong zone? (bot biết để mời tổ đội săn boss / thông báo). */
+    public static boolean hasBossInZone(Char bot) {
+        return findBossTarget(bot, Integer.MAX_VALUE) != null;
+    }
+
     public static ItemMap findNearItem(Char bot, int range) {
         Zone z = bot == null ? null : bot.zone;
         if (z == null) {

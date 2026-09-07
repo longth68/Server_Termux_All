@@ -17,6 +17,8 @@ import Exe_Z.model.Trader;
 import Exe_Z.model.User;
 import Exe_Z.network.Message;
 import Exe_Z.party.MemberGroup;
+import Exe_Z.bot.ai.BotNeeds;
+import Exe_Z.bot.ai.BotPerception;
 import Exe_Z.util.Log;
 import Exe_Z.util.NinjaUtils;
 import java.util.ArrayList;
@@ -222,6 +224,75 @@ public class AutoFarmBot extends Bot {
 
     public void aiTryParty(Char player) {
         maybeJoinParty(player);
+    }
+
+    /**
+     * Bot CHẤP NHẬN lời mời vào nhóm của người chơi (chiều ngược — người chơi mời bot).
+     * Tái dùng logic addPartyAccept server-side, bỏ qua guard isHuman.
+     */
+    public void aiAcceptPartyFrom(Char leader) {
+        try {
+            if (leader == null || leader.getGroup() == null || this.getGroup() != null) {
+                return;
+            }
+            MemberGroup p = leader.getGroup().memberGroups.get(0);
+            if (p.charId != leader.id) {
+                return; // người mời không phải trưởng nhóm
+            }
+            MemberGroup party = new MemberGroup();
+            party.charId = this.id;
+            party.classId = this.classId;
+            party.name = this.name;
+            party.setChar(this);
+            leader.getGroup().add(party);
+            this.joinGroup(leader.getGroup());
+            zone.getService().chat(id, "Da vao nhom, di nao!");
+            System.out.println("[BOT-AI] bot=" + id + " joinParty leader=" + leader.name);
+        } catch (Exception ex) {
+            Log.error("AutoFarmBot acceptParty err: " + ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * Bot trong nhóm THEO TRƯỞNG NHÓM vào PHÓ BẢN (hang động) khi trưởng nhóm mở cửa.
+     * Điều kiện: group.isOpenPB + trưởng nhóm đã vào dungeon map + bot chưa vào.
+     */
+    public void followPartyToDungeon() {
+        try {
+            if (this.getGroup() == null || !Exe_Z.bot.ai.BotConfig.DUNGEON_PARTY) {
+                return;
+            }
+            if (this.findWorld(Exe_Z.map.world.World.DUNGEON) != null) {
+                return; // đã trong phó bản
+            }
+            Exe_Z.party.Group g = this.getGroup();
+            if (!g.isOpenPB) {
+                return;
+            }
+            Exe_Z.map.world.Dungeon dun = (Exe_Z.map.world.Dungeon) g.memberGroups.get(0).find(Exe_Z.map.world.World.DUNGEON);
+            if (dun == null || dun.isClosed()) {
+                return;
+            }
+            Char leader = g.memberGroups.get(0).getChar();
+            if (leader == null || leader.findWorld(Exe_Z.map.world.World.DUNGEON) == null) {
+                return; // trưởng nhóm chưa vào
+            }
+            // Xác định map entry theo cấp dungeon đã mở: MAP_DUNGEON[level][index]
+            int entryMap = Exe_Z.map.world.Dungeon.MAP_DUNGEON[dun.level][dun.index];
+            if (entryMap <= 0) {
+                return;
+            }
+            this.mapBeforeEnterPB = this.mapId;
+            this.countPB = 0;
+            this.addWorld(dun);
+            this.outZone();
+            this.joinZone(entryMap, -1, -1);
+            this.botNeeds.satisfy(BotNeeds.QUEST, 1.0);
+            System.out.println("[BOT-AI] bot=" + id + " followPartyIntoDungeon leader=" + leader.name
+                    + " map=" + entryMap);
+        } catch (Exception ex) {
+            Log.error("AutoFarmBot dungeon err: " + ex.getMessage(), ex);
+        }
     }
 
     @Override
@@ -517,6 +588,25 @@ public class AutoFarmBot extends Bot {
         }
         try {
             long now = System.currentTimeMillis();
+            // Có BOSS trong khu -> mời tổ đội săn boss NGAY (cooldown ngắn 20s)
+            boolean bossHere = false;
+            try {
+                bossHere = Exe_Z.bot.ai.BotConfig.BOSS_HUNT && BotPerception.hasBossInZone(this);
+            } catch (Exception ignored) {
+            }
+            if (bossHere) {
+                if (now < nextPartyInviteTime - 60000) {
+                    return; // vẫn trong cooldown thường, nhưng boss ưu tiên sẽ rút ngắn bên dưới
+                }
+                nextPartyInviteTime = now + NinjaUtils.nextInt(15000, 25000);
+                createGroup();
+                if (player.invite != null) {
+                    player.invite.addCharInvite(Exe_Z.model.Invite.NHOM, id, 30);
+                    player.getService().partyInvite(id, name);
+                    zone.getService().chat(id, "BOSS da xuat hien khu nay! Party di san boss nao!");
+                }
+                return;
+            }
             if (now < nextPartyInviteTime) {
                 return;
             }

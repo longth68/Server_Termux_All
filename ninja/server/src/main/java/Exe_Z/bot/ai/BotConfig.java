@@ -35,6 +35,10 @@ public class BotConfig {
     public static boolean FOLLOW_PLAYER = false;
     /** Trade AI uu tien tang do hiem cho player. */
     public static boolean TRADE_GIFT_TO_PLAYER = true;
+    /** Bot tu san BOSS (uu tien muc tieu boss trong zone). */
+    public static boolean BOSS_HUNT = true;
+    /** Bot theo nhom vao PHO BAN cung nguoi choi. */
+    public static boolean DUNGEON_PARTY = true;
     /** Hệ số EXP bot nhận (0-1, thấp hơn người thật) — theo mẫu Anwin expRate. */
     public static float EXP_RATE = 0.6f;
     public static float GOLD_RATE = 1.0f;
@@ -80,6 +84,8 @@ public class BotConfig {
             POWER_MAX_RATIO = clampFloat(p.getProperty("power.max_ratio"), POWER_MAX_RATIO, 0.1f, 1.0f);
             FOLLOW_PLAYER = "true".equalsIgnoreCase(p.getProperty("follow_player", "false"));
             TRADE_GIFT_TO_PLAYER = !"false".equalsIgnoreCase(p.getProperty("trade.gift_to_player", "true"));
+            BOSS_HUNT = !"false".equalsIgnoreCase(p.getProperty("boss.hunt", "true"));
+            DUNGEON_PARTY = !"false".equalsIgnoreCase(p.getProperty("dungeon.party", "true"));
             if (SPAWN_MAX_DELAY < SPAWN_MIN_DELAY) {
                 SPAWN_MAX_DELAY = SPAWN_MIN_DELAY;
             }
@@ -124,6 +130,8 @@ public class BotConfig {
             sb.append("power.max_ratio=").append(POWER_MAX_RATIO).append('\n');
             sb.append("follow_player=").append(FOLLOW_PLAYER).append('\n');
             sb.append("trade.gift_to_player=").append(TRADE_GIFT_TO_PLAYER).append('\n');
+            sb.append("boss.hunt=").append(BOSS_HUNT).append('\n');
+            sb.append("dungeon.party=").append(DUNGEON_PARTY).append('\n');
             sb.append("exp_rate=").append(EXP_RATE).append('\n');
             sb.append("gold_rate=").append(GOLD_RATE).append('\n');
             sb.append("chat_rate=").append(CHAT_RATE).append('\n');
@@ -196,6 +204,14 @@ public class BotConfig {
             case "trade.gift_to_player":
             case "gift_to_player":
                 TRADE_GIFT_TO_PLAYER = !"false".equalsIgnoreCase(val);
+                break;
+            case "boss.hunt":
+            case "boss_hunt":
+                BOSS_HUNT = !"false".equalsIgnoreCase(val);
+                break;
+            case "dungeon.party":
+            case "dungeon_party":
+                DUNGEON_PARTY = !"false".equalsIgnoreCase(val);
                 break;
             case "bots_per_map":
                 BOTS_PER_MAP = clampInt(val, BOTS_PER_MAP, 1, 8);

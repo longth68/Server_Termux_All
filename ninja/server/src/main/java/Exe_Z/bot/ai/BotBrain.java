@@ -41,6 +41,36 @@ public class BotBrain {
             Mob target = BotCombat.findTarget(bot);
             // Nhắn tin riêng cho người chơi quen (tự cooldown nội bộ)
             BotChat.tickPrivate(bot);
+            // TỰ CHẤP NHẬN lời mời tổ đội từ người chơi (chiều ngược) + THEO NHÓM VÀO PHÓ BẢN
+            if (bot.botTick % 10 == 0) {
+                try {
+                    if (bot.getGroup() == null && bot.invite != null) {
+                        // Có lời mời NHOM pending từ người chơi gần -> chấp nhận
+                        Exe_Z.model.Char near = BotPerception.nearestRealPlayer(bot, 600);
+                        if (near != null && near.getGroup() != null
+                                && bot.invite.findCharInvite(Exe_Z.model.Invite.NHOM, near.id) != null) {
+                            bot.aiAcceptPartyFrom(near);
+                        }
+                    }
+                    bot.followPartyToDungeon();
+                } catch (Exception ignored) {
+                }
+            }
+            // SĂN BOSS: ưu tiên mục tiêu boss khi có trong khu (yêu cầu Hunt Boss).
+            // Người chơi đang đánh boss -> bot hỗ trợ (không tranh kiếm, người chơi ưu tiên).
+            if (target == null && Exe_Z.bot.ai.BotConfig.BOSS_HUNT) {
+                try {
+                    Mob boss = BotPerception.findBossTarget(bot, 500);
+                    if (boss != null) {
+                        target = boss;
+                        if (bot.botTick % 20 == 0) {
+                            System.out.println("[BOT-COMBAT] bot=" + bot.id + " huntBoss=" + boss.template.name
+                                    + " zone=" + bot.zone.map.id + "/" + bot.zone.id);
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+            }
             BotGoals.ShortTerm want = BotDecision.choose(bot, target);
             bot.botGoals.shortTerm = want;
             switch (want) {
