@@ -183,6 +183,8 @@ public class AutoFarmBot extends Bot {
     public int lastSeenHp = 0;
     /** Boss ID đang nhắm (tránh chat lặp cùng 1 boss). */
     public int lastBossTargetId = 0;
+    /** Đã chat khi chết trong lần này (reset khi hồi sinh). */
+    public boolean deathReacted = false;
 
     /** Phát hiện bot BỊ ĐÁNH (HP tụt) trong tick — chat phản ứng như người thật. */
     private void detectHitReaction() {
@@ -209,6 +211,17 @@ public class AutoFarmBot extends Bot {
             if (level > lastChattedLevel) {
                 lastChattedLevel = level;
                 Exe_Z.bot.ai.BotChat.chatLevelUp(this, level);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Bot vừa CHẾT — kêu than (gọi từ nhánh isDead trong tick). */
+    private void detectDeathReaction() {
+        try {
+            if (!deathReacted) {
+                deathReacted = true;
+                Exe_Z.bot.ai.BotProgress.reactOnDeath(this);
             }
         } catch (Exception ignored) {
         }
@@ -287,6 +300,11 @@ public class AutoFarmBot extends Bot {
                 zone.getService().pickItem(this, im);
                 zone.removeItem(im);
                 lootCount++;
+                // Phản ứng khi nhặt được đồ hiếm
+                Exe_Z.item.Item picked = im.getItem();
+                if (picked != null) {
+                    Exe_Z.bot.ai.BotProgress.reactOnPickup(this, picked);
+                }
             }
         } finally {
             im.lock.unlock();
@@ -388,25 +406,32 @@ public class AutoFarmBot extends Bot {
             }
             if (isDead) {
                 botState = Exe_Z.bot.ai.BotState.DEAD;
+                detectDeathReaction();
                 if (respawnAt == 0) {
                     respawnAt = System.currentTimeMillis() + 3000L;
                 }
                 if (System.currentTimeMillis() >= respawnAt) {
                     respawnAt = 0;
+                    deathReacted = false; // reset cho lần chết kế tiếp
                     recovery();
                     setXY(spawnX, spawnY);
                     zone.getService().playerMove(this);
                     botState = Exe_Z.bot.ai.BotState.RESPAWN;
+                    if (NinjaUtils.nextInt(0, 100) < 30 * botProfile.talkativeness) {
+                        Exe_Z.bot.ai.BotChat.chatDeath(this); // nhắc lại khi hồi sinh (cooldown)
+                    }
                 }
                 return;
             }
             // ===== NRO-style Brain: điều phối theo Needs/State/Personality =====
             if (aiEnabled) {
                 botTick = botTick + 1;
-                // Phản ứng sống động: bị đánh / lên cấp / chat phó bản
+                // Phản ứng sống động: bị đánh / lên cấp / chat phó bản / NV / nâng cấp
                 detectHitReaction();
                 detectLevelUp();
                 detectDungeonChat();
+                Exe_Z.bot.ai.BotProgress.tickTask(this);
+                Exe_Z.bot.ai.BotProgress.tickUpgradeItem(this);
                 try {
                     Exe_Z.bot.ai.BotBrain.update(this);
                     Exe_Z.bot.ai.BotBrain.tickClanAndPvp(this);

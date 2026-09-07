@@ -1,6 +1,7 @@
 package Exe_Z.bot.ai;
 
 import Exe_Z.bot.AutoFarmBot;
+import Exe_Z.item.Item;
 import Exe_Z.model.Char;
 import Exe_Z.util.Log;
 import Exe_Z.util.NinjaUtils;
@@ -337,6 +338,105 @@ public class BotChat {
             String line = pick(bot, PLAYER_ASK_ITEM);
             if (line != null) {
                 player.getService().chat(bot.name, line);
+                bot.botMemory.rememberChat(line);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    // ===== CHAT NÂNG CẤP / NHIỆM VỤ / NHẶT ĐỒ / CHẾT (nâng cấp toàn diện) =====
+
+    private static final List<String> QUEST_TALK = Arrays.asList(
+        "Nhiem vu nay kho qua, ai biet lam khong?",
+        "Dang lam nv diet quai, ai di cung di",
+        "Nv hom nay dai that, canh' qua",
+        "Xong nv roi! Thoat phen vui qua",
+        "Can nhieu it vat pham cho nv, ai du cho khong?",
+        "Nhiem vu hom nay thuong tot lam, lam lien tuc di"
+    );
+
+    private static final List<String> UPGRADE_OK = Arrays.asList(
+        "Nang cap thanh cong! Do khung qua!",
+        "+1 len nua, may man that day!",
+        "Vua nang cap do xong, manh hon nhieu!",
+        "Tim duoc da qua, nang cap banh banh!"
+    );
+
+    private static final List<String> UPGRADE_FAIL = Arrays.asList(
+        "Huhu, nang cap that bai roi!",
+        "Tieu da that roi, kho nghe noi!",
+        "That bai nua roi, may man qua toi!",
+        "Nang cap the nao ma kho the?"
+    );
+
+    private static final List<String> RARE_DROP = Arrays.asList(
+        "Vua nhat duoc do hiem, may qua!",
+        "Do hiem rot roi ca nha oi!",
+        "Xem nay, vua nhat mon nay!",
+        "Rot do hiem roi, den ghi lam!"
+    );
+
+    private static final List<String> DEATH_TALK = Arrays.asList(
+        "Chet roi huhu, ai dung danh minh!",
+        "Oe, chet mat roi, bo tay!",
+        "Quai manh qua, chet roi!",
+        "Minh chet roi, dung lai hoi sinh nao!"
+    );
+
+    /** Chat về nhiệm vụ (khi đang làm quest). */
+    public static void chatQuest(AutoFarmBot bot) {
+        if (bot == null || bot.zone == null) {
+            return;
+        }
+        try {
+            String line = pick(bot, QUEST_TALK);
+            if (line != null && !bot.botMemory.saidRecently(line)) {
+                bot.zone.getService().chat(bot.id, line);
+                bot.botMemory.rememberChat(line);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Chat khi NÂNG CẤP ĐỒ (thành công / thất bại). */
+    public static void chatUpgrade(AutoFarmBot bot, Item item, boolean success) {
+        if (bot == null || bot.zone == null || item == null) {
+            return;
+        }
+        try {
+            String line = success ? pick(bot, UPGRADE_OK) : pick(bot, UPGRADE_FAIL);
+            if (line != null && !bot.botMemory.saidRecently(line)) {
+                bot.zone.getService().chat(bot.id, line);
+                bot.botMemory.rememberChat(line);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Chat khi NHẶT ĐƯỢC ĐỒ HIẾM. */
+    public static void chatRareDrop(AutoFarmBot bot, Item item) {
+        if (bot == null || bot.zone == null || item == null) {
+            return;
+        }
+        try {
+            String line = pick(bot, RARE_DROP);
+            if (line != null && !bot.botMemory.saidRecently(line)) {
+                bot.zone.getService().chat(bot.id, line);
+                bot.botMemory.rememberChat(line);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Chat khi BỊ CHẾT. */
+    public static void chatDeath(AutoFarmBot bot) {
+        if (bot == null || bot.zone == null) {
+            return;
+        }
+        try {
+            String line = pick(bot, DEATH_TALK);
+            if (line != null) {
+                bot.zone.getService().chat(bot.id, line);
                 bot.botMemory.rememberChat(line);
             }
         } catch (Exception ignored) {
