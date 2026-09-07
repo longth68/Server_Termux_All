@@ -147,7 +147,8 @@ public class ClanDAO implements Dao<Clan> {
                             }
                         }
                     }
-                    clan.memberDAO.load();
+                    // KHÔNG gọi memberDAO.load() trong vòng lặp res — nó mở connection mới
+                    // trên pool khi res đang mở => có thể đóng res. Gọi sau khi đóng res/conn.
                     Clan.mapClan.put(clan.name, clan);
                     clans.add(clan);
                 }
@@ -155,6 +156,18 @@ public class ClanDAO implements Dao<Clan> {
             } finally {
                 stmt.close();
                 conn.close();
+            }
+            // Nạp thành viên cho từng clan SAU khi đóng hoàn toàn ResultSet/Connection
+            try {
+                for (Clan clan : clans) {
+                    try {
+                        clan.memberDAO.load();
+                    } catch (Exception e) {
+                        Log.error("load clan member fail: " + clan.name, e);
+                    }
+                }
+            } catch (Exception e) {
+                Log.error("load clan members fail", e);
             }
             Log.info("Load clan data successfully");
         } catch (SQLException ex) {
